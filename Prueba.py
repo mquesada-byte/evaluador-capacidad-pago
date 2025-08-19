@@ -1,4 +1,4 @@
-# app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta y compatible)
+# app.py – Paso 1: Datos del asesor (hora OK + GPS robusto + Fallback por IP)
 import time
 import datetime as dt
 from zoneinfo import ZoneInfo
@@ -12,7 +12,7 @@ st.set_page_config(page_title="Evaluación Crédito - Paso 1", page_icon="🧭")
 # Configuración y utilidades
 # =========================
 TZ = ZoneInfo("America/Costa_Rica")
-USE_INTERNET_TIME = True  # dejar hora exacta por Internet si está disponible
+USE_INTERNET_TIME = True  # mantener hora exacta por Internet si está disponible
 
 # Parámetros de geolocalización (reintentos controlados)
 MAX_RERUNS = 6     # ~6 intentos
@@ -38,13 +38,38 @@ def _coords_plausibles(lat, lon):
     except Exception:
         return False
 
+def geo_by_ip():
+    """
+    Aproxima ubicación por IP. Intenta varios proveedores públicos.
+    Devuelve (lat, lon, fuente_texto) o (None, None, None) si falla.
+    """
+    endpoints = [
+        ("https://ipapi.co/json/",           lambda j: (j.get("latitude"), j.get("longitude"), "ipapi.co")),
+        ("https://ipwho.is/",                lambda j: (j.get("latitude"), j.get("longitude"), "ipwho.is")),
+        ("https://ipinfo.io/json",           # ipinfo devuelve "loc": "lat,lon"
+         lambda j: (j.get("loc").split(",")[0] if j.get("loc") else None,
+                    j.get("loc").split(",")[1] if j.get("loc") else None,
+                    "ipinfo.io")),
+    ]
+    for url, parser in endpoints:
+        try:
+            r = requests.get(url, timeout=5)
+            if r.ok:
+                j = r.json()
+                lat, lon, src = parser(j)
+                if lat is not None and lon is not None and _coords_plausibles(lat, lon):
+                    return float(lat), float(lon), src
+        except Exception:
+            continue
+    return None, None, None
+
 # ==========
 # Estado
 # ==========
 def init_asesor_state():
     st.session_state.setdefault("step", 1)
     st.session_state.setdefault("asesor", {})
-    st.session_state.setdefault("geo_request", False)   # solicitar geolocalización
+    st.session_state.setdefault("geo_request", False)   # solicitar geolocalización (GPS)
     st.session_state.setdefault("geo_status", "idle")   # idle|waiting|ok|denied|timeout|unavailable|error
     st.session_state.setdefault("geo_attempts", 0)      # contador de intentos
 
@@ -66,6 +91,8 @@ def init_asesor_state():
     asesor.setdefault("lat", None)
     asesor.setdefault("lon", None)
     asesor.setdefault("maps_url", None)
+    asesor.setdefault("ubicacion_metodo", None)   # "gps" | "ip"
+    asesor.setdefault("ubicacion_fuente", None)   # proveedor IP (si aplica)
 
 init_asesor_state()
 asesor = st.session_state.asesor
@@ -92,47 +119,62 @@ st.text_input(
 )
 
 # ===========================
-# Ubicación GPS (opcional) – ROBUSTA y COMPATIBLE
+# Ubicación – GPS + Fallback IP
 # ===========================
-st.write("**Ubicación GPS (opcional)**")
-col1, col2 = st.columns([0.45, 0.55])
+st.write("**Ubicación (GPS o IP aproximada)**")
+col1, col2 = st.columns([0.52, 0.48])
 
 with col1:
-    if st.button("📍 Obtener mi ubicación"):
-        st.session_state.geo_request = True
-        st.session_state.geo_status = "waiting"
-        st.session_state.geo_attempts = 0
-        asesor["lat"] = None
-        asesor["lon"] = None
-        asesor["maps_url"] = None
-        st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("📍 Obtener por GPS"):
+            st.session_state.geo_request = True
+            st.session_state.geo_status = "waiting"
+            st.session_state.geo_attempts = 0
+            asesor["lat"] = None
+            asesor["lon"] = None
+            asesor["maps_url"] = None
+            asesor["ubicacion_metodo"] = None
+            asesor["ubicacion_fuente"] = None
+            st.rerun()
+    with c2:
+        if st.button("🌐 Usar ubicación por IP"):
+            # Llamada síncrona desde el servidor (aproximado)
+            lat, lon, src = geo_by_ip()
+            if lat is not None and lon is not None:
+                asesor["lat"] = lat
+                asesor["lon"] = lon
+                asesor["maps_url"] = f"https://www.google.com/maps?q={lat},{lon}"
+                asesor["ubicacion_metodo"] = "ip"
+                asesor["ubicacion_fuente"] = src
+                st.session_state.geo_request = False
+                st.session_state.geo_status = "ok"
+                st.success("Ubicación aproximada por IP establecida.")
+            else:
+                st.session_state.geo_request = False
+                st.session_state.geo_status = "error"
+                st.warning("No fue posible obtener ubicación por IP en este momento. Intenta de nuevo o usa GPS.")
 
-    # Ejecutar fuera del botón para capturar el resultado en reruns
+    # Ejecución GPS fuera del botón (captura en reruns)
     if st.session_state.geo_request and st.session_state.geo_status != "ok":
         try:
-            # Llamada sin parámetros (compatibilidad con tu versión de streamlit_js_eval)
-            loc = get_geolocation()
+            loc = get_geolocation()  # sin params por compatibilidad
         except Exception:
-            loc = None  # si la lib falla, seguimos con reintentos amables
+            loc = None
 
         if isinstance(loc, dict):
-            # Distintas formas posibles de la respuesta según versión
             coords = loc.get("coords") or {}
-            lat = coords.get("latitude")
-            lon = coords.get("longitude")
-
-            # Algunas variantes ponen errores en 'msg'/'message'
+            lat, lon = coords.get("latitude"), coords.get("longitude")
             msg = (loc.get("msg") or loc.get("message") or "").lower()
 
-            # Éxito con coordenadas plausibles
             if lat is not None and lon is not None and _coords_plausibles(lat, lon):
                 asesor["lat"] = float(lat)
                 asesor["lon"] = float(lon)
                 asesor["maps_url"] = f"https://www.google.com/maps?q={asesor['lat']},{asesor['lon']}"
+                asesor["ubicacion_metodo"] = "gps"
+                asesor["ubicacion_fuente"] = "navigator.geolocation"
                 st.session_state.geo_status = "ok"
                 st.session_state.geo_request = False
-
-            # Errores explícitos
             elif "denied" in msg:
                 st.session_state.geo_status = "denied"
                 st.session_state.geo_request = False
@@ -142,8 +184,6 @@ with col1:
             elif "unavailable" in msg:
                 st.session_state.geo_status = "unavailable"
                 st.session_state.geo_request = False
-
-            # Sin coords ni error claro: reintenta con espera corta
             else:
                 st.session_state.geo_attempts += 1
                 if st.session_state.geo_attempts < MAX_RERUNS:
@@ -154,7 +194,6 @@ with col1:
                     st.session_state.geo_status = "error"
                     st.session_state.geo_request = False
         else:
-            # Primeros renders suelen devolver None: reintenta antes de declarar error
             st.session_state.geo_attempts += 1
             if st.session_state.geo_attempts < MAX_RERUNS:
                 with st.spinner("Solicitando permiso o esperando señal de GPS…"):
@@ -167,19 +206,23 @@ with col1:
 with col2:
     status = st.session_state.geo_status
     if asesor["lat"] is not None and asesor["lon"] is not None:
-        st.success(f"Ubicación: {asesor['lat']:.6f}, {asesor['lon']:.6f}")
+        metodo = "GPS" if asesor.get("ubicacion_metodo") == "gps" else "IP aproximada"
+        fuente = asesor.get("ubicacion_fuente") or ""
+        st.success(f"Ubicación ({metodo}): {asesor['lat']:.6f}, {asesor['lon']:.6f}")
         st.markdown(f"[Abrir en Google Maps]({asesor['maps_url']})")
+        if asesor.get("ubicacion_metodo") == "ip":
+            st.caption(f"Fuente IP: {fuente}. Precisión limitada (ciudad/área).")
     else:
         if status == "waiting":
             st.info("Solicitando permiso o esperando señal de GPS…")
         elif status == "denied":
-            st.warning("Permiso de ubicación denegado en el navegador. Actívalo en el candado de la URL y vuelve a intentar.")
+            st.warning("Permiso de ubicación denegado en el navegador.")
         elif status == "timeout":
             st.warning("Tiempo de espera agotado al obtener la ubicación.")
         elif status == "unavailable":
             st.warning("Ubicación no disponible en este dispositivo/red.")
         elif status == "error":
-            st.warning("No fue posible obtener la ubicación en este momento. Puedes reintentar.")
+            st.warning("No fue posible obtener la ubicación. Prueba con el botón de IP o vuelve a intentar GPS.")
         else:
             st.caption("Aún no hay coordenadas registradas.")
 
@@ -196,5 +239,6 @@ with colB:
     if st.button("Siguiente ➡️", disabled=disabled_next, use_container_width=True):
         st.session_state.step = 2
         st.success("Datos del asesor guardados. Avanzando al Paso 2…")
+
 
 
