@@ -9,14 +9,13 @@ st.set_page_config(page_title="Evaluación Crédito - Paso 1", page_icon="🧭")
 def init_asesor_state():
     st.session_state.setdefault("step", 1)
     st.session_state.setdefault("asesor", {})
+    st.session_state.setdefault("geo_request", False)   # <-- NUEVO flag
     asesor = st.session_state.asesor
     asesor.setdefault("nombre", "")
-    # si no existe fecha_hora, la crea una sola vez
-    asesor.setdefault("fecha_hora", dt.datetime.now())
+    asesor.setdefault("fecha_hora", dt.datetime.now())  # se setea una sola vez
     asesor.setdefault("lat", None)
     asesor.setdefault("lon", None)
     asesor.setdefault("maps_url", None)
-
 init_asesor_state()
 asesor = st.session_state.asesor
 
@@ -39,7 +38,16 @@ st.text_input("📅 Fecha y hora de registro", value=fecha_hora_registro, disabl
 st.write("**Ubicación GPS (opcional)**")
 col1, col2 = st.columns([0.45, 0.55])
 with col1:
+    # Botón que activa la solicitud de geolocalización
     if st.button("📍 Obtener mi ubicación"):
+        st.session_state.geo_request = True
+        # Limpio valores previos para evitar confusión
+        asesor["lat"] = None
+        asesor["lon"] = None
+        asesor["maps_url"] = None
+
+    # Si se solicitó, hago la llamada *fuera* del botón (para que funcione en el rerun)
+    if st.session_state.geo_request:
         loc = get_geolocation()
         if loc and "coords" in loc and loc["coords"].get("latitude") is not None:
             lat = float(loc["coords"]["latitude"])
@@ -47,8 +55,10 @@ with col1:
             asesor["lat"] = lat
             asesor["lon"] = lon
             asesor["maps_url"] = f"https://www.google.com/maps?q={lat},{lon}"
+            st.session_state.geo_request = False  # listo, apago el flag
         else:
-            st.info("No se pudo obtener la ubicación (permiso denegado o no disponible).")
+            st.info("Solicitando permiso o esperando la ubicación… Si ya aceptaste, espera un segundo o vuelve a intentar.")
+
 with col2:
     if asesor["lat"] is not None and asesor["lon"] is not None:
         st.success(f"Ubicación: {asesor['lat']:.6f}, {asesor['lon']:.6f}")
@@ -67,4 +77,5 @@ with colB:
     if st.button("Siguiente ➡️", disabled=disabled_next, use_container_width=True):
         st.session_state.step = 2
         st.success("Datos del asesor guardados. Avanzando al Paso 2…")
+
 
