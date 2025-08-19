@@ -492,7 +492,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3", "A") == "
             vtd["confianza_cliente"] = st.slider(
                 "Confianza declarada por el cliente (0–10)",
                 min_value=0, max_value=10, step=1, value=int(vtd["confianza_cliente"]),
-                help="Qué tan seguro dice estar el cliente del monto declarado."
+                help="En una escala de 0 a 10, ¿qué tan seguro está del monto del último mes?"
             )
 
     vtd["comentario"] = st.text_area(
@@ -537,6 +537,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3", "A") == "
             st.session_state.step3 = "B"
             st.success("Top-down guardado. Avanzando a 3B…")
             st.rerun()
+
 
 
 
