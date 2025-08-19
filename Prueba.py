@@ -1,4 +1,4 @@
-# app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta)
+# app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta y compatible)
 import time
 import datetime as dt
 from zoneinfo import ZoneInfo
@@ -12,12 +12,11 @@ st.set_page_config(page_title="Evaluación Crédito - Paso 1", page_icon="🧭")
 # Configuración y utilidades
 # =========================
 TZ = ZoneInfo("America/Costa_Rica")
-USE_INTERNET_TIME = True  # << Deja la hora EXACTA por internet si está disponible
+USE_INTERNET_TIME = True  # dejar hora exacta por Internet si está disponible
 
-# Parámetros de geolocalización
-GEO_TIMEOUT_MS = 15000   # 15s por intento
-MAX_RERUNS = 6           # ~6 intentos (con pausa breve)
-HIGH_ACCURACY = True     # pedir mayor precisión cuando sea posible
+# Parámetros de geolocalización (reintentos controlados)
+MAX_RERUNS = 6     # ~6 intentos
+SLEEP_SEC = 0.4    # pausa breve entre intentos
 
 def now_in_cr_via_internet():
     """Intenta obtener hora exacta por internet; si falla, retorna None."""
@@ -32,6 +31,16 @@ def now_in_cr_via_internet():
 def now_in_cr_fallback():
     return dt.datetime.now(TZ)
 
+def _coords_plausibles(lat, lon):
+    try:
+        lat = float(lat); lon = float(lon)
+        return -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0
+    except Exception:
+        return False
+
+# ==========
+# Estado
+# ==========
 def init_asesor_state():
     st.session_state.setdefault("step", 1)
     st.session_state.setdefault("asesor", {})
@@ -51,7 +60,7 @@ def init_asesor_state():
         if ts is None:
             ts = now_in_cr_fallback()
             asesor["timestamp_source"] = "device"
-        asesor["fecha_hora"] = ts  # se fija 1 vez y queda inmutable para el usuario
+        asesor["fecha_hora"] = ts  # se fija 1 vez e inmutable para el usuario
     # ============================================
 
     asesor.setdefault("lat", None)
@@ -60,13 +69,6 @@ def init_asesor_state():
 
 init_asesor_state()
 asesor = st.session_state.asesor
-
-def _coords_plausibles(lat, lon):
-    try:
-        lat = float(lat); lon = float(lon)
-        return -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0
-    except Exception:
-        return False
 
 # ==========
 # Interfaz UI
@@ -81,7 +83,7 @@ asesor["nombre"] = st.text_input(
     placeholder="Ej.: María Pérez Delgado",
 )
 
-# Fecha y hora (solo lectura) — indica si vino de Internet o del dispositivo
+# Fecha y hora (solo lectura) — indicador de fuente
 fecha_hora_registro = asesor["fecha_hora"].strftime("%d/%m/%Y %H:%M:%S")
 st.text_input(
     "📅 Fecha y hora de registro",
@@ -90,7 +92,7 @@ st.text_input(
 )
 
 # ===========================
-# Ubicación GPS (opcional) – ROBUSTA
+# Ubicación GPS (opcional) – ROBUSTA y COMPATIBLE
 # ===========================
 st.write("**Ubicación GPS (opcional)**")
 col1, col2 = st.columns([0.45, 0.55])
@@ -107,12 +109,19 @@ with col1:
 
     # Ejecutar fuera del botón para capturar el resultado en reruns
     if st.session_state.geo_request and st.session_state.geo_status != "ok":
-        # Petición con mayor tiempo y precisión (si la librería/navegador lo soporta)
-        loc = get_geolocation(timeout=GEO_TIMEOUT_MS, high_accuracy=HIGH_ACCURACY)
+        try:
+            # Llamada sin parámetros (compatibilidad con tu versión de streamlit_js_eval)
+            loc = get_geolocation()
+        except Exception:
+            loc = None  # si la lib falla, seguimos con reintentos amables
 
         if isinstance(loc, dict):
+            # Distintas formas posibles de la respuesta según versión
             coords = loc.get("coords") or {}
-            lat, lon = coords.get("latitude"), coords.get("longitude")
+            lat = coords.get("latitude")
+            lon = coords.get("longitude")
+
+            # Algunas variantes ponen errores en 'msg'/'message'
             msg = (loc.get("msg") or loc.get("message") or "").lower()
 
             # Éxito con coordenadas plausibles
@@ -134,12 +143,12 @@ with col1:
                 st.session_state.geo_status = "unavailable"
                 st.session_state.geo_request = False
 
-            # Sin coords ni error claro: reintenta suavemente
+            # Sin coords ni error claro: reintenta con espera corta
             else:
                 st.session_state.geo_attempts += 1
                 if st.session_state.geo_attempts < MAX_RERUNS:
                     with st.spinner("Solicitando permiso o esperando señal de GPS…"):
-                        time.sleep(0.4)
+                        time.sleep(SLEEP_SEC)
                     st.rerun()
                 else:
                     st.session_state.geo_status = "error"
@@ -149,7 +158,7 @@ with col1:
             st.session_state.geo_attempts += 1
             if st.session_state.geo_attempts < MAX_RERUNS:
                 with st.spinner("Solicitando permiso o esperando señal de GPS…"):
-                    time.sleep(0.4)
+                    time.sleep(SLEEP_SEC)
                 st.rerun()
             else:
                 st.session_state.geo_status = "error"
@@ -187,4 +196,5 @@ with colB:
     if st.button("Siguiente ➡️", disabled=disabled_next, use_container_width=True):
         st.session_state.step = 2
         st.success("Datos del asesor guardados. Avanzando al Paso 2…")
+
 
