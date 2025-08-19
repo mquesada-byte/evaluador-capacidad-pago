@@ -1,8 +1,6 @@
 # app.py
 import datetime as dt
 import streamlit as st
-
-# Componente para leer geolocalización del navegador
 from streamlit_js_eval import get_geolocation
 
 st.set_page_config(page_title="Evaluación Crédito - Paso 1", page_icon="🧭")
@@ -14,7 +12,7 @@ if "step" not in st.session_state:
 if "asesor" not in st.session_state:
     st.session_state.asesor = {
         "nombre": "",
-        "fecha": dt.date.today(),  # se setea automático
+        "fecha_hora": dt.datetime.now(),  # fecha y hora en que entra
         "lat": None,
         "lon": None,
         "maps_url": None,
@@ -23,7 +21,7 @@ if "asesor" not in st.session_state:
 # ---------- UI: Paso 1 - Datos del asesor ----------
 st.title("🧭 Paso 1: Datos del asesor")
 
-st.caption("Complete la información. La fecha se carga automáticamente y la ubicación GPS es opcional (requiere permiso del navegador).")
+st.caption("Complete la información. La fecha y hora se registran automáticamente y no pueden ser modificadas.")
 
 # Nombre completo (obligatorio)
 st.session_state.asesor["nombre"] = st.text_input(
@@ -32,20 +30,16 @@ st.session_state.asesor["nombre"] = st.text_input(
     placeholder="Ej.: María Pérez Delgado",
 )
 
-# Fecha automática (editable por si necesitás corregir)
-st.session_state.asesor["fecha"] = st.date_input(
-    "Fecha de registro",
-    value=st.session_state.asesor["fecha"],
-    format="DD/MM/YYYY",
-)
+# Mostrar fecha y hora (bloqueado, solo lectura)
+fecha_hora_registro = st.session_state.asesor["fecha_hora"].strftime("%d/%m/%Y %H:%M:%S")
+st.text_input("📅 Fecha y hora de registro", value=fecha_hora_registro, disabled=True)
 
 # Obtener GPS del navegador
 st.write("**Ubicación GPS (opcional)**")
 col1, col2 = st.columns([0.45, 0.55])
 with col1:
     if st.button("📍 Obtener mi ubicación"):
-        loc = get_geolocation()  # abrirá el prompt de permiso en el navegador
-        # get_geolocation devuelve un dict con latitud/longitud/accuracy si el usuario acepta
+        loc = get_geolocation()
         if loc and "coords" in loc and loc["coords"].get("latitude") is not None:
             lat = float(loc["coords"]["latitude"])
             lon = float(loc["coords"]["longitude"])
@@ -78,7 +72,4 @@ with colB:
     if st.button("Siguiente ➡️", disabled=disabled_next, use_container_width=True):
         st.session_state.step = 2
         st.success("Datos del asesor guardados. Avanzando al Paso 2…")
-
-# Debug opcional (ocúltalo en producción)
-# st.json(st.session_state.asesor)
 
