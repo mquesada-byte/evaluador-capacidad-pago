@@ -1,35 +1,55 @@
+# Prueba.py
 import os
 import base64
 from io import BytesIO
 
 import streamlit as st
-from fpdf import FPDF
 from openai import OpenAI
 
-# =========================
-# Utilidades
-# =========================
-def make_pdf_bytes(texto: str) -> bytes:
+# -------- PDF (Unicode) con fpdf2 + DejaVuSans.ttf --------
+# Asegúrate de tener DejaVuSans.ttf en el mismo directorio
+try:
+    from fpdf import FPDF  # fpdf2
+    FPDF_AVAILABLE = True
+except Exception:
+    FPDF_AVAILABLE = False
+
+
+def make_pdf_bytes_unicode(md_text: str) -> bytes:
     """
-    Genera PDF en memoria a partir de 'texto'.
-    Nota: FPDF clásico no soporta Unicode; reemplazamos '₡' por 'CRC'.
+    Genera un PDF (en memoria) desde texto Markdown ya plano.
+    Requiere fpdf2 y fuente DejaVuSans.ttf para soportar Unicode (₡, acentos).
     """
-    texto = texto.replace("₡", "CRC")
+    if not FPDF_AVAILABLE:
+        raise RuntimeError("fpdf2 no está disponible. Agrega 'fpdf2' a requirements.txt.")
+
+    # Convierte Markdown simple a texto plano (aquí lo usamos tal cual)
+    plain = md_text.replace("**", "")  # quitar negritas markdown mínimas
+
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", size=12)
+    # Registrar y usar fuente Unicode
+    font_path = os.path.join(os.path.dirname(__file__), "DejaVuSans.ttf")
+    if not os.path.exists(font_path):
+        raise FileNotFoundError(
+            "No se encontró DejaVuSans.ttf. Coloca el archivo en la misma carpeta del script."
+        )
 
-    # Escribir línea a línea con MultiCell para saltos largos
-    for linea in texto.split("\n"):
+    pdf.add_font("DejaVu", "", font_path, uni=True)
+    pdf.set_font("DejaVu", size=12)
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Escribir línea a línea
+    for linea in plain.split("\n"):
         pdf.multi_cell(0, 8, linea)
 
-    return pdf.output(dest="S").encode("latin-1")
+    # Devolver bytes
+    return pdf.output(dest="S").encode("latin-1", "ignore")
 
 
-def generar_informe_reglas(actividad, experiencia, ingresos, gastos, deudas,
-                           flujo_neto, capacidad_pago, riesgo) -> str:
-    """Informe básico (reglas) en Markdown."""
+# -------- Informes --------
+def informe_reglas_md(actividad, experiencia, ingresos, gastos, deudas,
+                      flujo_neto, capacidad_pago, riesgo) -> str:
     return f"""
 **Actividad:** {actividad}  
 **Experiencia:** {experiencia} años  
@@ -49,14 +69,12 @@ def generar_informe_gpt(payload: dict) -> str:
     Requiere OPENAI_API_KEY en entorno/Secrets.
     """
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
     system = (
         "Eres un analista de microfinanzas. Redacta informes claros y accionables "
         "para comité de crédito. Separa: Resumen ejecutivo, Datos clave, "
         "Análisis y señales de alerta (consistencias/inconsistencias), "
         "Recomendación y Datos faltantes/requeridos si aplica."
     )
-
     user = f"""
 Datos del caso:
 - Actividad: {payload['actividad']}
@@ -81,15 +99,12 @@ Tareas:
    - **Análisis y señales de alerta**
    - **Recomendación** (aprobar / revisar / rechazar) con breve justificación
 2) Si faltan datos, inclúyelos en **Datos faltantes/requeridos**.
-3) Mantén tono profesional, concreto y específico a los datos.
+3) Mantén tono profesional y concreto.
 """
-
     resp = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        messages=[{"role": "system", "content": system},
+                  {"role": "user", "content": user}],
         temperature=0.3,
     )
     return resp.choices[0].message.content
@@ -122,34 +137,37 @@ if st.button("Evaluar capacidad de pago"):
     else:
         riesgo = "Alto"
 
-    # Informe por reglas (siempre disponible)
-    informe_reglas = generar_informe_reglas(
+    # -------- Informe por reglas (siempre disponible) --------
+    informe_md = informe_reglas_md(
         actividad, experiencia, ingresos, gastos, deudas,
         flujo_neto, capacidad_pago, riesgo
     )
 
-    # Cabecera + botón de PDF (reglas)
     c1, c2 = st.columns([0.75, 0.25])
     with c1:
         st.subheader("📄 Informe automático (reglas)")
     with c2:
-        pdf_bytes_reglas = make_pdf_bytes(informe_reglas)
-        st.download_button(
-            "📥 PDF (reglas)",
-            data=BytesIO(pdf_bytes_reglas),
-            file_name="informe_capacidad_pago_reglas.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-        )
-    st.markdown(informe_reglas)
+        try:
+            pdf_bytes = make_pdf_bytes_unicode(informe_md)
+            st.download_button(
+                "📥 PDF (reglas)",
+                data=BytesIO(pdf_bytes),
+                file_name="informe_capacidad_pago_reglas.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        except Exception as e:
+            st.error(f"No se pudo crear el PDF (reglas): {e}")
+            st.info("Verifica fpdf2 en requirements y DejaVuSans.ttf en la carpeta del app.")
 
-    # Opción IA (GPT)
+    st.markdown(informe_md)
+
+    # -------- Informe con IA (opcional) --------
     st.divider()
     usar_ia = st.checkbox("Generar informe avanzado con IA (GPT)")
-
     if usar_ia:
         if not os.getenv("OPENAI_API_KEY"):
-            st.warning("No hay OPENAI_API_KEY configurada. Cárguela en Secrets o variable de entorno.")
+            st.warning("No hay OPENAI_API_KEY configurada. Cárgala en Secrets o como variable de entorno.")
         else:
             with st.spinner("Generando informe con IA..."):
                 payload = {
@@ -164,31 +182,37 @@ if st.button("Evaluar capacidad de pago"):
                 }
                 try:
                     informe_gpt = generar_informe_gpt(payload)
+
                     c3, c4 = st.columns([0.75, 0.25])
                     with c3:
                         st.subheader("🧠 Informe generado por IA (GPT)")
                     with c4:
-                        pdf_bytes_gpt = make_pdf_bytes(informe_gpt)
-                        st.download_button(
-                            "📥 PDF (IA)",
-                            data=BytesIO(pdf_bytes_gpt),
-                            file_name="informe_capacidad_pago_IA.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                        )
+                        try:
+                            pdf_bytes_gpt = make_pdf_bytes_unicode(informe_gpt)
+                            st.download_button(
+                                "📥 PDF (IA)",
+                                data=BytesIO(pdf_bytes_gpt),
+                                file_name="informe_capacidad_pago_IA.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                            )
+                        except Exception as e:
+                            st.error(f"No se pudo crear el PDF (IA): {e}")
+                            st.info("Verifica fpdf2 en requirements y DejaVuSans.ttf en la carpeta del app.")
+
                     st.markdown(informe_gpt)
 
-                    # (Opcional) ver PDF embebido
+                    # Ver visor embebido opcional
                     if st.checkbox("Ver PDF (IA) embebido"):
-                        b64 = base64.b64encode(pdf_bytes_gpt).decode()
-                        st.markdown(
-                            f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="600"></iframe>',
-                            unsafe_allow_html=True
-                        )
+                        try:
+                            b64 = base64.b64encode(pdf_bytes_gpt).decode()
+                            st.markdown(
+                                f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="600"></iframe>',
+                                unsafe_allow_html=True
+                            )
+                        except Exception:
+                            st.info("El visor embebido requiere que el PDF se haya generado correctamente.")
                 except Exception as e:
                     st.error(f"No se pudo generar el informe con IA: {e}")
-                    st.info("Mostrando solamente el informe automático por reglas.")
-
-
-
+                    st.info("Mostrando solo el informe automático por reglas.")
 
