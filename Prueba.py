@@ -1,6 +1,4 @@
-# =========================
-# PASO 1 – Datos del asesor
-# =========================
+# PASO 1
 
 # app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta y compatible + links de mapa estables)
 import time
@@ -399,7 +397,7 @@ if st.session_state.get("step") == 2:
     with colNav1:
         if st.button("⬅️ Volver al Paso 1", key="back_to_step_1", use_container_width=True):
             st.session_state.step = 1
-            st.experimental_rerun()
+            st.rerun()
     with colNav2:
         # Guardar y avanzar
         if st.button("Siguiente ➡️", key="next_step_2", disabled=not obligatorios_ok, use_container_width=True):
@@ -420,8 +418,7 @@ if st.session_state.get("step") == 2:
             }
             st.session_state.step = 3
             st.success("Datos guardados. Avanzando al Paso 3…")
-            st.experimental_rerun()
-
+            st.rerun()
 
 
 
