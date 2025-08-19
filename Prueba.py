@@ -1,4 +1,6 @@
-# PASO 1
+# =========================
+# PASO 1 – Datos del asesor
+# =========================
 
 # app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta y compatible + links de mapa estables)
 import time
@@ -95,6 +97,23 @@ def init_asesor_state():
 
 init_asesor_state()
 asesor = st.session_state.asesor
+
+# ------- Helper para empaquetar datos del asesor al reporte -------
+def asesor_para_reporte():
+    a = st.session_state.get("asesor", {})
+    fecha = a.get("fecha_hora")
+    fecha_str = fecha.strftime("%d/%m/%Y %H:%M:%S") if fecha else "N/D"
+    lat = a.get("lat"); lon = a.get("lon")
+    gps_str = f"{lat:.6f}, {lon:.6f}" if lat is not None and lon is not None else "No disponible"
+    return {
+        "nombre": a.get("nombre", "").strip(),
+        "fecha_hora": fecha_str,
+        "hora_fuente": "Internet" if a.get("timestamp_source") == "internet" else "Dispositivo",
+        "gps": gps_str,
+        "google_maps": a.get("maps_url"),
+        "google_maps_vista": a.get("maps_url_alt"),
+        "openstreetmap": a.get("osm_url"),
+    }
 
 # ==========
 # Interfaz UI
@@ -240,9 +259,13 @@ colA, colB = st.columns([0.7, 0.3])
 with colA:
     st.write("Campo obligatorio: **Nombre del asesor**.")
 with colB:
-    if st.button("Siguiente ➡️", disabled=disabled_next, use_container_width=True):
+    if st.button("Siguiente ➡️", key="next_step_1", disabled=disabled_next, use_container_width=True):
         st.session_state.step = 2
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["asesor"] = asesor_para_reporte()
         st.success("Datos del asesor guardados. Avanzando al Paso 2…")
+        st.rerun()
+
 
 # =========================
 # PASO 2 – Datos del cliente y del negocio
@@ -374,12 +397,12 @@ if st.session_state.get("step") == 2:
 
     colNav1, colNav2 = st.columns([0.5, 0.5])
     with colNav1:
-        if st.button("⬅️ Volver al Paso 1", use_container_width=True):
+        if st.button("⬅️ Volver al Paso 1", key="back_to_step_1", use_container_width=True):
             st.session_state.step = 1
             st.experimental_rerun()
     with colNav2:
         # Guardar y avanzar
-        if st.button("Siguiente ➡️", disabled=not obligatorios_ok, use_container_width=True):
+        if st.button("Siguiente ➡️", key="next_step_2", disabled=not obligatorios_ok, use_container_width=True):
             # preparar bloque de reporte
             st.session_state.setdefault("reporte", {})
             st.session_state["reporte"]["cliente_negocio"] = {
@@ -398,6 +421,8 @@ if st.session_state.get("step") == 2:
             st.session_state.step = 3
             st.success("Datos guardados. Avanzando al Paso 3…")
             st.experimental_rerun()
+
+
 
 
 
