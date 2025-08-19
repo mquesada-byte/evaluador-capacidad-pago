@@ -1,4 +1,4 @@
-# app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta y compatible)
+# app.py – Paso 1: Datos del asesor (hora OK + geolocalización robusta y compatible + links de mapa estables)
 import time
 import datetime as dt
 from zoneinfo import ZoneInfo
@@ -38,6 +38,28 @@ def _coords_plausibles(lat, lon):
     except Exception:
         return False
 
+# ---- Helpers para links de mapas (clave para evitar desvíos) ----
+def maps_links(lat: float, lon: float):
+    """Devuelve links estables a Google y OSM en orden lat,lon."""
+    lat_s = f"{lat:.6f}"
+    lon_s = f"{lon:.6f}"
+    google = f"https://www.google.com/maps/search/?api=1&query={lat_s},{lon_s}"
+    google_at = f"https://www.google.com/maps/@{lat_s},{lon_s},18z"
+    osm = f"https://www.openstreetmap.org/?mlat={lat_s}&mlon={lon_s}#map=18/{lat_s}/{lon_s}"
+    return google, google_at, osm
+
+def swapped_links(lat: float, lon: float):
+    """Links con orden invertido (lon,lat) por si el proveedor interpreta al revés."""
+    lat_s = f"{lat:.6f}"
+    lon_s = f"{lon:.6f}"
+    google_sw = f"https://www.google.com/maps/search/?api=1&query={lon_s},{lat_s}"
+    osm_sw = f"https://www.openstreetmap.org/?mlat={lon_s}&mlon={lat_s}#map=18/{lon_s}/{lat_s}"
+    return google_sw, osm_sw
+
+def plausible_cr_area(lat: float, lon: float) -> bool:
+    """Chequeo rápido para Costa Rica (8–12 lat, -90–-80 lon aprox)."""
+    return (8.0 <= lat <= 12.0) and (-90.0 <= lon <= -80.0)
+
 # ==========
 # Estado
 # ==========
@@ -66,6 +88,8 @@ def init_asesor_state():
     asesor.setdefault("lat", None)
     asesor.setdefault("lon", None)
     asesor.setdefault("maps_url", None)
+    asesor.setdefault("maps_url_alt", None)
+    asesor.setdefault("osm_url", None)
 
 init_asesor_state()
 asesor = st.session_state.asesor
@@ -105,6 +129,8 @@ with col1:
         asesor["lat"] = None
         asesor["lon"] = None
         asesor["maps_url"] = None
+        asesor["maps_url_alt"] = None
+        asesor["osm_url"] = None
         st.rerun()
 
     # Ejecutar fuera del botón para capturar el resultado en reruns
@@ -128,7 +154,10 @@ with col1:
             if lat is not None and lon is not None and _coords_plausibles(lat, lon):
                 asesor["lat"] = float(lat)
                 asesor["lon"] = float(lon)
-                asesor["maps_url"] = f"https://www.google.com/maps?q={asesor['lat']},{asesor['lon']}"
+                g, g_at, osm = maps_links(asesor["lat"], asesor["lon"])
+                asesor["maps_url"] = g
+                asesor["maps_url_alt"] = g_at
+                asesor["osm_url"] = osm
                 st.session_state.geo_status = "ok"
                 st.session_state.geo_request = False
 
@@ -167,8 +196,24 @@ with col1:
 with col2:
     status = st.session_state.geo_status
     if asesor["lat"] is not None and asesor["lon"] is not None:
-        st.success(f"Ubicación: {asesor['lat']:.6f}, {asesor['lon']:.6f}")
-        st.markdown(f"[Abrir en Google Maps]({asesor['maps_url']})")
+        lat, lon = asesor["lat"], asesor["lon"]
+        st.success(f"Ubicación: {lat:.6f}, {lon:.6f}")
+
+        # Enlaces confiables
+        st.markdown(
+            f"[Abrir en Google Maps]({asesor['maps_url']}) · "
+            f"[Vista @18z]({asesor['maps_url_alt']}) · "
+            f"[OpenStreetMap]({asesor['osm_url']})"
+        )
+
+        # Si parece fuera de Costa Rica, ofrece enlaces “invertidos”
+        if not plausible_cr_area(lat, lon):
+            g_sw, osm_sw = swapped_links(lat, lon)
+            st.warning(
+                "Las coordenadas no parecen estar en Costa Rica. "
+                "Si el mapa abre en un lugar extraño, prueba el orden invertido:"
+            )
+            st.markdown(f"• [Google (invertido)]({g_sw}) · [OSM (invertido)]({osm_sw})")
     else:
         if status == "waiting":
             st.info("Solicitando permiso o esperando señal de GPS…")
