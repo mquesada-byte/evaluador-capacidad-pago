@@ -686,8 +686,6 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "B":
 
 # =========================
 # PASO 3C – Ventas (Insumos/Margen simple desde COMPRAS)
-# Flujo: 1) ¿Tiene registros? 2) Compras del mes anterior 3) Margen sobre VENTAS o sobre COMPRAS (markup) 4) Ventas estimadas
-# Requiere: _mes_anterior_label() definido en 3A
 # =========================
 def init_paso3C_state_simple():
     st.session_state.setdefault("ventas_insumos_simple", {})
@@ -711,15 +709,40 @@ def _calc_ventas_desde_compras_simple(compras: float, tipo_margen: str, margen_p
         return int(round(ventas)), None
 
 if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
+    # ---- NUEVO: si el sector es Servicios, este paso no aplica ----
+    sector = (st.session_state.get("negocio", {}).get("sector_economico") or "").strip()
+    if sector.lower() == "servicios":
+        st.title("🧮 Paso 3C: (No aplica para Servicios)")
+        st.info("Para actividades 100% de servicios, la estimación por compras no es representativa. "
+                "Usaremos 3A (Top-down) y 3B (Bottom-up) para la conciliación.")
+
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["ventas_insumos_simple"] = {
+            "no_aplica": True,
+            "motivo": "Actividad de servicios",
+            "sector": sector
+        }
+
+        colS1, colS2 = st.columns([0.5, 0.5])
+        with colS1:
+            if st.button("⬅️ Volver a 3B (Bottom-up)", key="skip3C_back3B", use_container_width=True):
+                st.session_state.step3 = "B"
+                st.rerun()
+        with colS2:
+            if st.button("Ir a Conciliación ➡️", key="skip3C_goRES", use_container_width=True):
+                st.session_state.step3 = "RES"
+                st.rerun()
+        st.stop()
+    # ----------------------------------------------------------------
+
+    # (tu 3C original continúa aquí sin cambios)
     init_paso3C_state_simple()
     vin = st.session_state.ventas_insumos_simple
 
     mes_etiqueta, mes_iso = _mes_anterior_label()  # p.ej. "julio 2025", "2025-07"
-
     st.title("🧮 Paso 3C: Ventas – Insumos/Margen (simple desde compras)")
     st.caption(f"Mes de referencia: **{mes_etiqueta}**. Sin IVA ni mermas; aproximamos COGS ≈ Compras del mes.")
 
-    # 1) ¿Tiene facturas o registros de compras?
     colR1, colR2 = st.columns([0.5, 0.5])
     with colR1:
         vin["tiene_registros"] = st.radio(
@@ -729,7 +752,6 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
             help="No es obligatorio para continuar, pero mejora la confiabilidad."
         )
 
-    # 2) Monto de compras del mes anterior (p. ej., julio si hoy es agosto)
     vin["compras_mes"] = st.number_input(
         f"Compras del mes de {mes_etiqueta} (₡) *",
         min_value=0, step=1000, value=int(vin["compras_mes"]),
@@ -738,7 +760,6 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
 
     st.markdown("---")
 
-    # 3) Margen: sobre ventas o sobre compras (markup)
     colM1, colM2 = st.columns([0.55, 0.45])
     with colM1:
         vin["tipo_margen"] = st.radio(
@@ -765,7 +786,6 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
 
     st.divider()
 
-    # 4) Cálculo de ventas estimadas
     ventas_est, warn = _calc_ventas_desde_compras_simple(
         compras=float(vin["compras_mes"] or 0),
         tipo_margen=vin["tipo_margen"],
@@ -775,22 +795,15 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
     if warn:
         st.warning(warn)
     elif ventas_est is not None and int(vin["compras_mes"]) > 0:
-        st.info(
-            f"**Ventas estimadas (Insumos/Margen) para {mes_etiqueta}:** ₡ {ventas_est:,}"
-            .replace(",", ".")
-        )
+        st.info(f"**Ventas estimadas (Insumos/Margen) para {mes_etiqueta}:** ₡ {ventas_est:,}".replace(",", "."))
 
-    # -------- Validación obligatorios --------
     oblig_ok = (int(vin["compras_mes"]) > 0 and ventas_est is not None)
 
-    # Navegación
     colNav1, colNav2 = st.columns([0.5, 0.5])
     with colNav1:
         if st.button("⬅️ Volver a 3B (Bottom-up)", key="back_to_3B_from_3C_simple", use_container_width=True):
-            st.session_state.step = 3
             st.session_state.step3 = "B"
             st.rerun()
-
     with colNav2:
         if st.button("Siguiente ➡️ (Conciliación)", key="next_step_3C_simple", disabled=not oblig_ok, use_container_width=True):
             st.session_state.setdefault("reporte", {})
@@ -799,16 +812,16 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
                 "mes_iso": mes_iso,
                 "tiene_registros_compras": vin["tiene_registros"],
                 "compras_mes_colones": int(vin["compras_mes"]),
-                "tipo_margen": vin["tipo_margen"],  # "Sobre ventas" o "Sobre compras (markup)"
+                "tipo_margen": vin["tipo_margen"],
                 "margen_pct": int(vin["margen_pct"]),
                 "ventas_estimadas_colones": int(ventas_est) if ventas_est is not None else None,
                 "comentario": vin["comentario"].strip(),
                 "supuesto_cogs_equivale_compras": True,
             }
-            st.session_state.step = 3
-            st.session_state.step3 = "RES"  # subpaso de conciliación/resumen
-            st.success("Estimación guardada. Avanzando a conciliación…")
+            st.session_state.step3 = "RES"  # conciliación
             st.rerun()
+
+
 
 
 
