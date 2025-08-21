@@ -709,7 +709,7 @@ def _calc_ventas_desde_compras_simple(compras: float, tipo_margen: str, margen_p
         return int(round(ventas)), None
 
 if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
-    # ---- NUEVO: si el sector es Servicios, este paso no aplica ----
+    # ---- Si el sector es Servicios, este paso no aplica ----
     sector = (st.session_state.get("negocio", {}).get("sector_economico") or "").strip()
     if sector.lower() == "servicios":
         st.title("🧮 Paso 3C: (No aplica para Servicios)")
@@ -730,12 +730,12 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
                 st.rerun()
         with colS2:
             if st.button("Ir a Valoración del asesor ➡️", key="skip3C_goVAL", use_container_width=True):
-                st.session_state.step3 = "VAL"   # <-- antes decía "RES"
+                st.session_state.step3 = "VAL"   # antes: "RES"
                 st.rerun()
         st.stop()
     # ----------------------------------------------------------------
 
-    # (tu 3C original continúa aquí sin cambios)
+    # 3C normal (sí aplica)
     init_paso3C_state_simple()
     vin = st.session_state.ventas_insumos_simple
 
@@ -799,28 +799,35 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
 
     oblig_ok = (int(vin["compras_mes"]) > 0 and ventas_est is not None)
 
+    # --- Navegación: columnas SIEMPRE definidas antes de usarlas ---
     colNav1, colNav2 = st.columns([0.5, 0.5])
+
     with colNav1:
         if st.button("⬅️ Volver a 3B (Bottom-up)", key="back_to_3B_from_3C_simple", use_container_width=True):
             st.session_state.step3 = "B"
             st.rerun()
-with colNav2:
-    if st.button("Siguiente ➡️ (Valoración)", key="next_step_3C_simple",
-                 disabled=not oblig_ok, use_container_width=True):
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["ventas_insumos_simple"] = {
-            "mes_referencia": mes_etiqueta,
-            "mes_iso": mes_iso,
-            "tiene_registros_compras": vin["tiene_registros"],
-            "compras_mes_colones": int(vin["compras_mes"]),
-            "tipo_margen": vin["tipo_margen"],
-            "margen_pct": int(vin["margen_pct"]),
-            "ventas_estimadas_colones": int(ventas_est) if ventas_est is not None else None,
-            "comentario": vin["comentario"].strip(),
-            "supuesto_cogs_equivale_compras": True,
-        }
-        st.session_state.step3 = "VAL"   # <-- antes decía "RES"
-        st.rerun()
+
+    with colNav2:
+        if st.button(
+            "Siguiente ➡️ (Valoración)",
+            key="next_step_3C_simple",
+            disabled=not oblig_ok,
+            use_container_width=True,
+        ):
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["ventas_insumos_simple"] = {
+                "mes_referencia": mes_etiqueta,
+                "mes_iso": mes_iso,
+                "tiene_registros_compras": vin["tiene_registros"],
+                "compras_mes_colones": int(vin["compras_mes"]),
+                "tipo_margen": vin["tipo_margen"],
+                "margen_pct": int(vin["margen_pct"]),
+                "ventas_estimadas_colones": int(ventas_est) if ventas_est is not None else None,
+                "comentario": vin["comentario"].strip(),
+                "supuesto_cogs_equivale_compras": True,
+            }
+            st.session_state.step3 = "VAL"   # salto correcto a Valoración del asesor
+            st.rerun()
 
 
 # =========================
@@ -913,6 +920,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
             }
             st.session_state.step3 = "RES"
             st.rerun()
+
 
 
 
