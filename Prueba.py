@@ -805,12 +805,8 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
             st.session_state.step3 = "B"
             st.rerun()
 with colNav2:
-    if st.button(
-        "Siguiente ➡️ (Valoración)",
-        key="next_step_3C_simple",
-        disabled=not oblig_ok,
-        use_container_width=True,
-    ):
+    if st.button("Siguiente ➡️ (Valoración)", key="next_step_3C_simple",
+                 disabled=not oblig_ok, use_container_width=True):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["ventas_insumos_simple"] = {
             "mes_referencia": mes_etiqueta,
@@ -823,7 +819,7 @@ with colNav2:
             "comentario": vin["comentario"].strip(),
             "supuesto_cogs_equivale_compras": True,
         }
-        st.session_state.step3 = "VAL"   # antes: "RES"
+        st.session_state.step3 = "VAL"   # <-- antes decía "RES"
         st.rerun()
 
 
@@ -917,6 +913,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
             }
             st.session_state.step3 = "RES"
             st.rerun()
+
 
 
 
