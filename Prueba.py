@@ -844,11 +844,16 @@ def init_valoracion_asesor_state():
     v.setdefault("comentario", "")
 
 def _factor_asesor(v: dict) -> float:
-    # Escala 0.6–1.0 según conocimiento y credibilidad (promedio)
+    # Base 0.60–1.00 según promedio de conocimiento y credibilidad,
+    # multiplicado por ajuste de dudas (Sin:1.00, Leves:0.85, Serias:0.60)
     know = float(v.get("conocimiento_0a10") or 0)
     cred = float(v.get("credibilidad_0a10") or 0)
     avg = (know + cred) / 2.0
-    return 0.6 + 0.04 * avg  # 0.6 (muy baja) … 1.0 (muy alta)
+    base = 0.6 + 0.04 * avg                     # 0.60–1.00
+    dudas = (v.get("dudas_declaracion") or "Sin dudas")
+    mult_dudas = {"Sin dudas": 1.00, "Dudas leves": 0.85, "Dudas serias": 0.60}.get(dudas, 1.00)
+    factor = base * mult_dudas
+    return max(0.40, min(1.00, factor))         # límites de seguridad
 
 if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
     init_valoracion_asesor_state()
@@ -898,7 +903,14 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
     )
 
     factor = _factor_asesor(v)
-    st.info(f"**Factor de confiabilidad del asesor (aplicado en conciliación):** {factor:.2f} (0.60–1.00)")
+    # Nota informativa mostrando base × ajuste por dudas
+    avg = (float(v["conocimiento_0a10"]) + float(v["credibilidad_0a10"])) / 2.0
+    base = 0.6 + 0.04 * avg
+    mult_dudas = {"Sin dudas": 1.00, "Dudas leves": 0.85, "Dudas serias": 0.60}[v["dudas_declaracion"]]
+    st.info(
+        f"**Factor de confiabilidad del asesor (aplicado en conciliación):** "
+        f"{factor:.2f}  (base {base:.2f} × ajuste por dudas {mult_dudas:.2f})"
+    )
 
     st.divider()
     colb1, colb2 = st.columns(2)
@@ -920,6 +932,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
             }
             st.session_state.step3 = "RES"
             st.rerun()
+
 
 
 
