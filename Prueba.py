@@ -822,6 +822,96 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
             st.rerun()
 
 
+# =========================
+# PASO 3VAL – Valoración del asesor
+# =========================
+def init_valoracion_asesor_state():
+    st.session_state.setdefault("valoracion_asesor", {})
+    v = st.session_state.valoracion_asesor
+    v.setdefault("conocimiento_0a10", 5)     # ¿Conoce su negocio / números?
+    v.setdefault("credibilidad_0a10", 5)     # ¿Qué tan creíble es su declaración?
+    v.setdefault("dudas_declaracion", "Sin dudas")  # Sin dudas / Dudas leves / Dudas serias
+    v.setdefault("clasificacion", "Microempresario/a")  # Microempresario/a / Inci piente / Dudoso
+    v.setdefault("evidencia", [])            # checkboxes
+    v.setdefault("comentario", "")
+
+def _factor_asesor(v: dict) -> float:
+    # Escala 0.6–1.0 según conocimiento y credibilidad (promedio)
+    know = float(v.get("conocimiento_0a10") or 0)
+    cred = float(v.get("credibilidad_0a10") or 0)
+    avg = (know + cred) / 2.0
+    return 0.6 + 0.04 * avg  # 0.6 (muy baja) … 1.0 (muy alta)
+
+if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
+    init_valoracion_asesor_state()
+    v = st.session_state.valoracion_asesor
+
+    st.title("📝 Paso 3 – Valoración del asesor")
+    st.caption("Tu evaluación cualitativa antes de conciliar las ventas.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        v["conocimiento_0a10"] = st.slider(
+            "Conocimiento del negocio (0–10) *",
+            0, 10, int(v["conocimiento_0a10"]),
+            help="¿Domina clientes, ticket, precios, costos, operación?"
+        )
+    with col2:
+        v["credibilidad_0a10"] = st.slider(
+            "Credibilidad de la información (0–10) *",
+            0, 10, int(v["credibilidad_0a10"]),
+            help="¿La explicación y los números parecen consistentes?"
+        )
+
+    col3, col4 = st.columns(2)
+    with col3:
+        v["dudas_declaracion"] = st.selectbox(
+            "Tu percepción sobre la veracidad",
+            ["Sin dudas", "Dudas leves", "Dudas serias"],
+            index=["Sin dudas","Dudas leves","Dudas serias"].index(v["dudas_declaracion"])
+        )
+    with col4:
+        v["clasificacion"] = st.selectbox(
+            "Clasificación",
+            ["Microempresario/a", "Actividad incipiente", "Dudoso / posible no negocio"]
+        )
+
+    v["evidencia"] = st.multiselect(
+        "Evidencia observada (opcional)",
+        ["Facturación/POS", "Extractos bancarios", "Cuaderno/Excel", "Fotos del negocio", "Ninguna"],
+        default=v["evidencia"]
+    )
+
+    v["comentario"] = st.text_area(
+        "Comentario del asesor (opcional)",
+        value=v["comentario"],
+        placeholder="Notas breves: incoherencias, señales de manejo, ejemplos citados, etc.",
+        height=90
+    )
+
+    factor = _factor_asesor(v)
+    st.info(f"**Factor de confiabilidad del asesor (aplicado en conciliación):** {factor:.2f} (0.60–1.00)")
+
+    st.divider()
+    colb1, colb2 = st.columns(2)
+    with colb1:
+        if st.button("⬅️ Volver a 3C", key="val_back_3C", use_container_width=True):
+            st.session_state.step3 = "C"
+            st.rerun()
+    with colb2:
+        if st.button("Continuar a Conciliación ➡️", key="val_go_res", use_container_width=True):
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["valoracion_asesor"] = {
+                "conocimiento_0a10": int(v["conocimiento_0a10"]),
+                "credibilidad_0a10": int(v["credibilidad_0a10"]),
+                "dudas_declaracion": v["dudas_declaracion"],
+                "clasificacion": v["clasificacion"],
+                "evidencia": list(v["evidencia"]),
+                "comentario": v["comentario"].strip(),
+                "factor_asesor_0a1": float(factor),
+            }
+            st.session_state.step3 = "RES"
+            st.rerun()
 
 
 
