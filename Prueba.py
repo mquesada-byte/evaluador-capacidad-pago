@@ -1183,6 +1183,195 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "RES":
             st.rerun()
 
 
+# =========================
+# PASO 5 – Otros ingresos del hogar (step == 4)
+# =========================
+def _mensualizar(monto: float, periodicidad: str) -> float:
+    """Convierte monto por período a monto mensual aproximado."""
+    per = (periodicidad or "").lower()
+    if per == "diario":
+        return monto * 30.0
+    if per == "semanal":
+        return monto * (52.0 / 12.0)         # ≈ 4.333
+    if per == "quincenal":
+        return monto * 2.0
+    if per == "mensual":
+        return monto
+    if per == "bimestral":
+        return monto / 2.0
+    if per == "trimestral":
+        return monto / 3.0
+    if per == "semestral":
+        return monto / 6.0
+    if per == "anual":
+        return monto / 12.0
+    return 0.0
+
+def _factor_verificacion(verificado: bool, evidencia: str) -> float:
+    """Factor por verificación y tipo de evidencia (1.00 = máxima)."""
+    if not verificado:
+        return 0.70
+    ev = (evidencia or "").lower()
+    if ev in ["facturación electrónica", "extractos bancarios", "extractos bancarios/sinpe", "contrato", "certificación"]:
+        return 1.00
+    if ev in ["recibos", "comprobantes", "pos/datáfono", "captura pos", "captura sinpe"]:
+        return 0.90
+    if ev in ["foto/chat", "whatsapp", "mensaje", "captura pantalla", "otro"]:
+        return 0.80
+    if ev in ["", "no aplica", None]:
+        return 0.85   # verificado sin documento fuerte (vistazo in situ)
+    return 0.85
+
+def _factor_estabilidad(meses_cont: int) -> float:
+    """Factor por continuidad del ingreso en meses."""
+    m = int(meses_cont or 0)
+    if m >= 24: return 1.00
+    if m >= 12: return 0.90
+    if m >= 6:  return 0.80
+    if m >= 3:  return 0.60
+    if m >= 1:  return 0.50
+    return 0.40
+
+def _factor_probabilidad(prob_0a10: int) -> float:
+    """Factor por probabilidad de continuidad declarada (0–10 → 0.50–1.00)."""
+    p = max(0, min(10, int(prob_0a10 or 0)))
+    return 0.50 + 0.05 * p
+
+def _factor_confiabilidad_ingreso(verificado: bool, evidencia: str, meses_cont: int, prob_0a10: int) -> float:
+    """Multiplicativo con límites de seguridad."""
+    f = _factor_verificacion(verificado, evidencia) \
+        * _factor_estabilidad(meses_cont) \
+        * _factor_probabilidad(prob_0a10)
+    return max(0.20, min(1.00, f))
+
+if st.session_state.get("step") == 4:
+    import pandas as pd
+
+    st.title("💸 Paso 5: Otros ingresos del hogar")
+    st.caption("Registre otros ingresos del cliente y su núcleo familiar. Cada ingreso debe indicar si fue **verificado por el asesor** y con qué evidencia.")
+
+    # --- Data Editor base ---
+    periodicidades = ["Diario", "Semanal", "Quincenal", "Mensual", "Bimestral", "Trimestral", "Semestral", "Anual"]
+    fuentes = ["Salario", "Pensión", "Alquiler", "Negocio secundario", "Remesas", "Servicios profesionales", "Subsidio/Ayuda", "Otro"]
+    relaciones = ["Cliente", "Pareja", "Hijo/a", "Padre/Madre", "Familiar", "Otro"]
+    evidencias = ["Facturación electrónica", "Extractos bancarios/SINPE", "POS/Datáfono", "Recibos", "Foto/Chat", "Contrato", "Certificación", "No aplica", "Otro"]
+
+    base_cols = [
+        "Titular (nombre)",            # texto
+        "Relación",                    # select
+        "Fuente de ingreso",           # select
+        "Periodicidad",                # select
+        "Monto por período (₡)",       # num
+        "Verificado por asesor",       # bool
+        "Tipo de evidencia",           # select
+        "Meses de continuidad",        # num
+        "Prob. continuidad (0–10)",    # num
+        "Comentario",                  # texto
+    ]
+
+    # Placeholders vacíos
+    placeholder_rows = pd.DataFrame([{c: "" for c in base_cols}] * 4)
+    df_in = st.data_editor(
+        placeholder_rows,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="de_otros_ingresos",
+        column_config={
+            "Titular (nombre)": st.column_config.TextColumn("Titular (nombre)"),
+            "Relación": st.column_config.SelectboxColumn("Relación", options=relaciones, required=False),
+            "Fuente de ingreso": st.column_config.SelectboxColumn("Fuente de ingreso", options=fuentes, required=False),
+            "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades, required=False),
+            "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Meses de continuidad": st.column_config.NumberColumn("Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"),
+            "Prob. continuidad (0–10)": st.column_config.NumberColumn("Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+
+    # --- Cálculos ---
+    df = df_in.copy()
+
+    # Limpieza de tipos
+    num_cols = ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"]
+    for c in num_cols:
+        if c not in df.columns:
+            df[c] = 0
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+
+    if "Verificado por asesor" not in df.columns:
+        df["Verificado por asesor"] = False
+    df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
+
+    # Derivados fila a fila
+    mensualizados = []
+    factores = []
+    ponderados = []
+
+    for idx, row in df.iterrows():
+        monto = float(row.get("Monto por período (₡)") or 0)
+        per = row.get("Periodicidad") or ""
+        verif = bool(row.get("Verificado por asesor") or False)
+        evid = row.get("Tipo de evidencia") or ""
+        meses_cont = int(row.get("Meses de continuidad") or 0)
+        prob = int(row.get("Prob. continuidad (0–10)") or 0)
+
+        m_mensual = _mensualizar(monto, per)
+        f_conf = _factor_confiabilidad_ingreso(verif, evid, meses_cont, prob)
+        mensualizados.append(m_mensual)
+        factores.append(f_conf)
+        ponderados.append(m_mensual * f_conf)
+
+    df["Ingreso mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
+    df["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores).round(2)
+    df["Ingreso ponderado (₡)"] = pd.Series(ponderados).round(0).astype(int)
+
+    # Totales
+    # Filas válidas: monto > 0 y periodicidad seleccionada
+    valid_mask = (df["Monto por período (₡)"] > 0) & (df["Periodicidad"].isin(periodicidades))
+    df_valid = df[valid_mask].copy()
+    total_mensual = int(df_valid["Ingreso mensualizado (₡)"].sum()) if not df_valid.empty else 0
+    total_ponderado = int(df_valid["Ingreso ponderado (₡)"].sum()) if not df_valid.empty else 0
+    total_verif_mensual = int(df_valid.loc[df_valid["Verificado por asesor"], "Ingreso mensualizado (₡)"].sum()) if not df_valid.empty else 0
+
+    st.markdown("**Resumen**")
+    st.write({
+        "Total mensualizado (bruto)": f"₡ {total_mensual:,}".replace(",", "."),
+        "Total verificado (mensualizado)": f"₡ {total_verif_mensual:,}".replace(",", "."),
+        "Total ponderado por confiabilidad": f"₡ {total_ponderado:,}".replace(",", "."),
+        "Registros válidos": int(valid_mask.sum()),
+    })
+
+    with st.expander("Ver tabla con cálculos"):
+        st.dataframe(df, use_container_width=True)
+
+    st.divider()
+
+    # Navegación / Guardar
+    c1, c2 = st.columns([0.5, 0.5])
+    with c1:
+        if st.button("⬅️ Volver a Conciliación", key="otros_back_res", use_container_width=True):
+            st.session_state.step = 3
+            st.session_state.step3 = "RES"
+            st.rerun()
+    with c2:
+        if st.button("Guardar y continuar ➡️", key="otros_save_next", use_container_width=True, disabled=(valid_mask.sum() == 0)):
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["otros_ingresos"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_mensualizado_colones": total_mensual,
+                    "total_verificado_mensualizado_colones": total_verif_mensual,
+                    "total_ponderado_colones": total_ponderado,
+                    "registros_validos": int(valid_mask.sum()),
+                }
+            }
+            st.success("Otros ingresos guardados. Avanzando…")
+            st.session_state.step = 5   # siguiente paso (capacidad de pago, por ejemplo)
+            st.rerun()
+
 
 
 
