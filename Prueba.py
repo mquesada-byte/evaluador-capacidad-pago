@@ -729,8 +729,8 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
                 st.session_state.step3 = "B"
                 st.rerun()
         with colS2:
-            if st.button("Ir a Conciliación ➡️", key="skip3C_goRES", use_container_width=True):
-                st.session_state.step3 = "RES"
+            if st.button("Ir a Valoración del asesor ➡️", key="skip3C_goVAL", use_container_width=True):
+                st.session_state.step3 = "VAL"   # <-- antes decía "RES"
                 st.rerun()
         st.stop()
     # ----------------------------------------------------------------
@@ -804,22 +804,27 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
         if st.button("⬅️ Volver a 3B (Bottom-up)", key="back_to_3B_from_3C_simple", use_container_width=True):
             st.session_state.step3 = "B"
             st.rerun()
-    with colNav2:
-        if st.button("Siguiente ➡️ (Conciliación)", key="next_step_3C_simple", disabled=not oblig_ok, use_container_width=True):
-            st.session_state.setdefault("reporte", {})
-            st.session_state["reporte"]["ventas_insumos_simple"] = {
-                "mes_referencia": mes_etiqueta,
-                "mes_iso": mes_iso,
-                "tiene_registros_compras": vin["tiene_registros"],
-                "compras_mes_colones": int(vin["compras_mes"]),
-                "tipo_margen": vin["tipo_margen"],
-                "margen_pct": int(vin["margen_pct"]),
-                "ventas_estimadas_colones": int(ventas_est) if ventas_est is not None else None,
-                "comentario": vin["comentario"].strip(),
-                "supuesto_cogs_equivale_compras": True,
-            }
-            st.session_state.step3 = "RES"  # conciliación
-            st.rerun()
+with colNav2:
+    if st.button(
+        "Siguiente ➡️ (Valoración)",
+        key="next_step_3C_simple",
+        disabled=not oblig_ok,
+        use_container_width=True,
+    ):
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["ventas_insumos_simple"] = {
+            "mes_referencia": mes_etiqueta,
+            "mes_iso": mes_iso,
+            "tiene_registros_compras": vin["tiene_registros"],
+            "compras_mes_colones": int(vin["compras_mes"]),
+            "tipo_margen": vin["tipo_margen"],
+            "margen_pct": int(vin["margen_pct"]),
+            "ventas_estimadas_colones": int(ventas_est) if ventas_est is not None else None,
+            "comentario": vin["comentario"].strip(),
+            "supuesto_cogs_equivale_compras": True,
+        }
+        st.session_state.step3 = "VAL"   # antes: "RES"
+        st.rerun()
 
 
 # =========================
@@ -912,6 +917,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
             }
             st.session_state.step3 = "RES"
             st.rerun()
+
 
 
 
