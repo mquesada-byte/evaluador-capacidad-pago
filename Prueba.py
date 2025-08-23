@@ -1189,22 +1189,14 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "RES":
 def _mensualizar(monto: float, periodicidad: str) -> float:
     """Convierte monto por período a monto mensual aproximado."""
     per = (periodicidad or "").lower()
-    if per == "diario":
-        return monto * 30.0
-    if per == "semanal":
-        return monto * (52.0 / 12.0)         # ≈ 4.333
-    if per == "quincenal":
-        return monto * 2.0
-    if per == "mensual":
-        return monto
-    if per == "bimestral":
-        return monto / 2.0
-    if per == "trimestral":
-        return monto / 3.0
-    if per == "semestral":
-        return monto / 6.0
-    if per == "anual":
-        return monto / 12.0
+    if per == "diario":       return monto * 30.0
+    if per == "semanal":      return monto * (52.0 / 12.0)  # ≈4.333
+    if per == "quincenal":    return monto * 2.0
+    if per == "mensual":      return monto
+    if per == "bimestral":    return monto / 2.0
+    if per == "trimestral":   return monto / 3.0
+    if per == "semestral":    return monto / 6.0
+    if per == "anual":        return monto / 12.0
     return 0.0
 
 def _factor_verificacion(verificado: bool, evidencia: str) -> float:
@@ -1212,14 +1204,20 @@ def _factor_verificacion(verificado: bool, evidencia: str) -> float:
     if not verificado:
         return 0.70
     ev = (evidencia or "").lower()
-    if ev in ["facturación electrónica", "extractos bancarios", "extractos bancarios/sinpe", "contrato", "certificación"]:
+    # Evidencias fuertes
+    if ev in ["facturación electrónica", "extractos bancarios", "extractos bancarios/sinpe",
+              "contrato", "certificación"]:
         return 1.00
-    if ev in ["recibos", "comprobantes", "pos/datáfono", "captura pos", "captura sinpe"]:
+    # Evidencias moderadas (incluye bureaus)
+    if ev in ["recibos", "comprobantes", "pos/datáfono", "captura pos", "captura sinpe",
+              "credid", "equifax"]:
         return 0.90
+    # Evidencias débiles
     if ev in ["foto/chat", "whatsapp", "mensaje", "captura pantalla", "otro"]:
         return 0.80
+    # Verificado sin documento fuerte (p. ej., constatación in situ)
     if ev in ["", "no aplica", None]:
-        return 0.85   # verificado sin documento fuerte (vistazo in situ)
+        return 0.85
     return 0.85
 
 def _factor_estabilidad(meses_cont: int) -> float:
@@ -1246,30 +1244,24 @@ def _factor_confiabilidad_ingreso(verificado: bool, evidencia: str, meses_cont: 
 
 if st.session_state.get("step") == 4:
     import pandas as pd
+    import numpy as np
 
     st.title("💸 Paso 5: Otros ingresos del hogar")
     st.caption("Registre otros ingresos del cliente y su núcleo familiar. Cada ingreso debe indicar si fue **verificado por el asesor** y con qué evidencia.")
 
-    # --- Data Editor base ---
+    # --- Data Editor base (captura rápida) ---
     periodicidades = ["Diario", "Semanal", "Quincenal", "Mensual", "Bimestral", "Trimestral", "Semestral", "Anual"]
     fuentes = ["Salario", "Pensión", "Alquiler", "Negocio secundario", "Remesas", "Servicios profesionales", "Subsidio/Ayuda", "Otro"]
     relaciones = ["Cliente", "Pareja", "Hijo/a", "Padre/Madre", "Familiar", "Otro"]
-    evidencias = ["Facturación electrónica", "Extractos bancarios/SINPE", "POS/Datáfono", "Recibos", "Foto/Chat", "Contrato", "Certificación", "No aplica", "Otro"]
+    evidencias = ["Facturación electrónica", "Extractos bancarios/SINPE", "POS/Datáfono", "Recibos",
+                  "Foto/Chat", "Contrato", "Certificación", "Credid", "Equifax", "No aplica", "Otro"]
 
     base_cols = [
-        "Titular (nombre)",
-        "Relación",
-        "Fuente de ingreso",
-        "Periodicidad",
-        "Monto por período (₡)",
-        "Verificado por asesor",
-        "Tipo de evidencia",
-        "Meses de continuidad",
-        "Prob. continuidad (0–10)",
-        "Comentario",
+        "Titular (nombre)", "Relación", "Fuente de ingreso", "Periodicidad",
+        "Monto por período (₡)", "Verificado por asesor", "Tipo de evidencia",
+        "Meses de continuidad", "Prob. continuidad (0–10)", "Comentario",
     ]
 
-    # Placeholders vacíos (tablero de captura rápido)
     placeholder_rows = pd.DataFrame([{c: "" for c in base_cols}] * 4)
     df_in = st.data_editor(
         placeholder_rows,
@@ -1291,10 +1283,8 @@ if st.session_state.get("step") == 4:
         },
     )
 
-    # --- Cálculos iniciales ---
+    # --- Preparar y calcular derivados ---
     df = df_in.copy()
-
-    # Tipos numéricos
     num_cols = ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"]
     for c in num_cols:
         if c not in df.columns:
@@ -1305,32 +1295,58 @@ if st.session_state.get("step") == 4:
         df["Verificado por asesor"] = False
     df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
 
-    # Derivados
+    # Función para (re)calcular, respetando override manual del factor si el usuario lo edita
     def _recalcular_derivados(df_src: pd.DataFrame) -> pd.DataFrame:
-        mensualizados, factores, ponderados = [], [], []
-        for _, row in df_src.iterrows():
-            monto = float(row.get("Monto por período (₡)") or 0)
-            per = row.get("Periodicidad") or ""
-            verif = bool(row.get("Verificado por asesor") or False)
-            evid = row.get("Tipo de evidencia") or ""
-            meses_cont = int(row.get("Meses de continuidad") or 0)
-            prob = int(row.get("Prob. continuidad (0–10)") or 0)
+        df_out = df_src.copy()
 
+        # Crea la columna si no existe (valor inicial automático)
+        if "Factor confiabilidad (0.2–1.0)" not in df_out.columns:
+            auto_factors = []
+            for _, r in df_out.iterrows():
+                auto_factors.append(
+                    _factor_confiabilidad_ingreso(
+                        bool(r.get("Verificado por asesor") or False),
+                        r.get("Tipo de evidencia") or "",
+                        int(r.get("Meses de continuidad") or 0),
+                        int(r.get("Prob. continuidad (0–10)") or 0),
+                    )
+                )
+            df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(auto_factors).round(2)
+
+        # Tipos
+        df_out["Factor confiabilidad (0.2–1.0)"] = pd.to_numeric(
+            df_out["Factor confiabilidad (0.2–1.0)"], errors="coerce"
+        )
+
+        # Recalcular mensualizados y ponderado usando factor manual si está presente
+        mensualizados, factores_aplicados, ponderados = [], [], []
+        for _, r in df_out.iterrows():
+            monto = float(r.get("Monto por período (₡)") or 0)
+            per = r.get("Periodicidad") or ""
             m_mensual = _mensualizar(monto, per)
-            f_conf = _factor_confiabilidad_ingreso(verif, evid, meses_cont, prob)
+
+            f_manual = r.get("Factor confiabilidad (0.2–1.0)")
+            if f_manual is not None and not (isinstance(f_manual, float) and np.isnan(f_manual)):
+                f_conf = float(max(0.20, min(1.00, f_manual)))
+            else:
+                f_conf = _factor_confiabilidad_ingreso(
+                    bool(r.get("Verificado por asesor") or False),
+                    r.get("Tipo de evidencia") or "",
+                    int(r.get("Meses de continuidad") or 0),
+                    int(r.get("Prob. continuidad (0–10)") or 0),
+                )
             mensualizados.append(m_mensual)
-            factores.append(f_conf)
+            factores_aplicados.append(f_conf)
             ponderados.append(m_mensual * f_conf)
 
-        df_out = df_src.copy()
         df_out["Ingreso mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
-        df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores).round(2)
+        df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores_aplicados).round(2)
         df_out["Ingreso ponderado (₡)"] = pd.Series(ponderados).round(0).astype(int)
         return df_out
 
     df = _recalcular_derivados(df)
 
-    # --- Editor con cálculos (editable en columnas de entrada, derivadas bloqueadas) ---
+    # --- Editor con cálculos (factor editable; derivadas se actualizan) ---
     with st.expander("Editar tabla con cálculos (solo columnas de entrada son editables)"):
         df_edit = st.data_editor(
             df,
@@ -1349,19 +1365,20 @@ if st.session_state.get("step") == 4:
                 "Meses de continuidad": st.column_config.NumberColumn("Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"),
                 "Prob. continuidad (0–10)": st.column_config.NumberColumn("Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"),
                 "Comentario": st.column_config.TextColumn("Comentario"),
-                # Derivadas (solo lectura)
+                # Derivadas (solo lectura excepto el factor que ahora es editable)
                 "Ingreso mensualizado (₡)": st.column_config.NumberColumn("Ingreso mensualizado (₡)", format="₡ %d", disabled=True),
-                "Factor confiabilidad (0.2–1.0)": st.column_config.NumberColumn("Factor confiabilidad (0.2–1.0)", format="%.2f", disabled=True),
+                "Factor confiabilidad (0.2–1.0)": st.column_config.NumberColumn(
+                    "Factor confiabilidad (0.2–1.0)", min_value=0.20, max_value=1.00, step=0.01, format="%.2f"
+                ),
                 "Ingreso ponderado (₡)": st.column_config.NumberColumn("Ingreso ponderado (₡)", format="₡ %d", disabled=True),
             },
         )
 
     # Recalcular con lo editado
-    # Asegurar tipos otra vez (por si el editor devolvió strings)
-    for c in num_cols:
+    for c in ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)", "Factor confiabilidad (0.2–1.0)"]:
         if c not in df_edit.columns:
             df_edit[c] = 0
-        df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce").fillna(0)
+        df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce")
     if "Verificado por asesor" not in df_edit.columns:
         df_edit["Verificado por asesor"] = False
     df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
@@ -1405,8 +1422,9 @@ if st.session_state.get("step") == 4:
                 }
             }
             st.success("Otros ingresos guardados. Avanzando…")
-            st.session_state.step = 5   # siguiente paso
+            st.session_state.step = 5
             st.rerun()
+
 
 
 
