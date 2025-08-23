@@ -1257,19 +1257,19 @@ if st.session_state.get("step") == 4:
     evidencias = ["Facturación electrónica", "Extractos bancarios/SINPE", "POS/Datáfono", "Recibos", "Foto/Chat", "Contrato", "Certificación", "No aplica", "Otro"]
 
     base_cols = [
-        "Titular (nombre)",            # texto
-        "Relación",                    # select
-        "Fuente de ingreso",           # select
-        "Periodicidad",                # select
-        "Monto por período (₡)",       # num
-        "Verificado por asesor",       # bool
-        "Tipo de evidencia",           # select
-        "Meses de continuidad",        # num
-        "Prob. continuidad (0–10)",    # num
-        "Comentario",                  # texto
+        "Titular (nombre)",
+        "Relación",
+        "Fuente de ingreso",
+        "Periodicidad",
+        "Monto por período (₡)",
+        "Verificado por asesor",
+        "Tipo de evidencia",
+        "Meses de continuidad",
+        "Prob. continuidad (0–10)",
+        "Comentario",
     ]
 
-    # Placeholders vacíos
+    # Placeholders vacíos (tablero de captura rápido)
     placeholder_rows = pd.DataFrame([{c: "" for c in base_cols}] * 4)
     df_in = st.data_editor(
         placeholder_rows,
@@ -1291,10 +1291,10 @@ if st.session_state.get("step") == 4:
         },
     )
 
-    # --- Cálculos ---
+    # --- Cálculos iniciales ---
     df = df_in.copy()
 
-    # Limpieza de tipos
+    # Tipos numéricos
     num_cols = ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"]
     for c in num_cols:
         if c not in df.columns:
@@ -1305,31 +1305,70 @@ if st.session_state.get("step") == 4:
         df["Verificado por asesor"] = False
     df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
 
-    # Derivados fila a fila
-    mensualizados = []
-    factores = []
-    ponderados = []
+    # Derivados
+    def _recalcular_derivados(df_src: pd.DataFrame) -> pd.DataFrame:
+        mensualizados, factores, ponderados = [], [], []
+        for _, row in df_src.iterrows():
+            monto = float(row.get("Monto por período (₡)") or 0)
+            per = row.get("Periodicidad") or ""
+            verif = bool(row.get("Verificado por asesor") or False)
+            evid = row.get("Tipo de evidencia") or ""
+            meses_cont = int(row.get("Meses de continuidad") or 0)
+            prob = int(row.get("Prob. continuidad (0–10)") or 0)
 
-    for idx, row in df.iterrows():
-        monto = float(row.get("Monto por período (₡)") or 0)
-        per = row.get("Periodicidad") or ""
-        verif = bool(row.get("Verificado por asesor") or False)
-        evid = row.get("Tipo de evidencia") or ""
-        meses_cont = int(row.get("Meses de continuidad") or 0)
-        prob = int(row.get("Prob. continuidad (0–10)") or 0)
+            m_mensual = _mensualizar(monto, per)
+            f_conf = _factor_confiabilidad_ingreso(verif, evid, meses_cont, prob)
+            mensualizados.append(m_mensual)
+            factores.append(f_conf)
+            ponderados.append(m_mensual * f_conf)
 
-        m_mensual = _mensualizar(monto, per)
-        f_conf = _factor_confiabilidad_ingreso(verif, evid, meses_cont, prob)
-        mensualizados.append(m_mensual)
-        factores.append(f_conf)
-        ponderados.append(m_mensual * f_conf)
+        df_out = df_src.copy()
+        df_out["Ingreso mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
+        df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores).round(2)
+        df_out["Ingreso ponderado (₡)"] = pd.Series(ponderados).round(0).astype(int)
+        return df_out
 
-    df["Ingreso mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
-    df["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores).round(2)
-    df["Ingreso ponderado (₡)"] = pd.Series(ponderados).round(0).astype(int)
+    df = _recalcular_derivados(df)
 
-    # Totales
-    # Filas válidas: monto > 0 y periodicidad seleccionada
+    # --- Editor con cálculos (editable en columnas de entrada, derivadas bloqueadas) ---
+    with st.expander("Editar tabla con cálculos (solo columnas de entrada son editables)"):
+        df_edit = st.data_editor(
+            df,
+            use_container_width=True,
+            num_rows="dynamic",
+            hide_index=True,
+            key="de_otros_ingresos_calc",
+            column_config={
+                "Titular (nombre)": st.column_config.TextColumn("Titular (nombre)"),
+                "Relación": st.column_config.SelectboxColumn("Relación", options=relaciones),
+                "Fuente de ingreso": st.column_config.SelectboxColumn("Fuente de ingreso", options=fuentes),
+                "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades),
+                "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
+                "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+                "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+                "Meses de continuidad": st.column_config.NumberColumn("Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"),
+                "Prob. continuidad (0–10)": st.column_config.NumberColumn("Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"),
+                "Comentario": st.column_config.TextColumn("Comentario"),
+                # Derivadas (solo lectura)
+                "Ingreso mensualizado (₡)": st.column_config.NumberColumn("Ingreso mensualizado (₡)", format="₡ %d", disabled=True),
+                "Factor confiabilidad (0.2–1.0)": st.column_config.NumberColumn("Factor confiabilidad (0.2–1.0)", format="%.2f", disabled=True),
+                "Ingreso ponderado (₡)": st.column_config.NumberColumn("Ingreso ponderado (₡)", format="₡ %d", disabled=True),
+            },
+        )
+
+    # Recalcular con lo editado
+    # Asegurar tipos otra vez (por si el editor devolvió strings)
+    for c in num_cols:
+        if c not in df_edit.columns:
+            df_edit[c] = 0
+        df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce").fillna(0)
+    if "Verificado por asesor" not in df_edit.columns:
+        df_edit["Verificado por asesor"] = False
+    df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
+
+    df = _recalcular_derivados(df_edit)
+
+    # --- Resumen actualizado ---
     valid_mask = (df["Monto por período (₡)"] > 0) & (df["Periodicidad"].isin(periodicidades))
     df_valid = df[valid_mask].copy()
     total_mensual = int(df_valid["Ingreso mensualizado (₡)"].sum()) if not df_valid.empty else 0
@@ -1343,9 +1382,6 @@ if st.session_state.get("step") == 4:
         "Total ponderado por confiabilidad": f"₡ {total_ponderado:,}".replace(",", "."),
         "Registros válidos": int(valid_mask.sum()),
     })
-
-    with st.expander("Ver tabla con cálculos"):
-        st.dataframe(df, use_container_width=True)
 
     st.divider()
 
@@ -1369,8 +1405,10 @@ if st.session_state.get("step") == 4:
                 }
             }
             st.success("Otros ingresos guardados. Avanzando…")
-            st.session_state.step = 5   # siguiente paso (capacidad de pago, por ejemplo)
+            st.session_state.step = 5   # siguiente paso
             st.rerun()
+
+
 
 
 
