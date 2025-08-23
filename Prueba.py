@@ -1236,7 +1236,7 @@ def _factor_probabilidad(prob_0a10: int) -> float:
     return 0.50 + 0.05 * p
 
 def _factor_confiabilidad_ingreso(verificado: bool, evidencia: str, meses_cont: int, prob_0a10: int) -> float:
-    """Multiplicativo con límites de seguridad."""
+    """Multiplicativo con límites de seguridad (0.20–1.00)."""
     f = _factor_verificacion(verificado, evidencia) \
         * _factor_estabilidad(meses_cont) \
         * _factor_probabilidad(prob_0a10)
@@ -1244,7 +1244,6 @@ def _factor_confiabilidad_ingreso(verificado: bool, evidencia: str, meses_cont: 
 
 if st.session_state.get("step") == 4:
     import pandas as pd
-    import numpy as np
 
     st.title("💸 Paso 5: Otros ingresos del hogar")
     st.caption("Registre otros ingresos del cliente y su núcleo familiar. Cada ingreso debe indicar si fue **verificado por el asesor** y con qué evidencia.")
@@ -1283,71 +1282,42 @@ if st.session_state.get("step") == 4:
         },
     )
 
-    # --- Preparar y calcular derivados ---
+    # --- Cálculos y tabla con cálculos (factor congelado) ---
     df = df_in.copy()
     num_cols = ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"]
     for c in num_cols:
         if c not in df.columns:
             df[c] = 0
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
-
     if "Verificado por asesor" not in df.columns:
         df["Verificado por asesor"] = False
     df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
 
-    # Función para (re)calcular, respetando override manual del factor si el usuario lo edita
     def _recalcular_derivados(df_src: pd.DataFrame) -> pd.DataFrame:
-        df_out = df_src.copy()
-
-        # Crea la columna si no existe (valor inicial automático)
-        if "Factor confiabilidad (0.2–1.0)" not in df_out.columns:
-            auto_factors = []
-            for _, r in df_out.iterrows():
-                auto_factors.append(
-                    _factor_confiabilidad_ingreso(
-                        bool(r.get("Verificado por asesor") or False),
-                        r.get("Tipo de evidencia") or "",
-                        int(r.get("Meses de continuidad") or 0),
-                        int(r.get("Prob. continuidad (0–10)") or 0),
-                    )
-                )
-            df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(auto_factors).round(2)
-
-        # Tipos
-        df_out["Factor confiabilidad (0.2–1.0)"] = pd.to_numeric(
-            df_out["Factor confiabilidad (0.2–1.0)"], errors="coerce"
-        )
-
-        # Recalcular mensualizados y ponderado usando factor manual si está presente
-        mensualizados, factores_aplicados, ponderados = [], [], []
-        for _, r in df_out.iterrows():
+        mensualizados, factores, ponderados = [], [], []
+        for _, r in df_src.iterrows():
             monto = float(r.get("Monto por período (₡)") or 0)
             per = r.get("Periodicidad") or ""
-            m_mensual = _mensualizar(monto, per)
+            verif = bool(r.get("Verificado por asesor") or False)
+            evid = r.get("Tipo de evidencia") or ""
+            meses_cont = int(r.get("Meses de continuidad") or 0)
+            prob = int(r.get("Prob. continuidad (0–10)") or 0)
 
-            f_manual = r.get("Factor confiabilidad (0.2–1.0)")
-            if f_manual is not None and not (isinstance(f_manual, float) and np.isnan(f_manual)):
-                f_conf = float(max(0.20, min(1.00, f_manual)))
-            else:
-                f_conf = _factor_confiabilidad_ingreso(
-                    bool(r.get("Verificado por asesor") or False),
-                    r.get("Tipo de evidencia") or "",
-                    int(r.get("Meses de continuidad") or 0),
-                    int(r.get("Prob. continuidad (0–10)") or 0),
-                )
+            m_mensual = _mensualizar(monto, per)
+            f_conf = _factor_confiabilidad_ingreso(verif, evid, meses_cont, prob)  # SIEMPRE calculado
             mensualizados.append(m_mensual)
-            factores_aplicados.append(f_conf)
+            factores.append(f_conf)
             ponderados.append(m_mensual * f_conf)
 
+        df_out = df_src.copy()
         df_out["Ingreso mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
-        df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores_aplicados).round(2)
+        df_out["Factor confiabilidad (0.2–1.0)"] = pd.Series(factores).round(2)
         df_out["Ingreso ponderado (₡)"] = pd.Series(ponderados).round(0).astype(int)
         return df_out
 
     df = _recalcular_derivados(df)
 
-    # --- Editor con cálculos (factor editable; derivadas se actualizan) ---
-    with st.expander("Editar tabla con cálculos (solo columnas de entrada son editables)"):
+    with st.expander("Editar tabla con cálculos (factor congelado)"):
         df_edit = st.data_editor(
             df,
             use_container_width=True,
@@ -1365,27 +1335,25 @@ if st.session_state.get("step") == 4:
                 "Meses de continuidad": st.column_config.NumberColumn("Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"),
                 "Prob. continuidad (0–10)": st.column_config.NumberColumn("Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"),
                 "Comentario": st.column_config.TextColumn("Comentario"),
-                # Derivadas (solo lectura excepto el factor que ahora es editable)
+                # Derivadas (solo lectura, FACTOR CONGELADO)
                 "Ingreso mensualizado (₡)": st.column_config.NumberColumn("Ingreso mensualizado (₡)", format="₡ %d", disabled=True),
-                "Factor confiabilidad (0.2–1.0)": st.column_config.NumberColumn(
-                    "Factor confiabilidad (0.2–1.0)", min_value=0.20, max_value=1.00, step=0.01, format="%.2f"
-                ),
+                "Factor confiabilidad (0.2–1.0)": st.column_config.NumberColumn("Factor confiabilidad (0.2–1.0)", format="%.2f", disabled=True),
                 "Ingreso ponderado (₡)": st.column_config.NumberColumn("Ingreso ponderado (₡)", format="₡ %d", disabled=True),
             },
         )
 
-    # Recalcular con lo editado
-    for c in ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)", "Factor confiabilidad (0.2–1.0)"]:
+    # Recalcular (por si cambiaron entradas en el editor)
+    for c in num_cols:
         if c not in df_edit.columns:
             df_edit[c] = 0
-        df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce")
+        df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce").fillna(0)
     if "Verificado por asesor" not in df_edit.columns:
         df_edit["Verificado por asesor"] = False
     df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
 
     df = _recalcular_derivados(df_edit)
 
-    # --- Resumen actualizado ---
+    # --- Resumen ---
     valid_mask = (df["Monto por período (₡)"] > 0) & (df["Periodicidad"].isin(periodicidades))
     df_valid = df[valid_mask].copy()
     total_mensual = int(df_valid["Ingreso mensualizado (₡)"].sum()) if not df_valid.empty else 0
@@ -1424,7 +1392,6 @@ if st.session_state.get("step") == 4:
             st.success("Otros ingresos guardados. Avanzando…")
             st.session_state.step = 5
             st.rerun()
-
 
 
 
