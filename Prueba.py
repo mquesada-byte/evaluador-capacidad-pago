@@ -1414,7 +1414,11 @@ if st.session_state.get("step") == 5:
     import pandas as pd
 
     st.title("💳 Paso 6: Deudas activas del hogar")
-    st.caption("Registre los préstamos/obligaciones vigentes del cliente o su núcleo. Se calculará la **cuota mensual total** (para resultados) y el **saldo total adeudado** (para balance).")
+    st.caption(
+        "Registre los préstamos/obligaciones vigentes del cliente o su núcleo. "
+        "Se calculará la **cuota mensual total** (para resultados) y el **saldo total adeudado** (para balance). "
+        "Incluye **clasificación por plazo** para separar **pasivo circulante** y **pasivo a largo plazo**."
+    )
 
     # Catálogos
     relaciones = ["Cliente", "Pareja", "Hogar (compartida)", "Otro"]
@@ -1424,6 +1428,9 @@ if st.session_state.get("step") == 5:
     evidencias = ["Estado de cuenta", "Contrato", "Tabla de amortización", "Recibo de pago",
                   "SINPE/Extracto", "Credid", "Equifax", "Foto/Chat", "No aplica", "Otro"]
     estados = ["Al día", "Atraso"]
+
+    # NUEVO: catálogo de plazo
+    plazos = ["Corto plazo (≤12 meses)", "Largo plazo (>12 meses)"]
 
     # Columnas base (entrada)
     base_cols = [
@@ -1438,9 +1445,12 @@ if st.session_state.get("step") == 5:
         "Estado",                    # al día/atraso
         "Días de atraso",            # número (opcional)
         "Comentario",                # texto
+        # NUEVOS CAMPOS
+        "Meses restantes (opcional)",   # num (si se indica, auto-clasifica plazo)
+        "Plazo (clasificación)",        # corto / largo
     ]
 
-    # Editor de captura rápido
+    # Editor de captura rápido (con nuevas columnas)
     placeholder_rows = pd.DataFrame([{c: "" for c in base_cols}] * 4)
     df_in = st.data_editor(
         placeholder_rows,
@@ -1460,6 +1470,9 @@ if st.session_state.get("step") == 5:
             "Estado": st.column_config.SelectboxColumn("Estado", options=estados, required=False),
             "Días de atraso": st.column_config.NumberColumn("Días de atraso", min_value=0, max_value=3650, step=1, format="%d"),
             "Comentario": st.column_config.TextColumn("Comentario"),
+            # NUEVOS
+            "Meses restantes (opcional)": st.column_config.NumberColumn("Meses restantes (opcional)", min_value=0, max_value=600, step=1, format="%d"),
+            "Plazo (clasificación)": st.column_config.SelectboxColumn("Plazo (clasificación)", options=plazos, required=False),
         },
     )
 
@@ -1467,7 +1480,7 @@ if st.session_state.get("step") == 5:
     df = df_in.copy()
 
     # Asegurar tipos numéricos
-    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso"]:
+    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
         if c not in df.columns:
             df[c] = 0
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
@@ -1476,13 +1489,23 @@ if st.session_state.get("step") == 5:
         df["Verificado por asesor"] = False
     df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
 
+    # AUTOCLASIFICACIÓN DE PLAZO (si hay meses restantes y no seleccionaron plazo)
+    if "Plazo (clasificación)" not in df.columns:
+        df["Plazo (clasificación)"] = ""
+    df["Plazo (clasificación)"] = df["Plazo (clasificación)"].astype(str)
+
+    auto_mask = df["Plazo (clasificación)"].isin(["", "nan", "None"])
+    df.loc[auto_mask & (df["Meses restantes (opcional)"] > 0) & (df["Meses restantes (opcional)"] <= 12),
+           "Plazo (clasificación)"] = "Corto plazo (≤12 meses)"
+    df.loc[auto_mask & (df["Meses restantes (opcional)"] > 12),
+           "Plazo (clasificación)"] = "Largo plazo (>12 meses)"
+
     # Calcular cuota mensualizada y campos bloqueados
     cuotas_mens = []
     for _, r in df.iterrows():
         cuota = float(r.get("Cuota por período (₡)") or 0)
         per = r.get("Periodicidad de pago") or ""
         cuotas_mens.append(_mensualizar_pago(cuota, per))
-
     df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
 
     # Editor con cálculos (derivadas bloqueadas)
@@ -1505,13 +1528,16 @@ if st.session_state.get("step") == 5:
                 "Estado": st.column_config.SelectboxColumn("Estado", options=estados),
                 "Días de atraso": st.column_config.NumberColumn("Días de atraso", min_value=0, max_value=3650, step=1, format="%d"),
                 "Comentario": st.column_config.TextColumn("Comentario"),
+                # Nuevos de plazo
+                "Meses restantes (opcional)": st.column_config.NumberColumn("Meses restantes (opcional)", min_value=0, max_value=600, step=1, format="%d"),
+                "Plazo (clasificación)": st.column_config.SelectboxColumn("Plazo (clasificación)", options=plazos),
                 # Derivadas bloqueadas
                 "Cuota mensualizada (₡)": st.column_config.NumberColumn("Cuota mensualizada (₡)", format="₡ %d", disabled=True),
             },
         )
 
     # Recalcular por si hubo cambios en el editor de cálculos
-    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso"]:
+    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
         if c not in df_edit.columns:
             df_edit[c] = 0
         df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce").fillna(0)
@@ -1537,11 +1563,19 @@ if st.session_state.get("step") == 5:
     total_adeudado = int(df_valid["Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
     total_pago_verificado = int(df_valid.loc[df_valid["Verificado por asesor"], "Cuota mensualizada (₡)"].sum()) if not df_valid.empty else 0
 
+    # NUEVO: totales por plazo para Balance
+    corto_mask = df_valid["Plazo (clasificación)"].eq("Corto plazo (≤12 meses)")
+    largo_mask = df_valid["Plazo (clasificación)"].eq("Largo plazo (>12 meses)")
+    total_adeudado_corto = int(df_valid.loc[corto_mask, "Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+    total_adeudado_largo = int(df_valid.loc[largo_mask, "Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+
     st.markdown("**Resumen**")
     st.write({
         "Total pago mensual (a Resultados)": f"₡ {total_pago_mensual:,}".replace(",", "."),
         "Total pago mensual verificado": f"₡ {total_pago_verificado:,}".replace(",", "."),
         "Total adeudado (a Balance general)": f"₡ {total_adeudado:,}".replace(",", "."),
+        "→ Pasivo circulante (corto plazo)": f"₡ {total_adeudado_corto:,}".replace(",", "."),
+        "→ Pasivo a largo plazo": f"₡ {total_adeudado_largo:,}".replace(",", "."),
         "Registros válidos": int(valid_mask.sum()),
     })
 
@@ -1564,6 +1598,9 @@ if st.session_state.get("step") == 5:
                     "total_pago_mensual_colones": total_pago_mensual,
                     "total_pago_mensual_verificado_colones": total_pago_verificado,
                     "total_adeudado_colones": total_adeudado,
+                    # NUEVOS CAMPOS PARA BALANCE:
+                    "total_adeudado_corto_plazo_colones": total_adeudado_corto,   # → pasivo circulante
+                    "total_adeudado_largo_plazo_colones": total_adeudado_largo,   # → pasivo a largo plazo
                     "registros_validos": int(valid_mask.sum()),
                 }
             }
@@ -2102,6 +2139,7 @@ with st.expander("Ver tablas de origen"):
     st.dataframe(gastos_fam_df, use_container_width=True)
     st.subheader("Deudas")
     st.dataframe(deudas_df, use_container_width=True)
+
 
 
 
