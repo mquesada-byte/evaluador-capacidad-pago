@@ -2211,7 +2211,7 @@ if st.session_state.get("step") == 7:
 
     # Catálogos de evidencia (cómo verificó el asesor)
     evidencias = [
-        "Estado de cuenta", "Movimientos/SINPE", "Factura/Recibo",
+        "Los tiene en caja", "Estado de cuenta", "Movimientos/SINPE", "Factura/Recibo",
         "Contrato", "Inventario físico", "Fotos/Video", "Otro", "No aplica"
     ]
 
@@ -2519,6 +2519,7 @@ if st.session_state.get("step") == 7:
             st.success("Balance general guardado. Avanzando…")
             st.session_state.step = 8
             st.rerun()
+
 
 
 
