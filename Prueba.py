@@ -2014,9 +2014,58 @@ if not otros_ing_total:
 src["otros_ingresos"] = ruta_oi
 otros_ing_total = _num(otros_ing_total, 0)
 
-# 6) Gastos familiares (mensualizado)
-gastos_fam_total = _getr(["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"], 0)
-src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_familiares_mensualizado_colones"
+# 6) Gastos familiares (mensualizado) — con fallbacks a tabla y editores
+def _mult_mensualizacion(per):
+    per = (str(per) or "").strip().lower()
+    if per == "diario":       return 30.0
+    if per == "semanal":      return 52.0 / 12.0
+    if per == "quincenal":    return 2.0
+    if per == "mensual":      return 1.0
+    if per == "bimestral":    return 0.5
+    if per == "trimestral":   return 1.0 / 3.0
+    if per == "semestral":    return 1.0 / 6.0
+    if per == "anual":        return 1.0 / 12.0
+    return 0.0
+
+gastos_fam_total = _getr(
+    ["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"], None
+)
+
+if gastos_fam_total is not None and _num(gastos_fam_total) > 0:
+    src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_familiares_mensualizado_colones"
+else:
+    # 1) Intento con la tabla ya guardada en reporte
+    df_tabla = pd.DataFrame(_getr(["gastos_familiares", "tabla"], []))
+    if not df_tabla.empty:
+        if "Gasto mensualizado (₡)" in df_tabla.columns:
+            gastos_fam_total = pd.to_numeric(df_tabla["Gasto mensualizado (₡)"], errors="coerce").fillna(0).sum()
+            src["gastos_familiares"] = 'reporte.gastos_familiares.tabla["Gasto mensualizado (₡)"]'
+        elif {"Monto por período (₡)", "Periodicidad"}.issubset(df_tabla.columns):
+            montos = pd.to_numeric(df_tabla["Monto por período (₡)"], errors="coerce").fillna(0)
+            mults = df_tabla["Periodicidad"].map(_mult_mensualizacion)
+            gastos_fam_total = float((montos * mults).sum())
+            src["gastos_familiares"] = "reporte.gastos_familiares.tabla mensualizado"
+
+    # 2) Si aún no, intenta con los editores en vivo
+    if not gastos_fam_total or _num(gastos_fam_total) == 0:
+        for key in ["de_gastos_familiares_calc", "de_gastos_familiares"]:
+            df_live = st.session_state.get(key)
+            if df_live is None:
+                continue
+            df_live = pd.DataFrame(df_live)
+            if df_live.empty:
+                continue
+            if "Gasto mensualizado (₡)" in df_live.columns:
+                gastos_fam_total = pd.to_numeric(df_live["Gasto mensualizado (₡)"], errors="coerce").fillna(0).sum()
+                src["gastos_familiares"] = f'{key}["Gasto mensualizado (₡)"]'
+                break
+            elif {"Monto por período (₡)", "Periodicidad"}.issubset(df_live.columns):
+                montos = pd.to_numeric(df_live["Monto por período (₡)"], errors="coerce").fillna(0)
+                mults = df_live["Periodicidad"].map(_mult_mensualizacion)
+                gastos_fam_total = float((montos * mults).sum())
+                src["gastos_familiares"] = f"{key} mensualizado"
+                break
+
 gastos_fam_total = _num(gastos_fam_total, 0)
 
 # 7) Pago de deudas (mensualizado, para Resultados)
@@ -2097,6 +2146,7 @@ with st.expander("Ver tablas de origen (si están disponibles)"):
     st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
     st.subheader("Deudas activas")
     st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
+
 
 
 
