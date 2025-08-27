@@ -2933,3 +2933,290 @@ if ventas_conc and top_ajustado:
     st.caption(f"**Etiqueta de precisión declarativa de la clienta:** {etiqueta}")
 
 
+
+
+
+# estado_resultados.py
+# ---------------------------------------------------------
+# Lee del st.session_state["reporte"] generado por tus pasos
+# y calcula el Estado de Resultados. Al final muestra
+# una valoración de verificación (% verificado vs no).
+
+import streamlit as st
+import pandas as pd
+import datetime as dt
+from zoneinfo import ZoneInfo
+
+# Evitar choque si otra página ya configuró page_config
+if not st.session_state.get("_page_config_set"):
+    st.set_page_config(page_title="Estado de Resultados", page_icon="📑", layout="centered")
+    st.session_state["_page_config_set"] = True
+
+TZ = ZoneInfo("America/Costa_Rica")
+
+# ========= Helpers =========
+def _getr(path, default=None):
+    cur = st.session_state.get("reporte", {}) or {}
+    try:
+        for p in path:
+            cur = cur[p]
+        return cur
+    except Exception:
+        return default
+
+def _num(x, default=0.0):
+    try:
+        if x is None: return float(default)
+        return float(x)
+    except Exception:
+        try:
+            s = str(x).strip().replace(",", "")
+            return float(s)
+        except Exception:
+            return float(default)
+
+def _fmt_col(x):
+    try:
+        return f"₡{int(round(_num(x))):,}".replace(",", ".")
+    except Exception:
+        return "₡0"
+
+def _mult_mensualizacion(per):
+    per = (str(per) or "").strip().lower()
+    if per == "diario":       return 30.0
+    if per == "semanal":      return 52.0 / 12.0
+    if per == "quincenal":    return 2.0
+    if per == "mensual":      return 1.0
+    if per == "bimestral":    return 0.5
+    if per == "trimestral":   return 1.0 / 3.0
+    if per == "semestral":    return 1.0 / 6.0
+    if per == "anual":        return 1.0 / 12.0
+    return 0.0
+
+def _sum_from_table(df, value_col, verif_col=None):
+    """Suma segura de una tabla con columna de valor y opcional de verificación."""
+    if df is None or len(df) == 0:
+        return 0.0, 0.0
+    df = pd.DataFrame(df).copy()
+    # Normaliza nombres a minúsculas
+    df.columns = [str(c).strip() for c in df.columns]
+    lower = {c: c.lower() for c in df.columns}
+    df = df.rename(columns=lower)
+
+    # Mapear posibles nombres
+    candidates_val = [value_col.lower(), "monto por período (₡)".lower(), "gasto mensualizado (₡)".lower(),
+                      "cuota mensualizada (₡)".lower(), "ingreso mensualizado (₡)".lower()]
+    col_val = next((c for c in candidates_val if c in df.columns), None)
+
+    if col_val is None:
+        # Intento: mensualizar si hay "monto por período (₡)" + "periodicidad"
+        if "monto por período (₡)".lower() in df.columns and "periodicidad" in df.columns:
+            montos = pd.to_numeric(df["monto por período (₡)".lower()], errors="coerce").fillna(0)
+            mults = df["periodicidad"].map(_mult_mensualizacion)
+            total = float((montos * mults).sum())
+            verif_total = 0.0
+            if verif_col:
+                col_v = verif_col.lower()
+                if col_v in df.columns:
+                    mask = df[col_v].fillna(False).astype(bool)
+                    verif_total = float((montos[mask] * df.loc[mask, "periodicidad"].map(_mult_mensualizacion)).sum())
+            return total, verif_total
+        return 0.0, 0.0
+
+    total = float(pd.to_numeric(df[col_val], errors="coerce").fillna(0).sum())
+
+    verif_total = 0.0
+    if verif_col:
+        col_v = verif_col.lower()
+        if col_v in df.columns:
+            mask = df[col_v].fillna(False).astype(bool)
+            verif_total = float(pd.to_numeric(df.loc[mask, col_val], errors="coerce").fillna(0).sum())
+
+    return total, verif_total
+
+# ========= Recolecta valores del reporte (con fallbacks) =========
+src = {}  # para mostrar origen de algunos valores (opcional)
+
+# 1) Ventas (preferir conciliadas)
+ventas_total = _getr(["ventas_conciliacion", "ventas_conciliadas_colones"])
+if ventas_total:
+    src["ventas"] = "reporte.ventas_conciliacion.ventas_conciliadas_colones"
+else:
+    ventas_total = (
+        _getr(["ventas_topdown", "monto_colones"]) or
+        _getr(["ventas_bottomup", "ventas_estimadas_colones"]) or
+        _getr(["ventas_insumos_simple", "ventas_estimadas_colones"]) or
+        _getr(["ventas_insumos", "ventas_estimadas_colones"])
+    )
+ventas_total = _num(ventas_total, 0)
+
+# 2) Compras/costo (si usas el método 3C simple)
+compras_total = _getr(["ventas_insumos_simple", "compras_mes_colones"], 0)
+compras_total = _num(compras_total, 0)
+
+# 3) Margen (opcional: solo para mostrar en métrica)
+tipo_margen = _getr(["ventas_insumos_simple", "tipo_margen"])
+margen_pct = _getr(["ventas_insumos_simple", "margen_pct"])
+
+# 4) Gastos operativos (mensualizado) + verificado
+gop_total = _getr(["gastos_operativos", "totales", "total_gasto_operativo_mensualizado_colones"])
+gop_verif = _getr(["gastos_operativos", "totales", "total_gasto_operativo_verificado_colones"])
+if gop_total is None:
+    # Fallback desde tabla
+    gop_total, gop_verif = _sum_from_table(
+        _getr(["gastos_operativos", "tabla"], []),
+        value_col="Gasto mensualizado (₡)",
+        verif_col="Verificado por asesor",
+    )
+gop_total = _num(gop_total, 0)
+gop_verif = _num(gop_verif, 0)
+
+# 5) Otros ingresos (usar ponderado si existe; verificación desde mensualizado verificado)
+oi_pond = _getr(["otros_ingresos", "totales", "total_ponderado_colones"])
+oi_mens = _getr(["otros_ingresos", "totales", "total_mensualizado_colones"])
+oi_verif_mens = _getr(["otros_ingresos", "totales", "total_verificado_mensualizado_colones"])
+# Total para ER:
+otros_ing_total = _num(oi_pond if oi_pond else oi_mens, 0)
+# Totales para cobertura de verificación:
+oi_base_para_cobertura = _num(oi_mens, 0) if _num(oi_mens, 0) > 0 else _num(oi_pond, 0)
+oi_verif = min(_num(oi_verif_mens, 0), oi_base_para_cobertura)
+
+# 6) Gastos familiares (mensualizado) + verificado
+gf_total = _getr(["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"])
+gf_verif = _getr(["gastos_familiares", "totales", "total_gastos_familiares_verificado_colones"])
+if gf_total is None:
+    # Fallback desde tabla
+    gf_total, gf_verif = _sum_from_table(
+        _getr(["gastos_familiares", "tabla"], []),
+        value_col="Gasto mensualizado (₡)",
+        verif_col="Verificado por asesor",
+    )
+gf_total = _num(gf_total, 0)
+gf_verif = _num(gf_verif, 0)
+
+# 7) Pago de deudas (mensualizado) + verificado
+deu_total = _getr(["deudas_activas", "totales", "total_pago_mensual_colones"], 0)
+deu_verif = _getr(["deudas_activas", "totales", "total_pago_mensual_verificado_colones"], 0)
+deu_total = _num(deu_total, 0)
+deu_verif = _num(deu_verif, 0)
+
+# ========= Cálculos de ER =========
+# Utilidad bruta (si hay % de margen y base, se podría usar; por simplicidad usamos ventas - compras)
+utilidad_bruta = max(0.0, ventas_total - compras_total)
+utilidad_neta_ope = utilidad_bruta - gop_total
+subtotal_post_otros = utilidad_neta_ope + otros_ing_total
+disponible_final = subtotal_post_otros - gf_total - deu_total
+
+# ========= UI =========
+st.header("📑 Estado de Resultados (mensualizado)")
+
+# Orígenes (opcional)
+with st.expander("🔎 Origen rápido (rutas detectadas)"):
+    st.json({
+        "ventas": src.get("ventas", "conciliadas o fallback 3A/3B/3C"),
+        "gastos_operativos": "reporte.gastos_operativos.totales (o tabla)",
+        "otros_ingresos": "reporte.otros_ingresos.totales (ponderado/mens.)",
+        "gastos_familiares": "reporte.gastos_familiares.totales (o tabla)",
+        "deudas_activas": "reporte.deudas_activas.totales",
+    })
+
+# Cabecera con ventas / compras / margen
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Ventas", _fmt_col(ventas_total))
+with col2:
+    st.metric("Compras/Costos", _fmt_col(compras_total))
+with col3:
+    if tipo_margen and margen_pct is not None:
+        base_txt = ("ventas" if (tipo_margen == "Sobre ventas") else ("compras" if (tipo_margen == "Sobre compras (markup)") else "—"))
+        pct = float(margen_pct)
+        pct = pct if pct <= 1 else pct/100.0
+        st.metric("Margen (base)", f"{pct:.0%} sobre {base_txt}")
+    else:
+        st.metric("Margen (base)", "—")
+
+st.divider()
+
+# Bloque principal
+col4, col5 = st.columns(2)
+with col4:
+    st.metric("🧮 Utilidad Bruta", _fmt_col(utilidad_bruta))
+with col5:
+    st.metric("🧾 Gastos operativos", _fmt_col(gop_total))
+
+st.metric("📌 Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope))
+
+st.divider()
+
+col6, col7 = st.columns(2)
+with col6:
+    st.metric("➕ Otros ingresos", _fmt_col(otros_ing_total))
+with col7:
+    st.metric("Subtotal post-otros", _fmt_col(subtotal_post_otros))
+
+st.divider()
+
+col8, col9 = st.columns(2)
+with col8:
+    st.metric("👪 Gastos familiares", _fmt_col(gf_total))
+with col9:
+    st.metric("💳 Pago de deudas", _fmt_col(deu_total))
+
+st.success(f"💰 **Disponible para el préstamo:** {_fmt_col(disponible_final)}")
+
+# ========= Valoración de verificación =========
+st.divider()
+st.subheader("✅ Cobertura de verificación de la información")
+
+# Tabla por rubro
+verif_rows = [
+    {
+        "Concepto": "Otros ingresos",
+        "Total (₡)": int(round(oi_base_para_cobertura)),
+        "Verificado (₡)": int(round(oi_verif)),
+        "% Verificado": f"{(oi_verif / oi_base_para_cobertura * 100):.0f}%" if oi_base_para_cobertura > 0 else "—",
+    },
+    {
+        "Concepto": "Gastos operativos",
+        "Total (₡)": int(round(gop_total)),
+        "Verificado (₡)": int(round(gop_verif)),
+        "% Verificado": f"{(gop_verif / gop_total * 100):.0f}%" if gop_total > 0 else "—",
+    },
+    {
+        "Concepto": "Gastos familiares",
+        "Total (₡)": int(round(gf_total)),
+        "Verificado (₡)": int(round(gf_verif)),
+        "% Verificado": f"{(gf_verif / gf_total * 100):.0f}%" if gf_total > 0 else "—",
+    },
+    {
+        "Concepto": "Pago de deudas",
+        "Total (₡)": int(round(deu_total)),
+        "Verificado (₡)": int(round(deu_verif)),
+        "% Verificado": f"{(deu_verif / deu_total * 100):.0f}%" if deu_total > 0 else "—",
+    },
+]
+st.dataframe(pd.DataFrame(verif_rows), use_container_width=True, hide_index=True)
+
+# Resumen global (% verificado sobre la suma absoluta de montos considerados)
+glob_total = oi_base_para_cobertura + gop_total + gf_total + deu_total
+glob_verif = oi_verif + gop_verif + gf_verif + deu_verif
+pct_glob = (glob_verif / glob_total * 100) if glob_total > 0 else None
+
+st.info(
+    f"**Cobertura verificada global:** "
+    f"{(pct_glob and f'{pct_glob:.0f}%') or '—'}  "
+    f"({ _fmt_col(glob_verif) } verificados de { _fmt_col(glob_total) })."
+)
+
+# (Opcional) Ver tablas de origen
+with st.expander("Ver tablas de origen (si están disponibles)"):
+    rep = st.session_state.get("reporte", {})
+    st.subheader("Otros ingresos")
+    st.dataframe(pd.DataFrame(rep.get("otros_ingresos", {}).get("tabla", [])), use_container_width=True)
+    st.subheader("Gastos operativos")
+    st.dataframe(pd.DataFrame(rep.get("gastos_operativos", {}).get("tabla", [])), use_container_width=True)
+    st.subheader("Gastos familiares")
+    st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
+    st.subheader("Deudas activas")
+    st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
+
