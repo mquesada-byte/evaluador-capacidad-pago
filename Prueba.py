@@ -1923,7 +1923,6 @@ if st.session_state.get("step") == 7:
 # ---------------------------------------------------------
 # Lee del st.session_state["reporte"] generado por tus pasos 1–8
 # y calcula el Disponible para pago del préstamo (Credimujer).
-# No modifica los datos previos, solo los lee y resume.
 
 import streamlit as st
 import pandas as pd
@@ -1946,20 +1945,67 @@ def _getr(path, default=None):
 
 def _num(x, default=0.0):
     try:
-        if x is None: return float(default)
+        if x is None:
+            return float(default)
         return float(x)
     except Exception:
         try:
-            s = str(x).strip().replace(",", "")
+            s = str(x).strip().replace(",", "").replace("₡", "")
             return float(s)
         except Exception:
             return float(default)
+
+def _num_or_none(x):
+    try:
+        if x is None or (isinstance(x, str) and x.strip() == ""):
+            return None
+        return float(str(x).strip().replace(",", "").replace("₡", ""))
+    except Exception:
+        return None
 
 def _fmt_col(x):
     try:
         return f"₡{int(round(_num(x))):,}".replace(",", ".")
     except Exception:
         return "₡0"
+
+def _to_df_any(x) -> pd.DataFrame:
+    """Convierte 'lo que sea' a DataFrame sin explotar."""
+    if x is None:
+        return pd.DataFrame()
+    if isinstance(x, pd.DataFrame):
+        return x.copy()
+    if isinstance(x, list):
+        return pd.DataFrame(x)
+    if isinstance(x, dict):
+        # Caso común: {'data': [...]}
+        if "data" in x and isinstance(x["data"], (list, tuple)):
+            try:
+                return pd.DataFrame(x["data"])
+            except Exception:
+                pass
+        # Dict de listas con mismo largo
+        try:
+            lens = {len(v) for v in x.values()
+                    if hasattr(v, "__len__") and not isinstance(v, (str, bytes))}
+            if lens and len(lens) == 1:
+                return pd.DataFrame(x)
+        except Exception:
+            pass
+        # Últimos intentos
+        try:
+            return pd.json_normalize(x, sep="_")
+        except Exception:
+            return pd.DataFrame([x])
+    return pd.DataFrame()
+
+def _pick_col_case_insensitive(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    """Devuelve el nombre de columna existente (case-insensitive) o None."""
+    lowmap = {c.lower(): c for c in df.columns}
+    for cand in candidates:
+        if cand.lower() in lowmap:
+            return lowmap[cand.lower()]
+    return None
 
 # ========= Recolecta valores del reporte (con fallback) =========
 src = {}  # para mostrar origen de cada valor
@@ -1977,7 +2023,6 @@ else:
         _getr(["ventas_insumos", "ventas_estimadas_colones"])
     )
     if ventas_total:
-        # identifica cuál fue
         if _getr(["ventas_topdown", "monto_colones"]):
             src["ventas"] = "reporte.ventas_topdown.monto_colones"
         elif _getr(["ventas_bottomup", "ventas_estimadas_colones"]):
@@ -1996,7 +2041,8 @@ compras_total = _num(compras_total, 0)
 
 # 3) Margen (base + % desde 3C)
 tipo_margen = _getr(["ventas_insumos_simple", "tipo_margen"])  # "Sobre ventas" | "Sobre compras (markup)"
-margen_pct = _getr(["ventas_insumos_simple", "margen_pct"])    # entero, p.ej. 30
+margen_pct_raw = _getr(["ventas_insumos_simple", "margen_pct"])  # entero o texto "30"
+margen_pct = _num_or_none(margen_pct_raw)
 if tipo_margen is not None and margen_pct is not None:
     src["margen"] = "reporte.ventas_insumos_simple.(tipo_margen, margen_pct)"
 
@@ -2028,40 +2074,45 @@ def _mult_mensualizacion(per):
     return 0.0
 
 gastos_fam_total = _getr(
-    ["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"], None
+    ["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"],
+    None,
 )
 
 if gastos_fam_total is not None and _num(gastos_fam_total) > 0:
     src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_familiares_mensualizado_colones"
 else:
-    # 1) Intento con la tabla ya guardada en reporte
-    df_tabla = pd.DataFrame(_getr(["gastos_familiares", "tabla"], []))
+    # 1) Tabla en reporte (si ya existe)
+    df_tabla = _to_df_any(_getr(["gastos_familiares", "tabla"], []))
     if not df_tabla.empty:
-        if "Gasto mensualizado (₡)" in df_tabla.columns:
-            gastos_fam_total = pd.to_numeric(df_tabla["Gasto mensualizado (₡)"], errors="coerce").fillna(0).sum()
-            src["gastos_familiares"] = 'reporte.gastos_familiares.tabla["Gasto mensualizado (₡)"]'
-        elif {"Monto por período (₡)", "Periodicidad"}.issubset(df_tabla.columns):
-            montos = pd.to_numeric(df_tabla["Monto por período (₡)"], errors="coerce").fillna(0)
-            mults = df_tabla["Periodicidad"].map(_mult_mensualizacion)
-            gastos_fam_total = float((montos * mults).sum())
-            src["gastos_familiares"] = "reporte.gastos_familiares.tabla mensualizado"
+        col_gasto_mens = _pick_col_case_insensitive(df_tabla, ["Gasto mensualizado (₡)", "gasto mensualizado (₡)"])
+        if col_gasto_mens:
+            gastos_fam_total = pd.to_numeric(df_tabla[col_gasto_mens], errors="coerce").fillna(0).sum()
+            src["gastos_familiares"] = f'reporte.gastos_familiares.tabla["{col_gasto_mens}"]'
+        else:
+            col_monto = _pick_col_case_insensitive(df_tabla, ["Monto por período (₡)", "monto por período (₡)", "monto"])
+            col_per   = _pick_col_case_insensitive(df_tabla, ["Periodicidad", "periodicidad"])
+            if col_monto and col_per:
+                montos = pd.to_numeric(df_tabla[col_monto], errors="coerce").fillna(0)
+                mults = df_tabla[col_per].apply(_mult_mensualizacion)
+                gastos_fam_total = float((montos * mults).sum())
+                src["gastos_familiares"] = "reporte.gastos_familiares.tabla mensualizado"
 
-    # 2) Si aún no, intenta con los editores en vivo
+    # 2) Editores en vivo (evita ValueError con _to_df_any)
     if not gastos_fam_total or _num(gastos_fam_total) == 0:
         for key in ["de_gastos_familiares_calc", "de_gastos_familiares"]:
-            df_live = st.session_state.get(key)
-            if df_live is None:
-                continue
-            df_live = pd.DataFrame(df_live)
+            df_live = _to_df_any(st.session_state.get(key))
             if df_live.empty:
                 continue
-            if "Gasto mensualizado (₡)" in df_live.columns:
-                gastos_fam_total = pd.to_numeric(df_live["Gasto mensualizado (₡)"], errors="coerce").fillna(0).sum()
-                src["gastos_familiares"] = f'{key}["Gasto mensualizado (₡)"]'
+            col_gasto_mens = _pick_col_case_insensitive(df_live, ["Gasto mensualizado (₡)", "gasto mensualizado (₡)"])
+            if col_gasto_mens:
+                gastos_fam_total = pd.to_numeric(df_live[col_gasto_mens], errors="coerce").fillna(0).sum()
+                src["gastos_familiares"] = f'{key}["{col_gasto_mens}"]'
                 break
-            elif {"Monto por período (₡)", "Periodicidad"}.issubset(df_live.columns):
-                montos = pd.to_numeric(df_live["Monto por período (₡)"], errors="coerce").fillna(0)
-                mults = df_live["Periodicidad"].map(_mult_mensualizacion)
+            col_monto = _pick_col_case_insensitive(df_live, ["Monto por período (₡)", "monto por período (₡)", "monto"])
+            col_per   = _pick_col_case_insensitive(df_live, ["Periodicidad", "periodicidad"])
+            if col_monto and col_per:
+                montos = pd.to_numeric(df_live[col_monto], errors="coerce").fillna(0)
+                mults = df_live[col_per].apply(_mult_mensualizacion)
                 gastos_fam_total = float((montos * mults).sum())
                 src["gastos_familiares"] = f"{key} mensualizado"
                 break
@@ -2076,7 +2127,7 @@ deudas_total = _num(deudas_total, 0)
 # ========= Cálculos de ER =========
 # Utilidad bruta: si hay % de margen y base, úsalo; si no, fallback ventas - compras
 utilidad_bruta = None
-if isinstance(margen_pct, (int, float)) and tipo_margen in ("Sobre ventas", "Sobre compras (markup)"):
+if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)")):
     pct = float(margen_pct)
     pct = pct if pct <= 1 else pct / 100.0
     if tipo_margen == "Sobre ventas":
@@ -2087,9 +2138,9 @@ if isinstance(margen_pct, (int, float)) and tipo_margen in ("Sobre ventas", "Sob
 if utilidad_bruta is None:
     utilidad_bruta = max(0.0, ventas_total - compras_total)
 
-utilidad_neta_ope = utilidad_bruta - gastos_ope_total
+utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
 subtotal_post_otros = utilidad_neta_ope + otros_ing_total
-disponible_final = subtotal_post_otros - gastos_fam_total - deudas_total
+disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
 
 # ========= UI =========
 st.header("📑 Estado de Resultados (resumen de pasos previos)")
@@ -2104,8 +2155,8 @@ with col2:
     st.metric("Compras/Costos", _fmt_col(compras_total))
 with col3:
     base_txt = ("ventas" if (tipo_margen == "Sobre ventas") else ("compras" if (tipo_margen == "Sobre compras (markup)") else "—"))
-    pct_txt = (f"{(margen_pct if (margen_pct and margen_pct<=1) else (margen_pct or 0)/100):.0%}" if margen_pct is not None else "—")
-    st.metric("Margen (base)", f"{pct_txt} sobre {base_txt}")
+    pct_show = (margen_pct if (margen_pct is not None and margen_pct <= 1) else (margen_pct or 0)/100) if (margen_pct is not None) else None
+    st.metric("Margen (base)", f"{pct_show:.0%} sobre {base_txt}" if pct_show is not None else "— sobre —")
 
 st.divider()
 
@@ -2146,8 +2197,6 @@ with st.expander("Ver tablas de origen (si están disponibles)"):
     st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
     st.subheader("Deudas activas")
     st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
-
-
 
 
 
