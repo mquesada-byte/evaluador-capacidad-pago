@@ -176,6 +176,10 @@ if st.session_state.get("step", 1) == 1:
             st.session_state.step = 2
             st.rerun()
 
+# --- Fin de la pantalla del Paso 1 ---
+if st.session_state.get("step", 1) == 1:
+    st.stop()   # evita que se renderice lo que sigue (p.ej. Estado de Resultados)
+
 
 
 # =========================
@@ -3524,6 +3528,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
