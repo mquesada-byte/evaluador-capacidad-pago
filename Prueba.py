@@ -2538,7 +2538,7 @@ import streamlit as st
 import pandas as pd
 import json
 
-# Evitar error si otra página ya configuró el layout
+# Evitar choque con otras páginas que ya llamaron set_page_config
 if not st.session_state.get("_page_config_set"):
     st.set_page_config(page_title="Informe – Comité de Crédito", page_icon="📑", layout="centered")
     st.session_state["_page_config_set"] = True
@@ -2553,10 +2553,7 @@ def _first_key_in_state(possible_keys):
     return None
 
 def _get_num(key_list, default=0.0):
-    """
-    Devuelve (valor_float | None, key_encontrada).
-    Si default es None, no lo convertimos a float.
-    """
+    """Devuelve (valor_float | None, key_encontrada). Si default es None, no forzamos float(None)."""
     k = _first_key_in_state(key_list)
     if not k:
         return (None if default is None else float(default)), None
@@ -2582,6 +2579,20 @@ def _get_text(key_list, default=""):
     except Exception:
         return default, k
 
+def _as_name(v):
+    """Devuelve un nombre legible desde string o dict común."""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, dict):
+        for kk in ["nombre", "full_name", "display_name", "name"]:
+            if v.get(kk):
+                return str(v[kk])
+        if v.get("primer_nombre") or v.get("apellido") or v.get("apellidos"):
+            pn = v.get("primer_nombre", "")
+            ap = v.get("apellidos", v.get("apellido", ""))
+            return f"{pn} {ap}".strip() or "(sin registrar)"
+    return "(sin registrar)"
+
 def _get_tuple_coords():
     """
     Busca lat/lon en varias ubicaciones conocidas.
@@ -2589,9 +2600,10 @@ def _get_tuple_coords():
     """
     # 1) Dentro del bloque del asesor si existe
     a = st.session_state.get("asesor", {}) or {}
-    lat = a.get("lat"); lon = a.get("lon")
-    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
-        return float(lat), float(lon)
+    if isinstance(a, dict):
+        lat = a.get("lat"); lon = a.get("lon")
+        if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+            return float(lat), float(lon)
 
     # 2) Top-level keys alternativos
     lat_keys = ["gps_lat", "lat", "latitude"]
@@ -2612,37 +2624,8 @@ def _get_tuple_coords():
     # 4) Sin coordenadas
     return None, None
 
-# --- NUEVO: helpers para mostrar texto legible aunque vengan dicts ---
-def _smart_text_from_value(val, default=""):
-    """Convierte posibles dicts/listas/num a texto legible para encabezados."""
-    if val is None:
-        return default
-    if isinstance(val, str):
-        return val.strip() or default
-    if isinstance(val, (int, float)):
-        return str(val)
-    if isinstance(val, dict):
-        for k in ("nombre", "full_name", "display_name", "razon_social",
-                  "direccion", "address", "full_address", "ubicacion",
-                  "actividad", "giro", "giro_negocio", "detalle", "texto"):
-            if k in val and val[k]:
-                return str(val[k])
-        return default
-    if isinstance(val, list):
-        parts = [ _smart_text_from_value(x, "") for x in val if x is not None ]
-        return ", ".join([p for p in parts if p]) or default
-    return default
-
-def _prefer_dict(keys, default=""):
-    """Busca en varias claves y devuelve texto amigable (extrae campos si es dict)."""
-    for k in keys:
-        if k in st.session_state:
-            return _smart_text_from_value(st.session_state.get(k), default)
-    txt, _ = _get_text(keys, default)
-    return _smart_text_from_value(txt, default)
-# ---------------------------------------------------------------------
-
 def _coerce_df(obj, cols_hint=None):
+    """Convierte list/dict/df/None a DataFrame uniforme."""
     if obj is None:
         return pd.DataFrame(columns=cols_hint or ["detalle", "monto"])
     if isinstance(obj, pd.DataFrame):
@@ -2673,6 +2656,15 @@ def _coerce_df(obj, cols_hint=None):
     df["monto"] = pd.to_numeric(df["monto"], errors="coerce").fillna(0.0)
     return df
 
+def _records_from_state(key, cols_hint=None):
+    """Devuelve la tabla guardada en session_state[key] como lista de records (seguro)."""
+    df = _coerce_df(st.session_state.get(key), cols_hint=cols_hint)
+    return df.fillna("").to_dict(orient="records")
+
+def _records_from_first_key(key_candidates, cols_hint=None):
+    k = _first_key_in_state(key_candidates)
+    return _records_from_state(k, cols_hint=cols_hint) if k else []
+
 def _sum_from_state(key_candidates, cols_hint=None, value_col="monto"):
     k = _first_key_in_state(key_candidates)
     if not k:
@@ -2684,11 +2676,11 @@ def _sum_from_state(key_candidates, cols_hint=None, value_col="monto"):
 
 # ============ Posibles claves de pasos previos ============
 # Identidad/visita
-ASESOR_KEYS = ["asesor_nombre", "asesor", "nombre_asesor", "asesor_fullname"]
+ASESOR_KEYS = ["asesor_nombre", "nombre_asesor", "asesor_fullname", "asesor"]
 VISITA_DT_KEYS = ["fecha_hora_cr", "timestamp_cr", "fecha_hora_visita"]
-CLIENTE_KEYS = ["cliente_nombre", "nombre_cliente", "solicitante", "cliente", "nombre_solicitante"]
-ACTIVIDAD_KEYS = ["actividad", "actividad_principal", "giro_negocio"]
-LUGAR_KEYS = ["lugar_operacion", "ubicacion_negocio", "direccion_negocio", "direccion", "direccion_visita"]
+CLIENTE_KEYS = ["cliente_nombre", "nombre_cliente", "solicitante", "cliente"]
+ACTIVIDAD_KEYS = ["actividad", "actividad_principal", "giro_negocio", "giro", "categoria_actividad"]
+LUGAR_KEYS = ["lugar_operacion", "ubicacion_negocio", "direccion_negocio", "direccion_visita", "direccion"]
 
 # Ventas / Compras / Margen
 VENTAS_KEYS = ["ventas_df", "ventas_tabla", "registro_ventas", "ventas"]
@@ -2698,23 +2690,21 @@ MARGEN_BASE_KEYS = ["margen_base", "margen_sobre", "margen_aplicado_a"]  # "vent
 VENTAS_EVD_KEYS = ["ventas_evidencia", "ventas_fuentes", "ventas_evidencia_list"]
 MARGEN_EVD_KEYS = ["margen_evidencia", "margen_fuentes", "margen_verificacion"]
 
-# Gastos operativos, otros ingresos, gastos familiares, deudas (pago mensual)
+# Gastos operativos, otros ingresos, gastos familiares
 GO_KEYS = ["gastos_operativos_df", "gastos_operacionales_df", "gastos_ope_tabla", "gastos_operativos"]
 OTROS_ING_KEYS = ["otros_ingresos_df", "otros_ingresos_tabla", "ingresos_adicionales_df", "otros_ingresos"]
 GF_KEYS = ["gastos_familiares_df", "gastos_hogar_df", "gastos_familiares_tabla", "gastos_familiares"]
 
-# Balance: activo circulante
+# Balance
 CAJA_KEYS = ["bg_caja_bancos"]
 CXC_KEYS = ["bg_cxc_clientes"]
 INV_MP_KEYS = ["bg_inv_mp"]
 INV_PP_KEYS = ["bg_inv_pp"]
 INV_PT_KEYS = ["bg_inv_pt"]
-# Activo fijo
 AF_KEYS = ["bg_activo_fijo"]
-# Comentarios balance
-COMENT_BG_KEYS = ["bg_comentarios", "obs_bg", "comentarios_bg", "observaciones_bg"]
+COMENT_BG_KEYS = ["bg_comentarios", "comentarios_bg", "comentarios_balance"]
 
-# ============ Lógica de Estado de Resultados (recalcula) ============
+# ============ Lógica de Estado de Resultados ============
 def _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_val):
     if isinstance(margen_pct, float) and margen_pct is not None and margen_base_val in ("ventas", "compras"):
         pct = margen_pct if margen_pct <= 1 else margen_pct / 100.0
@@ -2728,20 +2718,17 @@ def _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_va
     return 0.0
 
 def _calc_resultados():
-    # Ventas / Compras (de tablas vivas si existieran)
     ventas_total, ventas_df, _ = _sum_from_state(VENTAS_KEYS, cols_hint=["detalle", "monto"])
     compras_total, compras_df, _ = _sum_from_state(COMPRAS_KEYS, cols_hint=["detalle", "monto"])
 
-    # Margen
     margen_pct, _ = _get_num(MARGEN_PCT_KEYS, default=None)
     margen_base_key = _first_key_in_state(MARGEN_BASE_KEYS)
     margen_base_val = (st.session_state.get(margen_base_key) or "").strip().lower() if margen_base_key else None
 
-    # Gastos operativos y otros ingresos
     go_total, go_df, _ = _sum_from_state(GO_KEYS, cols_hint=["rubro", "monto"])
     otros_total, otros_df, _ = _sum_from_state(OTROS_ING_KEYS, cols_hint=["detalle", "monto"])
 
-    # Gastos familiares (preferir total guardado en reporte; si no, sumar tabla viva)
+    # Gastos familiares (preferir total guardado en reporte)
     gf_total = 0
     try:
         gf_total = int(st.session_state["reporte"]["gastos_familiares"]["totales"]["total_gastos_familiares_mensualizado_colones"])
@@ -2749,12 +2736,11 @@ def _calc_resultados():
     except Exception:
         gf_total, gf_df, _ = _sum_from_state(GF_KEYS, cols_hint=["rubro", "monto"])
 
-    # Utilidades
     ub = _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_val)
     uno = ub - go_total
     subtotal_post_otros = uno + otros_total
 
-    # Pago mensual de deudas (para resultados)
+    # Pago mensual de deudas (desde paso 6)
     pago_mens_deudas = 0
     try:
         _tot = st.session_state["reporte"]["deudas_activas"]["totales"]
@@ -2787,42 +2773,39 @@ def _calc_resultados():
     }
     return resultados
 
-# ============ Lógica de Balance (recalcula si no existe ya) ============
+# ============ Lógica de Balance ============
 def _num_from_df(df, col_candidates):
     if df is None or df.empty:
         return 0
-    # intenta varias columnas posibles
     for c in col_candidates:
         if c in df.columns:
             return int(pd.to_numeric(df[c], errors="coerce").fillna(0).sum())
     return 0
 
 def _calc_balance():
-    # Activo Circulante
-    caja_df = st.session_state.get("bg_caja_bancos", pd.DataFrame())
-    cxc_df  = st.session_state.get("bg_cxc_clientes", pd.DataFrame())
-    inv_mp  = st.session_state.get("bg_inv_mp", pd.DataFrame())
-    inv_pp  = st.session_state.get("bg_inv_pp", pd.DataFrame())
-    inv_pt  = st.session_state.get("bg_inv_pt", pd.DataFrame())
+    caja_df = _coerce_df(st.session_state.get("bg_caja_bancos"))
+    cxc_df  = _coerce_df(st.session_state.get("bg_cxc_clientes"))
+    inv_mp  = _coerce_df(st.session_state.get("bg_inv_mp"))
+    inv_pp  = _coerce_df(st.session_state.get("bg_inv_pp"))
+    inv_pt  = _coerce_df(st.session_state.get("bg_inv_pt"))
 
-    caja_total = _num_from_df(caja_df, ["Saldo (₡)", "monto", "valor (₡)"])
-    cxc_total  = _num_from_df(cxc_df, ["Monto (₡)", "monto", "valor (₡)"])
-    inv_mp_total = _num_from_df(inv_mp, ["Valor (₡)", "monto"])
-    inv_pp_total = _num_from_df(inv_pp, ["Valor (₡)", "monto"])
-    inv_pt_total = _num_from_df(inv_pt, ["Valor (₡)", "monto"])
+    caja_total = _num_from_df(caja_df, ["saldo (₡)", "monto", "valor (₡)"])
+    cxc_total  = _num_from_df(cxc_df,  ["monto (₡)", "monto", "valor (₡)"])
+    inv_mp_total = _num_from_df(inv_mp, ["valor (₡)", "monto"])
+    inv_pp_total = _num_from_df(inv_pp, ["valor (₡)", "monto"])
+    inv_pt_total = _num_from_df(inv_pt, ["valor (₡)", "monto"])
     total_inventarios = int(inv_mp_total + inv_pp_total + inv_pt_total)
     activo_circulante = int(caja_total + cxc_total + total_inventarios)
 
-    # Activo Fijo Neto
-    af_df = st.session_state.get("bg_activo_fijo", pd.DataFrame())
-    vb = pd.to_numeric(af_df.get("Valor bruto (₡)", pd.Series()), errors="coerce").fillna(0)
-    da = pd.to_numeric(af_df.get("Depreciación acum. (₡)", pd.Series()), errors="coerce").fillna(0)
+    af_df = _coerce_df(st.session_state.get("bg_activo_fijo"))
+    vb = pd.to_numeric(af_df.get("valor bruto (₡)", pd.Series()), errors="coerce").fillna(0)
+    da = pd.to_numeric(af_df.get("depreciación acum. (₡)", pd.Series()), errors="coerce").fillna(0)
     af_neto = (vb - da).clip(lower=0).sum()
     activo_fijo_neto = int(af_neto)
 
     total_activos = int(activo_circulante + activo_fijo_neto)
 
-    # Pasivos desde deudas
+    # Pasivos desde deudas (si existiera el reporte)
     tot_corto = 0
     tot_largo = 0
     try:
@@ -2832,11 +2815,10 @@ def _calc_balance():
     except Exception:
         pass
 
-    # CxP y Anticipos capturados aquí
-    cpp_df = st.session_state.get("bg_cpp", pd.DataFrame())
-    anticip_df = st.session_state.get("bg_anticipos", pd.DataFrame())
-    cxp_total = _num_from_df(cpp_df, ["Monto (₡)", "monto"])
-    anticipos_total = _num_from_df(anticip_df, ["Monto (₡)", "monto"])
+    cpp_df = _coerce_df(st.session_state.get("bg_cpp"))
+    anticip_df = _coerce_df(st.session_state.get("bg_anticipos"))
+    cxp_total = _num_from_df(cpp_df, ["monto (₡)", "monto"])
+    anticipos_total = _num_from_df(anticip_df, ["monto (₡)", "monto"])
 
     pasivo_circulante = int(cxp_total + anticipos_total + tot_corto)
     pasivo_largo_plazo = int(tot_largo)
@@ -2894,7 +2876,6 @@ DEFAULT_FUENTES = [
 ]
 
 def _infer_fuentes_ventas_margen(resultados, balance):
-    # Parte de posibles listas ya guardadas por pasos previos
     fuentes = set()
     ventas_evd, _ = _get_text(VENTAS_EVD_KEYS, default="")
     margen_evd, _ = _get_text(MARGEN_EVD_KEYS, default="")
@@ -2903,23 +2884,20 @@ def _infer_fuentes_ventas_margen(resultados, balance):
             for item in [s.strip() for s in raw.split(",") if s.strip()]:
                 fuentes.add(item)
 
-    # Heurística: si en caja_bancos hay registros verificados -> "Verificación bancaria"
+    # Heurísticas simples
     caja_df = balance["dfs"]["caja"]
-    if not caja_df.empty and ("verificado por asesor" in caja_df.columns.str.lower()):
+    if not caja_df.empty and "verificado por asesor" in (caja_df.columns.str.lower()):
         if bool(caja_df["verificado por asesor"].fillna(False).astype(bool).any()):
             fuentes.add("Verificación bancaria (estados de cuenta)")
 
-    # Si existen columnas de verificación en inventarios -> "Observación en campo"
     for inv_df in [balance["dfs"]["inv_mp"], balance["dfs"]["inv_pp"], balance["dfs"]["inv_pt"]]:
-        if not inv_df.empty and ("verificado por asesor" in inv_df.columns.str.lower()):
+        if not inv_df.empty and "verificado por asesor" in inv_df.columns.str.lower():
             if bool(inv_df["verificado por asesor"].fillna(False).astype(bool).any()):
                 fuentes.add("Observación en campo (inventario/flujo de clientes/entrevistas)")
 
-    # Defaults si no detectamos nada
     if not fuentes:
         fuentes.update(DEFAULT_FUENTES)
 
-    # Siempre incluye documentación si hubo tablas de ventas/compras
     if (not resultados["dfs"]["ventas"].empty) or (not resultados["dfs"]["compras"].empty):
         fuentes.add("Documentación de soporte (facturas/registro contable)")
 
@@ -2929,38 +2907,49 @@ def _infer_fuentes_ventas_margen(resultados, balance):
 st.title("📑 Informe de Evaluación de Crédito – Comité")
 st.caption("Asociación Credimujer")
 
-# Encabezado: asesor, fecha/hora, GPS
-asesor = _prefer_dict(["asesor", "asesor_info", "datos_asesor", "asesor_nombre", "nombre_asesor", "asesor_fullname"],
-                      default="(sin registrar)")
+# Encabezado: asesor, fecha/hora, GPS y datos del cliente
+asesor_raw = st.session_state.get(_first_key_in_state(ASESOR_KEYS), "(sin registrar)")
+asesor = _as_name(asesor_raw)
+
 visita_str, _ = _get_text(VISITA_DT_KEYS, default=None)
 if not visita_str:
     visita_dt = dt.datetime.now(tz=TZ)
     visita_str = visita_dt.strftime("%Y-%m-%d %H:%M")
+
 lat, lon = _get_tuple_coords()
 gps_str = f"{lat:.6f}, {lon:.6f}" if (lat is not None and lon is not None) else "(sin coordenadas)"
 
-cliente = _prefer_dict(CLIENTE_KEYS, default="(sin registrar)")
-actividad = _prefer_dict(ACTIVIDAD_KEYS, default="")
-lugar = _prefer_dict(LUGAR_KEYS, default="")
+cliente_raw = st.session_state.get(_first_key_in_state(CLIENTE_KEYS), "(sin registrar)")
+cliente = _as_name(cliente_raw)
+
+actividad, _ = _get_text(ACTIVIDAD_KEYS, default="")
+lugar, _ = _get_text(LUGAR_KEYS, default="")
 
 with st.container():
     colA, colB, colC = st.columns([1.3, 1, 1])
     with colA:
         st.write(f"**Asesor:** {asesor}")
         st.write(f"**Cliente:** {cliente}")
-        st.write(f"**Actividad:** {actividad}")
+        st.write(f"**Actividad:** {actividad or '—'}")
     with colB:
         st.write(f"**Fecha y hora de visita:** {visita_str}")
         st.write(f"**Ubicación GPS:** {gps_str}")
     with colC:
-        st.write(f"**Lugar de operación:** {lugar}")
+        st.write(f"**Lugar de operación (dirección):** {lugar or '—'}")
 
 st.divider()
 
 # II. Datos del Cliente (breve)
 st.subheader("II. Datos del Cliente")
 st.write("Observaciones generales del asesor (si aplican):")
-obs_general = _prefer_dict(["obs_general", "observaciones", "comentarios_asesor", "observaciones_asesor", "comentarios_generales"], default="—")
+obs_general = (
+    st.session_state.get("obs_general")
+    or st.session_state.get("observaciones")
+    or st.session_state.get("observaciones_generales")
+    or st.session_state.get("observaciones_asesor")
+    or st.session_state.get("reporte", {}).get("obs_general")
+    or ""
+)
 st.info(obs_general or "—")
 
 st.divider()
@@ -3035,10 +3024,12 @@ st.info(bg["comentarios"] or "—")
 
 st.divider()
 
-# VII. (Opcional) Paquete para IA (ratios)
+# VII. (Opcional) Paquete para IA (ratios + tablas seguras)
 ia_payload = {
     "asesor": asesor,
     "cliente": cliente,
+    "actividad": actividad,
+    "lugar_operacion": lugar,
     "fecha_hora_visita": visita_str,
     "gps": {"lat": lat, "lon": lon},
     "estado_resultados": {k: v for k, v in res.items() if k != "dfs"},
@@ -3049,6 +3040,20 @@ ia_payload = {
         "capital_trabajo": bg["capital_trabajo"],
     },
     "fuentes_ventas_margen": fuentes,
+    # Tablas de apoyo (listas de records) – se convierten de forma segura
+    "tablas": {
+        "ventas": _records_from_first_key(VENTAS_KEYS, cols_hint=["detalle", "monto"]),
+        "compras": _records_from_first_key(COMPRAS_KEYS, cols_hint=["detalle", "monto"]),
+        "gastos_operativos": _records_from_first_key(GO_KEYS, cols_hint=["rubro", "monto"]),
+        "otros_ingresos": _records_from_first_key(OTROS_ING_KEYS, cols_hint=["detalle", "monto"]),
+        "gastos_familiares": _records_from_first_key(GF_KEYS, cols_hint=["rubro", "monto"]),
+        "caja_bancos": _records_from_first_key(CAJA_KEYS),
+        "cxc_clientes": _records_from_first_key(CXC_KEYS),
+        "inv_mp": _records_from_first_key(INV_MP_KEYS),
+        "inv_pp": _records_from_first_key(INV_PP_KEYS),
+        "inv_pt": _records_from_first_key(INV_PT_KEYS),
+        "activo_fijo": _records_from_first_key(AF_KEYS),
+    },
 }
 st.subheader("VII. Datos estructurados para IA")
 st.code(json.dumps(ia_payload, ensure_ascii=False, indent=2), language="json")
@@ -3065,6 +3070,8 @@ st.download_button(
     mime="application/json",
     use_container_width=True,
 )
+
+
 
 
 
