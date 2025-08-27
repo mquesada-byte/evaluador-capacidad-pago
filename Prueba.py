@@ -843,6 +843,11 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "VAL":
             st.session_state.step3 = "RES"
             st.rerun()
 
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
+
 
 # =========================
 # PASO 4 – Conciliación de ventas (Top-down vs Bottom-up vs Insumos)
@@ -1092,6 +1097,11 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "RES":
             st.success("Conciliación guardada. Avanzando al Paso 5…")
             st.rerun()
 
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
+
 
 # =========================
 # PASO 5 – Otros ingresos del hogar (step == 4)
@@ -1302,6 +1312,11 @@ if st.session_state.get("step") == 4:
             st.success("Otros ingresos guardados. Avanzando…")
             st.session_state.step = 5
             st.rerun()
+
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
 
 
 # =========================
@@ -1685,6 +1700,11 @@ if st.session_state.get("step") == 6:
             st.success("Gastos operativos guardados. Avanzando…")
             st.session_state.step = 7
             st.rerun()
+
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
 
 
 # =========================
@@ -3549,6 +3569,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
