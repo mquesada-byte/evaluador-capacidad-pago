@@ -1896,7 +1896,7 @@ if st.session_state.get("step") == 7:
 
     st.divider()
 
-# --- Navegación / Guardar (REEMPLAZA este bloque en Paso 8) ---
+# --- Navegación / Guardar (PASO 8) ---
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
     if st.button("⬅️ Volver a Gastos operativos", key="gfam_back_gop", use_container_width=True):
@@ -1905,7 +1905,7 @@ with c1:
 
 with c2:
     disabled_next = (valid_mask.sum() == 0)
-    if st.button("Guardar y continuar ➡️ Ver Estado de Resultados", key="gfam_save_next_to_er",
+    if st.button("Guardar y continuar ➡️ Estado de Resultados", key="gfam_save_next_to_er",
                  use_container_width=True, disabled=disabled_next):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["gastos_familiares"] = {
@@ -1917,19 +1917,17 @@ with c2:
             }
         }
 
-        # 👉 Ir al Estado de Resultados (multipage)
+        # 1) Intentar abrir como multipage
         try:
-            # si el archivo está en la raíz del proyecto
-            st.switch_page("estado_resultados.py")
+            st.switch_page("estado_resultados.py")          # si está en raíz
         except Exception:
             try:
-                # si está dentro de /pages
-                st.switch_page("pages/estado_resultados.py")
+                st.switch_page("pages/estado_resultados.py")  # si está en /pages
             except Exception:
-                # Fallback: deja guardado y ofrece link manual
-                st.success("Gastos familiares guardados.")
-                st.page_link("estado_resultados.py", label="Abrir Estado de Resultados 📑", icon="📑")
-                st.stop()
+                # 2) Fallback inline (router del encabezado)
+                st.session_state["_nav_target"] = "ER"
+                st.rerun()
+
 
 
 
@@ -2131,6 +2129,7 @@ with st.expander("Ver tablas de origen (si están disponibles)"):
     st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
     st.subheader("Deudas activas")
     st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
+
 
 
 
