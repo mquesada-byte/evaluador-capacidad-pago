@@ -1919,6 +1919,221 @@ if st.session_state.get("step") == 7:
             st.rerun()
 
 
+estado_resultados.py
+# ---------------------------------------------------------
+# Lee montos cargados en pasos anteriores desde st.session_state
+# y calcula el Disponible para pago del préstamo (Credimujer).
+# No modifica los datos previos, solo los lee y resume.
+
+import streamlit as st
+import pandas as pd
+
+st.set_page_config(page_title="Estado de Resultados", page_icon="📑")
+
+# ========= Utilidades robustas para leer desde session_state =========
+def _first_key_in_state(possible_keys):
+    """Devuelve la primera key existente en session_state de la lista."""
+    for k in possible_keys:
+        if k in st.session_state and st.session_state[k] is not None:
+            return k
+    return None
+
+def _coerce_df(obj, cols_hint=None):
+    """Convierte listas/dicts/DF en DataFrame con columna 'monto' si existe."""
+    if obj is None:
+        return pd.DataFrame(columns=cols_hint or ["detalle", "monto"])
+    if isinstance(obj, pd.DataFrame):
+        df = obj.copy()
+    elif isinstance(obj, list):
+        df = pd.DataFrame(obj)
+    elif isinstance(obj, dict):
+        # A veces st.data_editor guarda como dict de columnas -> listas
+        # o un solo valor agregado; intentamos ambas rutas
+        try:
+            df = pd.DataFrame(obj)
+        except Exception:
+            df = pd.DataFrame([obj])
+    else:
+        # Último recurso
+        df = pd.DataFrame(columns=cols_hint or ["detalle", "monto"])
+
+    # Normaliza nombre de columna monto si viniera como 'Monto'/'importe' etc.
+    lower_cols = {c: c.lower() for c in df.columns}
+    df = df.rename(columns=lower_cols)
+    if "monto" not in df.columns:
+        # Intenta mapear algunas variantes comunes
+        for cand in ["importe", "valor", "amount"]:
+            if cand in df.columns:
+                df = df.rename(columns={cand: "monto"})
+                break
+    if "monto" not in df.columns:
+        # Si no existe, créala vacía
+        df["monto"] = 0.0
+    # Asegura numérico
+    df["monto"] = pd.to_numeric(df["monto"], errors="coerce").fillna(0.0)
+    return df
+
+def _sum_monto_from_state(possible_keys, cols_hint=None):
+    """Suma la columna 'monto' de la primera key disponible."""
+    k = _first_key_in_state(possible_keys)
+    if not k:
+        return 0.0, pd.DataFrame(columns=cols_hint or ["detalle", "monto"]), None
+    df = _coerce_df(st.session_state.get(k), cols_hint=cols_hint)
+    return float(df["monto"].sum()), df, k
+
+def _get_number_from_state(possible_keys, default=0.0):
+    """Obtiene un número simple de la primera key disponible (tolerante a None/cadenas)."""
+    k = _first_key_in_state(possible_keys)
+
+    def _to_float_or_none(x):
+        if x is None:
+            return None
+        if isinstance(x, (int, float)):
+            return float(x)
+        s = str(x).strip()
+        if s == "":
+            return None
+        s = s.replace(",", ".")
+        try:
+            return float(s)
+        except Exception:
+            return None
+
+    if not k:
+        # No hay key: usar default (aunque sea None)
+        fdef = _to_float_or_none(default)
+        return fdef, None
+
+    fval = _to_float_or_none(st.session_state[k])
+    if fval is not None:
+        return fval, k
+
+    # Si la key existe pero no es convertible, usar default sin fallar
+    fdef = _to_float_or_none(default)
+    return fdef, k
+
+# ========= Posibles keys usadas en pasos anteriores =========
+# Ajustá/extendé esta lista si en tus pasos usaste otros nombres de variables.
+VENTAS_KEYS = ["ventas_df", "ventas_tabla", "registro_ventas", "ventas"]
+COMPRAS_KEYS = ["compras_df", "compras_tabla", "registro_compras", "compras", "costo_ventas_df"]
+MARGEN_PCT_KEYS = ["margen_pct", "porcentaje_margen", "pct_margen"]
+MARGEN_BASE_KEYS = ["margen_base", "margen_sobre", "margen_aplicado_a"]  # valores esperados: "ventas" o "compras"
+
+GASTOS_OPE_KEYS = ["gastos_operativos_df", "gastos_operacionales_df", "gastos_ope_tabla", "gastos_operativos"]
+OTROS_ING_KEYS = ["otros_ingresos_df", "otros_ingresos_tabla", "ingresos_adicionales_df", "otros_ingresos"]
+GASTOS_FAM_KEYS = ["gastos_familiares_df", "gastos_hogar_df", "gastos_familiares_tabla", "gastos_familiares"]
+DEUDAS_KEYS = ["deudas_df", "pagos_deudas_df", "deudas_personales_df", "pagos_deudas"]
+
+# ========= Lectura de valores =========
+ventas_total, ventas_df, ventas_key = _sum_monto_from_state(VENTAS_KEYS, cols_hint=["detalle", "monto"])
+compras_total, compras_df, compras_key = _sum_monto_from_state(COMPRAS_KEYS, cols_hint=["detalle", "monto"])
+
+margen_pct, margen_pct_key = _get_number_from_state(MARGEN_PCT_KEYS, default=None)
+margen_base_key = _first_key_in_state(MARGEN_BASE_KEYS)
+margen_base_val = st.session_state.get(margen_base_key) if margen_base_key else None
+if isinstance(margen_base_val, str):
+    margen_base_val = margen_base_val.strip().lower()
+
+gastos_ope_total, gastos_ope_df, gastos_ope_key = _sum_monto_from_state(GASTOS_OPE_KEYS, cols_hint=["detalle", "monto"])
+otros_ing_total, otros_ing_df, otros_ing_key = _sum_monto_from_state(OTROS_ING_KEYS, cols_hint=["detalle", "monto"])
+gastos_fam_total, gastos_fam_df, gastos_fam_key = _sum_monto_from_state(GASTOS_FAM_KEYS, cols_hint=["detalle", "monto"])
+deudas_total, deudas_df, deudas_key = _sum_monto_from_state(DEUDAS_KEYS, cols_hint=["detalle", "monto"])
+
+# ========= Cálculo de Utilidad Bruta =========
+# Regla solicitada: usar % de margen declarado ya sea sobre ventas o sobre compras.
+# Si no hay margen válido, se intenta fallback a (ventas - compras) si ambos existen.
+utilidad_bruta = None
+if isinstance(margen_pct, float) and margen_pct is not None and margen_base_val in ("ventas", "compras"):
+    # Si el usuario digitó 40, interpretamos como 40% -> 0.40
+    pct = margen_pct if margen_pct <= 1 else margen_pct / 100.0
+    if margen_base_val == "ventas":
+        utilidad_bruta = ventas_total * pct
+    elif margen_base_val == "compras":
+        utilidad_bruta = compras_total * pct
+
+if utilidad_bruta is None:
+    # Fallback conservador
+    if ventas_total > 0 and compras_total >= 0:
+        utilidad_bruta = ventas_total - compras_total
+    else:
+        utilidad_bruta = 0.0
+
+# ========= Utilidad neta operativa =========
+utilidad_neta_ope = utilidad_bruta - gastos_ope_total
+
+# ========= Subtotal con otros ingresos =========
+subtotal_post_otros = utilidad_neta_ope + otros_ing_total
+
+# ========= Disponible final =========
+disponible_final = subtotal_post_otros - gastos_fam_total - deudas_total
+
+# ========= Presentación =========
+st.header("📑 Estado de Resultados (resumen de pasos previos)")
+
+with st.expander("🔎 Origen de datos (keys detectadas)"):
+    st.write({
+        "ventas_key": ventas_key,
+        "compras_key": compras_key,
+        "margen_pct_key": margen_pct_key,
+        "margen_base_key": margen_base_key,
+        "gastos_operativos_key": gastos_ope_key,
+        "otros_ingresos_key": otros_ing_key,
+        "gastos_familiares_key": gastos_fam_key,
+        "deudas_key": deudas_key,
+    })
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Ventas", f"₡{ventas_total:,.0f}")
+with col2:
+    st.metric("Compras/Costos", f"₡{compras_total:,.0f}")
+with col3:
+    base_txt = margen_base_val if margen_base_val in ("ventas", "compras") else "—"
+    pct_txt = f"{(margen_pct if (margen_pct and margen_pct<=1) else (margen_pct or 0)/100):.0%}" if margen_pct else "—"
+    st.metric("Margen (base)", f"{pct_txt} sobre {base_txt}")
+
+st.divider()
+
+col4, col5 = st.columns(2)
+with col4:
+    st.metric("🧮 Utilidad Bruta", f"₡{utilidad_bruta:,.0f}")
+with col5:
+    st.metric("🧾 Gastos Operativos", f"₡{gastos_ope_total:,.0f}")
+
+st.metric("📌 Utilidad Neta Operativa", f"₡{utilidad_neta_ope:,.0f}")
+
+st.divider()
+
+col6, col7 = st.columns(2)
+with col6:
+    st.metric("➕ Otros ingresos", f"₡{otros_ing_total:,.0f}")
+with col7:
+    st.metric("Subtotal post-otros", f"₡{subtotal_post_otros:,.0f}")
+
+st.divider()
+
+col8, col9 = st.columns(2)
+with col8:
+    st.metric("👪 Gastos familiares", f"₡{gastos_fam_total:,.0f}")
+with col9:
+    st.metric("💳 Pago de deudas", f"₡{deudas_total:,.0f}")
+
+st.success(f"💰 **Disponible para el préstamo:** ₡{disponible_final:,.0f}")
+
+# (Opcional) Muestra tablas de apoyo
+with st.expander("Ver tablas de origen"):
+    st.subheader("Ventas")
+    st.dataframe(ventas_df, use_container_width=True)
+    st.subheader("Compras / Costos")
+    st.dataframe(compras_df, use_container_width=True)
+    st.subheader("Gastos Operativos")
+    st.dataframe(gastos_ope_df, use_container_width=True)
+    st.subheader("Otros Ingresos")
+    st.dataframe(otros_ing_df, use_container_width=True)
+    st.subheader("Gastos Familiares")
+    st.dataframe(gastos_fam_df, use_container_width=True)
+    st.subheader("Deudas")
+    st.dataframe(deudas_df, use_container_width=True)
 
 
 
