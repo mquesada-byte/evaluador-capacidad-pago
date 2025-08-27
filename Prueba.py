@@ -10,7 +10,7 @@ import requests
 import streamlit as st
 from streamlit_js_eval import get_geolocation
 
-st.set_page_config(page_title="Evaluación Crédito - Paso 1", page_icon="🧭")
+st.set_page_config(page_title="Evaluación Crédito - Paso 1", page_icon="🧭",  layout="centered")
 
 # =========================
 # Configuración y utilidades
@@ -1607,6 +1607,7 @@ if st.session_state.get("step") == 5:
             st.success("Deudas activas guardadas. Avanzando…")
             st.session_state.step = 6
             st.rerun()
+
 
 
 
