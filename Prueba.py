@@ -2521,555 +2521,113 @@ if st.session_state.get("step") == 7:
             st.rerun()
 
 
+##############################################################################################################################
 
 
 
-
-# informe_comite_credito.py
-# ---------------------------------------------------------
-# Informe profesional para Comité de Crédito – Asociación Credimujer
-# Lee los datos de pasos previos desde st.session_state, calcula
-# Estado de Resultados y Balance, y presenta un informe listo para revisión.
-# Incluye el Punto III: Formas de obtención de información de Ventas y Márgenes.
-
+# informe_portada.py — Etapa 1: Asesor, fecha/hora y GPS
 import datetime as dt
 from zoneinfo import ZoneInfo
 import streamlit as st
-import pandas as pd
-import json
 
-# Evitar choque con otras páginas que ya llamaron set_page_config
+# Evitar conflicto si otra página ya llamó set_page_config
 if not st.session_state.get("_page_config_set"):
-    st.set_page_config(page_title="Informe – Comité de Crédito", page_icon="📑", layout="centered")
+    st.set_page_config(page_title="Informe – Portada", page_icon="📑", layout="centered")
     st.session_state["_page_config_set"] = True
 
 TZ = ZoneInfo("America/Costa_Rica")
 
-# ============ Utilidades robustas para leer desde session_state ============
-def _first_key_in_state(possible_keys):
-    for k in possible_keys:
-        if k in st.session_state and st.session_state[k] not in (None, ""):
-            return k
-    return None
-
-def _get_num(key_list, default=0.0):
-    """Devuelve (valor_float | None, key_encontrada). Si default es None, no forzamos float(None)."""
-    k = _first_key_in_state(key_list)
-    if not k:
-        return (None if default is None else float(default)), None
-    val = st.session_state.get(k)
-    if val in (None, "", "None"):
-        return (None if default is None else float(default)), k
+# ---------- Helpers robustos ----------
+def _fmt_dt(x):
+    """Devuelve fecha/hora como 'dd/mm/YYYY HH:MM:SS' o None si no puede formatear."""
     try:
-        return float(val), k
+        if x is None:
+            return None
+        if isinstance(x, str):
+            return x  # ya viene formateada desde el Paso 1 (reporte.asesor.fecha_hora)
+        # datetime / pandas.Timestamp
+        if hasattr(x, "tzinfo") and x.tzinfo is not None:
+            x = x.astimezone(TZ)
+        return dt.datetime.fromtimestamp(x.timestamp(), tz=TZ).strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
         try:
-            s = str(val).strip().replace(",", "")
-            return float(s), k
+            # último intento: parsear string ISO
+            return dt.datetime.fromisoformat(str(x)).astimezone(TZ).strftime("%d/%m/%Y %H:%M:%S")
         except Exception:
-            return (None if default is None else float(default)), k
+            return None
 
-def _get_text(key_list, default=""):
-    k = _first_key_in_state(key_list)
-    if not k:
-        return default, None
+def _parse_gps_str(s):
+    """Convierte 'lat, lon' en (lat, lon) floats."""
     try:
-        val = st.session_state[k]
-        return str(val), k
+        if not s:
+            return None, None
+        parts = [p.strip() for p in str(s).split(",")]
+        if len(parts) >= 2:
+            return float(parts[0]), float(parts[1])
     except Exception:
-        return default, k
-
-def _as_name(v):
-    """Devuelve un nombre legible desde string o dict común."""
-    if isinstance(v, str):
-        return v
-    if isinstance(v, dict):
-        for kk in ["nombre", "full_name", "display_name", "name"]:
-            if v.get(kk):
-                return str(v[kk])
-        if v.get("primer_nombre") or v.get("apellido") or v.get("apellidos"):
-            pn = v.get("primer_nombre", "")
-            ap = v.get("apellidos", v.get("apellido", ""))
-            return f"{pn} {ap}".strip() or "(sin registrar)"
-    return "(sin registrar)"
-
-def _get_tuple_coords():
-    """
-    Busca lat/lon en varias ubicaciones conocidas.
-    Devuelve (lat, lon) como floats o (None, None) si no hay datos.
-    """
-    # 1) Dentro del bloque del asesor si existe
-    a = st.session_state.get("asesor", {}) or {}
-    if isinstance(a, dict):
-        lat = a.get("lat"); lon = a.get("lon")
-        if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
-            return float(lat), float(lon)
-
-    # 2) Top-level keys alternativos
-    lat_keys = ["gps_lat", "lat", "latitude"]
-    lon_keys = ["gps_lon", "lon", "longitude", "lng"]
-    lat, _ = _get_num(lat_keys, default=None)
-    lon, _ = _get_num(lon_keys, default=None)
-    if lat is not None and lon is not None:
-        return float(lat), float(lon)
-
-    # 3) Desde reporte->asesor->gps
-    rep_asesor = st.session_state.get("reporte", {}).get("asesor", {}) or {}
-    gps = rep_asesor.get("gps")
-    if isinstance(gps, dict):
-        lat = gps.get("lat"); lon = gps.get("lon")
-        if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
-            return float(lat), float(lon)
-
-    # 4) Sin coordenadas
+        pass
     return None, None
 
-def _coerce_df(obj, cols_hint=None):
-    """Convierte list/dict/df/None a DataFrame uniforme."""
-    if obj is None:
-        return pd.DataFrame(columns=cols_hint or ["detalle", "monto"])
-    if isinstance(obj, pd.DataFrame):
-        df = obj.copy()
-    elif isinstance(obj, list):
-        df = pd.DataFrame(obj)
-    elif isinstance(obj, dict):
-        try:
-            df = pd.DataFrame(obj)
-        except Exception:
-            df = pd.DataFrame([obj])
+def _maps_links(lat, lon):
+    lat_s = f"{lat:.6f}"
+    lon_s = f"{lon:.6f}"
+    g = f"https://www.google.com/maps/search/?api=1&query={lat_s},{lon_s}"
+    g_at = f"https://www.google.com/maps/@{lat_s},{lon_s},18z"
+    osm = f"https://www.openstreetmap.org/?mlat={lat_s}&mlon={lon_s}#map=18/{lat_s}/{lon_s}"
+    return g, g_at, osm
+
+# ---------- Lectura desde session_state ----------
+ases = st.session_state.get("asesor", {}) or {}
+rep_ases = (st.session_state.get("reporte", {}) or {}).get("asesor", {}) or {}
+
+# Nombre del asesor
+nombre = rep_ases.get("nombre") or ases.get("nombre") or "(sin registrar)"
+
+# Fecha y hora de visita + fuente
+fecha_str = rep_ases.get("fecha_hora")
+if not fecha_str:
+    fecha_str = _fmt_dt(ases.get("fecha_hora")) or dt.datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")
+fuente = rep_ases.get("hora_fuente") or (
+    "Internet" if ases.get("timestamp_source") == "internet"
+    else ("Dispositivo" if ases.get("timestamp_source") else "—")
+)
+
+# GPS (lat, lon)
+lat = ases.get("lat"); lon = ases.get("lon")
+if lat is None or lon is None:
+    lat, lon = _parse_gps_str(rep_ases.get("gps"))
+
+# Enlaces de mapa (preferir los guardados en reporte)
+gmap = rep_ases.get("google_maps")
+gview = rep_ases.get("google_maps_vista")
+osm  = rep_ases.get("openstreetmap")
+if (not gmap or not osm) and (lat is not None and lon is not None):
+    gmap_gen, gview_gen, osm_gen = _maps_links(float(lat), float(lon))
+    gmap = gmap or gmap_gen
+    gview = gview or gview_gen
+    osm = osm or osm_gen
+
+# ---------- UI ----------
+st.title("🧭 Encabezado de visita")
+st.caption("Datos del **Paso 1**: asesor, fecha/hora y ubicación GPS del negocio.")
+
+col1, col2 = st.columns([0.55, 0.45])
+with col1:
+    st.write(f"**Asesor:** {nombre}")
+    st.write(f"**Fecha y hora de visita:** {fecha_str} ({fuente})")
+
+with col2:
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        st.write(f"**GPS negocio:** {float(lat):.6f}, {float(lon):.6f}")
+        links = []
+        if gmap:  links.append(f"[Google Maps]({gmap})")
+        if gview: links.append(f"[Vista @18z]({gview})")
+        if osm:   links.append(f"[OpenStreetMap]({osm})")
+        if links:
+            st.markdown(" · ".join(links))
     else:
-        df = pd.DataFrame(columns=cols_hint or ["detalle", "monto"])
+        st.info("GPS no disponible aún.")
 
-    # normaliza nombres
-    ren = {c: str(c).strip() for c in df.columns}
-    df = df.rename(columns=ren)
-    lower_map = {c: str(c).lower() for c in df.columns}
-    df = df.rename(columns=lower_map)
-    # monto
-    if "monto" not in df.columns:
-        for alt in ["valor", "importe", "amount", "saldo (₡)", "valor (₡)"]:
-            if alt in df.columns:
-                df = df.rename(columns={alt: "monto"})
-                break
-    if "monto" not in df.columns:
-        df["monto"] = 0
-    df["monto"] = pd.to_numeric(df["monto"], errors="coerce").fillna(0.0)
-    return df
-
-def _records_from_state(key, cols_hint=None):
-    """Devuelve la tabla guardada en session_state[key] como lista de records (seguro)."""
-    df = _coerce_df(st.session_state.get(key), cols_hint=cols_hint)
-    return df.fillna("").to_dict(orient="records")
-
-def _records_from_first_key(key_candidates, cols_hint=None):
-    k = _first_key_in_state(key_candidates)
-    return _records_from_state(k, cols_hint=cols_hint) if k else []
-
-def _sum_from_state(key_candidates, cols_hint=None, value_col="monto"):
-    k = _first_key_in_state(key_candidates)
-    if not k:
-        return 0.0, pd.DataFrame(columns=cols_hint or ["detalle", "monto"]), None
-    df = _coerce_df(st.session_state.get(k), cols_hint=cols_hint)
-    if value_col not in df.columns:
-        value_col = "monto"
-    return float(pd.to_numeric(df[value_col], errors="coerce").fillna(0).sum()), df, k
-
-# ============ Posibles claves de pasos previos ============
-# Identidad/visita
-ASESOR_KEYS = ["asesor_nombre", "nombre_asesor", "asesor_fullname", "asesor"]
-VISITA_DT_KEYS = ["fecha_hora_cr", "timestamp_cr", "fecha_hora_visita"]
-CLIENTE_KEYS = ["cliente_nombre", "nombre_cliente", "solicitante", "cliente"]
-ACTIVIDAD_KEYS = ["actividad", "actividad_principal", "giro_negocio", "giro", "categoria_actividad"]
-LUGAR_KEYS = ["lugar_operacion", "ubicacion_negocio", "direccion_negocio", "direccion_visita", "direccion"]
-
-# Ventas / Compras / Margen
-VENTAS_KEYS = ["ventas_df", "ventas_tabla", "registro_ventas", "ventas"]
-COMPRAS_KEYS = ["compras_df", "compras_tabla", "registro_compras", "compras", "costo_ventas_df"]
-MARGEN_PCT_KEYS = ["margen_pct", "porcentaje_margen", "pct_margen"]
-MARGEN_BASE_KEYS = ["margen_base", "margen_sobre", "margen_aplicado_a"]  # "ventas" o "compras"
-VENTAS_EVD_KEYS = ["ventas_evidencia", "ventas_fuentes", "ventas_evidencia_list"]
-MARGEN_EVD_KEYS = ["margen_evidencia", "margen_fuentes", "margen_verificacion"]
-
-# Gastos operativos, otros ingresos, gastos familiares
-GO_KEYS = ["gastos_operativos_df", "gastos_operacionales_df", "gastos_ope_tabla", "gastos_operativos"]
-OTROS_ING_KEYS = ["otros_ingresos_df", "otros_ingresos_tabla", "ingresos_adicionales_df", "otros_ingresos"]
-GF_KEYS = ["gastos_familiares_df", "gastos_hogar_df", "gastos_familiares_tabla", "gastos_familiares"]
-
-# Balance
-CAJA_KEYS = ["bg_caja_bancos"]
-CXC_KEYS = ["bg_cxc_clientes"]
-INV_MP_KEYS = ["bg_inv_mp"]
-INV_PP_KEYS = ["bg_inv_pp"]
-INV_PT_KEYS = ["bg_inv_pt"]
-AF_KEYS = ["bg_activo_fijo"]
-COMENT_BG_KEYS = ["bg_comentarios", "comentarios_bg", "comentarios_balance"]
-
-# ============ Lógica de Estado de Resultados ============
-def _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_val):
-    if isinstance(margen_pct, float) and margen_pct is not None and margen_base_val in ("ventas", "compras"):
-        pct = margen_pct if margen_pct <= 1 else margen_pct / 100.0
-        if margen_base_val == "ventas":
-            return ventas_total * pct
-        else:
-            return compras_total * pct
-    # Fallback a ventas - compras
-    if ventas_total > 0 and compras_total >= 0:
-        return ventas_total - compras_total
-    return 0.0
-
-def _calc_resultados():
-    ventas_total, ventas_df, _ = _sum_from_state(VENTAS_KEYS, cols_hint=["detalle", "monto"])
-    compras_total, compras_df, _ = _sum_from_state(COMPRAS_KEYS, cols_hint=["detalle", "monto"])
-
-    margen_pct, _ = _get_num(MARGEN_PCT_KEYS, default=None)
-    margen_base_key = _first_key_in_state(MARGEN_BASE_KEYS)
-    margen_base_val = (st.session_state.get(margen_base_key) or "").strip().lower() if margen_base_key else None
-
-    go_total, go_df, _ = _sum_from_state(GO_KEYS, cols_hint=["rubro", "monto"])
-    otros_total, otros_df, _ = _sum_from_state(OTROS_ING_KEYS, cols_hint=["detalle", "monto"])
-
-    # Gastos familiares (preferir total guardado en reporte)
-    gf_total = 0
-    try:
-        gf_total = int(st.session_state["reporte"]["gastos_familiares"]["totales"]["total_gastos_familiares_mensualizado_colones"])
-        gf_df = pd.DataFrame(st.session_state["reporte"]["gastos_familiares"]["tabla"])
-    except Exception:
-        gf_total, gf_df, _ = _sum_from_state(GF_KEYS, cols_hint=["rubro", "monto"])
-
-    ub = _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_val)
-    uno = ub - go_total
-    subtotal_post_otros = uno + otros_total
-
-    # Pago mensual de deudas (desde paso 6)
-    pago_mens_deudas = 0
-    try:
-        _tot = st.session_state["reporte"]["deudas_activas"]["totales"]
-        pago_mens_deudas = int(_tot.get("total_pago_mensual_colones", 0))
-    except Exception:
-        pass
-
-    disponible = subtotal_post_otros - gf_total - pago_mens_deudas
-
-    resultados = {
-        "ventas_total": int(ventas_total),
-        "compras_total": int(compras_total),
-        "margen_pct": margen_pct,
-        "margen_base": margen_base_val,
-        "utilidad_bruta": int(ub),
-        "gastos_operativos": int(go_total),
-        "utilidad_neta_operativa": int(uno),
-        "otros_ingresos": int(otros_total),
-        "subtotal_post_otros": int(subtotal_post_otros),
-        "gastos_familiares": int(gf_total),
-        "pago_mensual_deudas": int(pago_mens_deudas),
-        "disponible_final": int(disponible),
-        "dfs": {
-            "ventas": ventas_df,
-            "compras": compras_df,
-            "gastos_operativos": go_df,
-            "otros_ingresos": otros_df,
-            "gastos_familiares": gf_df,
-        }
-    }
-    return resultados
-
-# ============ Lógica de Balance ============
-def _num_from_df(df, col_candidates):
-    if df is None or df.empty:
-        return 0
-    for c in col_candidates:
-        if c in df.columns:
-            return int(pd.to_numeric(df[c], errors="coerce").fillna(0).sum())
-    return 0
-
-def _calc_balance():
-    caja_df = _coerce_df(st.session_state.get("bg_caja_bancos"))
-    cxc_df  = _coerce_df(st.session_state.get("bg_cxc_clientes"))
-    inv_mp  = _coerce_df(st.session_state.get("bg_inv_mp"))
-    inv_pp  = _coerce_df(st.session_state.get("bg_inv_pp"))
-    inv_pt  = _coerce_df(st.session_state.get("bg_inv_pt"))
-
-    caja_total = _num_from_df(caja_df, ["saldo (₡)", "monto", "valor (₡)"])
-    cxc_total  = _num_from_df(cxc_df,  ["monto (₡)", "monto", "valor (₡)"])
-    inv_mp_total = _num_from_df(inv_mp, ["valor (₡)", "monto"])
-    inv_pp_total = _num_from_df(inv_pp, ["valor (₡)", "monto"])
-    inv_pt_total = _num_from_df(inv_pt, ["valor (₡)", "monto"])
-    total_inventarios = int(inv_mp_total + inv_pp_total + inv_pt_total)
-    activo_circulante = int(caja_total + cxc_total + total_inventarios)
-
-    af_df = _coerce_df(st.session_state.get("bg_activo_fijo"))
-    vb = pd.to_numeric(af_df.get("valor bruto (₡)", pd.Series()), errors="coerce").fillna(0)
-    da = pd.to_numeric(af_df.get("depreciación acum. (₡)", pd.Series()), errors="coerce").fillna(0)
-    af_neto = (vb - da).clip(lower=0).sum()
-    activo_fijo_neto = int(af_neto)
-
-    total_activos = int(activo_circulante + activo_fijo_neto)
-
-    # Pasivos desde deudas (si existiera el reporte)
-    tot_corto = 0
-    tot_largo = 0
-    try:
-        _tot = st.session_state["reporte"]["deudas_activas"]["totales"]
-        tot_corto = int(_tot.get("total_adeudado_corto_plazo_colones", 0))
-        tot_largo = int(_tot.get("total_adeudado_largo_plazo_colones", 0))
-    except Exception:
-        pass
-
-    cpp_df = _coerce_df(st.session_state.get("bg_cpp"))
-    anticip_df = _coerce_df(st.session_state.get("bg_anticipos"))
-    cxp_total = _num_from_df(cpp_df, ["monto (₡)", "monto"])
-    anticipos_total = _num_from_df(anticip_df, ["monto (₡)", "monto"])
-
-    pasivo_circulante = int(cxp_total + anticipos_total + tot_corto)
-    pasivo_largo_plazo = int(tot_largo)
-    total_pasivos = int(pasivo_circulante + pasivo_largo_plazo)
-
-    patrimonio = int(total_activos - total_pasivos)
-    capital_trabajo = int(activo_circulante - pasivo_circulante)
-
-    comentarios, _ = _get_text(COMENT_BG_KEYS, default="")
-
-    return {
-        "activo": {
-            "caja_bancos": caja_total,
-            "cxc_clientes": cxc_total,
-            "inventarios": {
-                "materia_prima": int(inv_mp_total),
-                "producto_proceso": int(inv_pp_total),
-                "producto_terminado": int(inv_pt_total),
-                "total_inventarios": int(total_inventarios),
-            },
-            "activo_circulante": int(activo_circulante),
-            "activo_fijo_neto": int(activo_fijo_neto),
-            "total_activos": int(total_activos),
-        },
-        "pasivo": {
-            "cxp_proveedores": int(cxp_total),
-            "anticipos_clientes": int(anticipos_total),
-            "deudas_corto_plazo": int(tot_corto),
-            "pasivo_circulante": int(pasivo_circulante),
-            "pasivo_largo_plazo": int(pasivo_largo_plazo),
-            "total_pasivos": int(total_pasivos),
-        },
-        "patrimonio": int(patrimonio),
-        "capital_trabajo": int(capital_trabajo),
-        "comentarios": comentarios,
-        "dfs": {
-            "caja": caja_df,
-            "cxc": cxc_df,
-            "inv_mp": inv_mp,
-            "inv_pp": inv_pp,
-            "inv_pt": inv_pt,
-            "af_df": af_df,
-            "cpp": cpp_df,
-            "anticipos": anticip_df,
-        }
-    }
-
-# ============ Punto III: fuentes de ventas y márgenes ============
-DEFAULT_FUENTES = [
-    "Declaración directa del cliente",
-    "Documentación de soporte (facturas/registro contable)",
-    "Verificación bancaria (estados de cuenta)",
-    "Observación en campo (inventario/flujo de clientes/entrevistas)",
-    "Estimación del asesor con promedios de mercado",
-]
-
-def _infer_fuentes_ventas_margen(resultados, balance):
-    fuentes = set()
-    ventas_evd, _ = _get_text(VENTAS_EVD_KEYS, default="")
-    margen_evd, _ = _get_text(MARGEN_EVD_KEYS, default="")
-    for raw in [ventas_evd, margen_evd]:
-        if isinstance(raw, str) and raw.strip():
-            for item in [s.strip() for s in raw.split(",") if s.strip()]:
-                fuentes.add(item)
-
-    # Heurísticas simples
-    caja_df = balance["dfs"]["caja"]
-    if not caja_df.empty and "verificado por asesor" in (caja_df.columns.str.lower()):
-        if bool(caja_df["verificado por asesor"].fillna(False).astype(bool).any()):
-            fuentes.add("Verificación bancaria (estados de cuenta)")
-
-    for inv_df in [balance["dfs"]["inv_mp"], balance["dfs"]["inv_pp"], balance["dfs"]["inv_pt"]]:
-        if not inv_df.empty and "verificado por asesor" in inv_df.columns.str.lower():
-            if bool(inv_df["verificado por asesor"].fillna(False).astype(bool).any()):
-                fuentes.add("Observación en campo (inventario/flujo de clientes/entrevistas)")
-
-    if not fuentes:
-        fuentes.update(DEFAULT_FUENTES)
-
-    if (not resultados["dfs"]["ventas"].empty) or (not resultados["dfs"]["compras"].empty):
-        fuentes.add("Documentación de soporte (facturas/registro contable)")
-
-    return sorted(fuentes)
-
-# ============ Construcción del Informe ============
-st.title("📑 Informe de Evaluación de Crédito – Comité")
-st.caption("Asociación Credimujer")
-
-# Encabezado: asesor, fecha/hora, GPS y datos del cliente
-asesor_raw = st.session_state.get(_first_key_in_state(ASESOR_KEYS), "(sin registrar)")
-asesor = _as_name(asesor_raw)
-
-visita_str, _ = _get_text(VISITA_DT_KEYS, default=None)
-if not visita_str:
-    visita_dt = dt.datetime.now(tz=TZ)
-    visita_str = visita_dt.strftime("%Y-%m-%d %H:%M")
-
-lat, lon = _get_tuple_coords()
-gps_str = f"{lat:.6f}, {lon:.6f}" if (lat is not None and lon is not None) else "(sin coordenadas)"
-
-cliente_raw = st.session_state.get(_first_key_in_state(CLIENTE_KEYS), "(sin registrar)")
-cliente = _as_name(cliente_raw)
-
-actividad, _ = _get_text(ACTIVIDAD_KEYS, default="")
-lugar, _ = _get_text(LUGAR_KEYS, default="")
-
-with st.container():
-    colA, colB, colC = st.columns([1.3, 1, 1])
-    with colA:
-        st.write(f"**Asesor:** {asesor}")
-        st.write(f"**Cliente:** {cliente}")
-        st.write(f"**Actividad:** {actividad or '—'}")
-    with colB:
-        st.write(f"**Fecha y hora de visita:** {visita_str}")
-        st.write(f"**Ubicación GPS:** {gps_str}")
-    with colC:
-        st.write(f"**Lugar de operación (dirección):** {lugar or '—'}")
-
-st.divider()
-
-# II. Datos del Cliente (breve)
-st.subheader("II. Datos del Cliente")
-st.write("Observaciones generales del asesor (si aplican):")
-obs_general = (
-    st.session_state.get("obs_general")
-    or st.session_state.get("observaciones")
-    or st.session_state.get("observaciones_generales")
-    or st.session_state.get("observaciones_asesor")
-    or st.session_state.get("reporte", {}).get("obs_general")
-    or ""
-)
-st.info(obs_general or "—")
-
-st.divider()
-
-# IV. Estado de Resultados (recalcula)
-res = _calc_resultados()
-
-st.subheader("IV. Estado de Resultados (mensualizado)")
-res_tab = pd.DataFrame([
-    {"Concepto": "Ventas", "Monto (₡)": res["ventas_total"]},
-    {"Concepto": "Compras / Costo", "Monto (₡)": res["compras_total"]},
-    {"Concepto": "Utilidad Bruta", "Monto (₡)": res["utilidad_bruta"]},
-    {"Concepto": "Gastos operativos", "Monto (₡)": res["gastos_operativos"]},
-    {"Concepto": "Utilidad Neta Operativa", "Monto (₡)": res["utilidad_neta_operativa"]},
-    {"Concepto": "Otros ingresos", "Monto (₡)": res["otros_ingresos"]},
-    {"Concepto": "Subtotal Post-Otros", "Monto (₡)": res["subtotal_post_otros"]},
-    {"Concepto": "Gastos familiares", "Monto (₡)": res["gastos_familiares"]},
-    {"Concepto": "Pago mensual de deudas", "Monto (₡)": res["pago_mensual_deudas"]},
-    {"Concepto": "Disponible final", "Monto (₡)": res["disponible_final"]},
-])
-st.dataframe(res_tab, use_container_width=True, hide_index=True)
-
-margen_txt = "—"
-if res["margen_pct"] is not None and res["margen_base"]:
-    pct = res["margen_pct"] if res["margen_pct"] <= 1 else res["margen_pct"] / 100.0
-    margen_txt = f"{pct:.0%} sobre {res['margen_base']}"
-st.caption(f"Margen aplicado: {margen_txt}")
-
-st.divider()
-
-# V. Balance General (recalcula)
-bg = _calc_balance()
-
-st.subheader("V. Balance General (resumen)")
-act_tab = pd.DataFrame([
-    {"Concepto": "Caja y Bancos", "Monto (₡)": bg["activo"]["caja_bancos"]},
-    {"Concepto": "Cuentas por Cobrar a Clientes", "Monto (₡)": bg["activo"]["cxc_clientes"]},
-    {"Concepto": "Inventario – Materia prima", "Monto (₡)": bg["activo"]["inventarios"]["materia_prima"]},
-    {"Concepto": "Inventario – Producto en proceso", "Monto (₡)": bg["activo"]["inventarios"]["producto_proceso"]},
-    {"Concepto": "Inventario – Producto terminado", "Monto (₡)": bg["activo"]["inventarios"]["producto_terminado"]},
-    {"Concepto": "Total Inventarios", "Monto (₡)": bg["activo"]["inventarios"]["total_inventarios"]},
-    {"Concepto": "Total Activo Circulante", "Monto (₡)": bg["activo"]["activo_circulante"]},
-    {"Concepto": "Activo Fijo Neto", "Monto (₡)": bg["activo"]["activo_fijo_neto"]},
-    {"Concepto": "TOTAL ACTIVOS", "Monto (₡)": bg["activo"]["total_activos"]},
-])
-st.dataframe(act_tab, use_container_width=True, hide_index=True)
-
-pas_tab = pd.DataFrame([
-    {"Concepto": "CxP Proveedores", "Monto (₡)": bg["pasivo"]["cxp_proveedores"]},
-    {"Concepto": "Anticipos de clientes", "Monto (₡)": bg["pasivo"]["anticipos_clientes"]},
-    {"Concepto": "Deudas corto plazo (Paso 6)", "Monto (₡)": bg["pasivo"]["deudas_corto_plazo"]},
-    {"Concepto": "Total Pasivo Circulante", "Monto (₡)": bg["pasivo"]["pasivo_circulante"]},
-    {"Concepto": "Pasivo a largo plazo (Paso 6)", "Monto (₡)": bg["pasivo"]["pasivo_largo_plazo"]},
-    {"Concepto": "TOTAL PASIVOS", "Monto (₡)": bg["pasivo"]["total_pasivos"]},
-    {"Concepto": "Patrimonio (Activos - Pasivos)", "Monto (₡)": bg["patrimonio"]},
-    {"Concepto": "Capital de trabajo (AC - PC)", "Monto (₡)": bg["capital_trabajo"]},
-])
-st.dataframe(pas_tab, use_container_width=True, hide_index=True)
-
-st.divider()
-
-# III. Formas de obtención de información (ventas y márgenes)
-st.subheader("III. Formas de obtención – Ventas y Márgenes")
-fuentes = _infer_fuentes_ventas_margen(res, bg)
-st.markdown("\n".join([f"1. {fuentes[0]}"] + [f"{i+1}. {txt}" for i, txt in enumerate(fuentes[1:])]))
-
-st.divider()
-
-# VI. Comentarios del asesor
-st.subheader("VI. Comentarios del asesor")
-st.info(bg["comentarios"] or "—")
-
-st.divider()
-
-# VII. (Opcional) Paquete para IA (ratios + tablas seguras)
-ia_payload = {
-    "asesor": asesor,
-    "cliente": cliente,
-    "actividad": actividad,
-    "lugar_operacion": lugar,
-    "fecha_hora_visita": visita_str,
-    "gps": {"lat": lat, "lon": lon},
-    "estado_resultados": {k: v for k, v in res.items() if k != "dfs"},
-    "balance_general": {
-        "activo": bg["activo"],
-        "pasivo": bg["pasivo"],
-        "patrimonio": bg["patrimonio"],
-        "capital_trabajo": bg["capital_trabajo"],
-    },
-    "fuentes_ventas_margen": fuentes,
-    # Tablas de apoyo (listas de records) – se convierten de forma segura
-    "tablas": {
-        "ventas": _records_from_first_key(VENTAS_KEYS, cols_hint=["detalle", "monto"]),
-        "compras": _records_from_first_key(COMPRAS_KEYS, cols_hint=["detalle", "monto"]),
-        "gastos_operativos": _records_from_first_key(GO_KEYS, cols_hint=["rubro", "monto"]),
-        "otros_ingresos": _records_from_first_key(OTROS_ING_KEYS, cols_hint=["detalle", "monto"]),
-        "gastos_familiares": _records_from_first_key(GF_KEYS, cols_hint=["rubro", "monto"]),
-        "caja_bancos": _records_from_first_key(CAJA_KEYS),
-        "cxc_clientes": _records_from_first_key(CXC_KEYS),
-        "inv_mp": _records_from_first_key(INV_MP_KEYS),
-        "inv_pp": _records_from_first_key(INV_PP_KEYS),
-        "inv_pt": _records_from_first_key(INV_PT_KEYS),
-        "activo_fijo": _records_from_first_key(AF_KEYS),
-    },
-}
-st.subheader("VII. Datos estructurados para IA")
-st.code(json.dumps(ia_payload, ensure_ascii=False, indent=2), language="json")
-
-# Guardar en session_state para uso posterior
-st.session_state.setdefault("reporte", {})
-st.session_state["reporte"]["informe_comite"] = ia_payload
-
-# Descargar JSON
-st.download_button(
-    "⬇️ Descargar paquete IA (JSON)",
-    data=json.dumps(ia_payload, ensure_ascii=False, indent=2).encode("utf-8"),
-    file_name="informe_credito_payload.json",
-    mime="application/json",
-    use_container_width=True,
-)
 
 
 
