@@ -2132,6 +2132,47 @@ with st.expander("Ver tablas de origen (si están disponibles)"):
 
 
 
+# ====== Navegación desde Estado de Resultados ======
+st.divider()
+col_nav1, col_nav2 = st.columns([0.5, 0.5])
+
+with col_nav1:
+    if st.button("⬅️ Volver a Gastos familiares", use_container_width=True):
+        # Si tu flujo por pasos está en una sola app:
+        st.session_state.step = 7  # Paso 8: Gastos familiares
+        st.session_state["_nav_target"] = None
+        st.rerun()
+
+with col_nav2:
+    if st.button("Continuar ➡️ Balance general", type="primary", use_container_width=True):
+        # (Opcional) Persistimos un resumen del ER para el reporte final
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["estado_resultados"] = {
+            "ventas_colones": int(round(ventas_total)),
+            "compras_costos_colones": int(round(compras_total)),
+            "margen_tipo": (tipo_margen or ""),
+            "margen_pct": float(margen_pct) if margen_pct is not None else None,
+            "utilidad_bruta_colones": int(round(utilidad_bruta)),
+            "gastos_operativos_colones": int(round(gastos_ope_total)),
+            "utilidad_neta_operativa_colones": int(round(utilidad_neta_ope)),
+            "otros_ingresos_colones": int(round(otros_ing_total)),
+            "gastos_familiares_colones": int(round(gastos_fam_total)),
+            "pago_de_deudas_colones": int(round(deudas_total)),
+            "subtotal_post_otros_colones": int(round(subtotal_post_otros)),
+            "disponible_para_prestamo_colones": int(round(disponible_final)),
+        }
+
+        # Intentar abrir Balance General (multipage)
+        try:
+            st.switch_page("balance_general.py")              # raíz
+        except Exception:
+            try:
+                st.switch_page("pages/balance_general.py")    # /pages
+            except Exception:
+                # Fallback: marca intención y deja que el router del main la procese
+                st.session_state["_nav_target"] = "BALANCE"
+                st.rerun()
+
 
 
 
