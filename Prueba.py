@@ -1533,6 +1533,11 @@ if st.session_state.get("step") == 5:
             st.session_state.step = 6
             st.rerun()
 
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
+
 
 # =========================
 # PASO 7 – Gastos operativos (step == 6)
@@ -1867,9 +1872,8 @@ if st.session_state.get("step") == 7:
             st.session_state.step = 8
             st.rerun()
 
-
-
-
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
 
 
 
@@ -3569,6 +3573,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
