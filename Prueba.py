@@ -609,6 +609,11 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "B":
             st.success("Bottom-up guardado. Avanzando a 3C…")
             st.rerun()
 
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
+
 
 # =========================
 # PASO 3C – Ventas (Insumos/Margen simple desde COMPRAS)
@@ -3539,6 +3544,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
