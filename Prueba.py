@@ -2537,7 +2537,7 @@ import streamlit as st
 import pandas as pd
 import json
 
-st.set_page_config(page_title="Informe – Comité de Crédito", page_icon="📑", layout="wide")
+st.set_page_config(page_title="Informe – Comité de Crédito", page_icon="📑", layout="centered")
 
 TZ = ZoneInfo("America/Costa_Rica")
 
@@ -2988,5 +2988,6 @@ st.download_button(
     mime="application/json",
     use_container_width=True,
 )
+
 
 
