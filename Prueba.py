@@ -2008,14 +2008,35 @@ def _sum_monto_from_state(possible_keys, cols_hint=None):
     return float(df["monto"].sum()), df, k
 
 def _get_number_from_state(possible_keys, default=0.0):
-    """Obtiene un número simple de la primera key disponible."""
+    """Obtiene un número simple de la primera key disponible (tolerante a None/cadenas)."""
     k = _first_key_in_state(possible_keys)
+
+    def _to_float_or_none(x):
+        if x is None:
+            return None
+        if isinstance(x, (int, float)):
+            return float(x)
+        s = str(x).strip()
+        if s == "":
+            return None
+        s = s.replace(",", ".")
+        try:
+            return float(s)
+        except Exception:
+            return None
+
     if not k:
-        return float(default), None
-    try:
-        return float(st.session_state[k]), k
-    except Exception:
-        return float(default), k
+        # No hay key: usar default (aunque sea None)
+        fdef = _to_float_or_none(default)
+        return fdef, None
+
+    fval = _to_float_or_none(st.session_state[k])
+    if fval is not None:
+        return fval, k
+
+    # Si la key existe pero no es convertible, usar default sin fallar
+    fdef = _to_float_or_none(default)
+    return fdef, k
 
 # ========= Posibles keys usadas en pasos anteriores =========
 # Ajustá/extendé esta lista si en tus pasos usaste otros nombres de variables.
@@ -2946,6 +2967,7 @@ st.download_button(
     mime="application/json",
     use_container_width=True,
 )
+
 
 
 
