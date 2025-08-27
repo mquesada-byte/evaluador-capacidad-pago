@@ -2179,4 +2179,348 @@ with col_nav2:
 
 
 
+# =========================
+# PASO 8 – Balance general (step == 7)
+# =========================
+if st.session_state.get("step") == 7:
+    import pandas as pd
+
+    st.title("📒 Paso 8: Balance General")
+    st.caption(
+        "Registre y/o verifique los saldos para construir el Balance General. "
+        "Los pasivos por deudas se toman automáticamente del Paso 6 (deudas activas): "
+        "corto plazo → pasivo circulante; largo plazo → pasivo a largo plazo."
+    )
+
+    # ========= Helpers =========
+    def _to_num(s):
+        try:
+            return float(s)
+        except Exception:
+            return 0.0
+
+    # Cargar totales de deudas (si existen)
+    tot_corto = 0
+    tot_largo = 0
+    try:
+        _tot = st.session_state["reporte"]["deudas_activas"]["totales"]
+        tot_corto = int(_tot.get("total_adeudado_corto_plazo_colones", 0))
+        tot_largo = int(_tot.get("total_adeudado_largo_plazo_colones", 0))
+    except Exception:
+        pass
+
+    # Catálogos de evidencia (cómo verificó el asesor)
+    evidencias = [
+        "Estado de cuenta", "Movimientos/SINPE", "Factura/Recibo",
+        "Contrato", "Inventario físico", "Fotos/Video", "Otro", "No aplica"
+    ]
+
+    st.subheader("I. Activo Circulante")
+
+    # 1) Caja y Bancos (detalle por cuenta) + verificación
+    st.markdown("**Caja y bancos**")
+    caja_cols = [
+        "Cuenta/Banco", "Saldo (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"
+    ]
+    caja_placeholder = pd.DataFrame([{
+        "Cuenta/Banco": "", "Saldo (₡)": 0, "Verificado por asesor": False,
+        "Tipo de evidencia": "", "Comentario": ""
+    } for _ in range(3)])
+
+    caja_df = st.data_editor(
+        caja_placeholder,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="bg_caja_bancos",
+        column_config={
+            "Cuenta/Banco": st.column_config.TextColumn("Cuenta/Banco"),
+            "Saldo (₡)": st.column_config.NumberColumn("Saldo (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+    caja_total = int(pd.to_numeric(caja_df.get("Saldo (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+    st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
+
+    st.markdown("---")
+
+    # 2) Cuentas por cobrar a clientes (detalle) + verificación
+    st.markdown("**Cuentas por cobrar a clientes**")
+    cxc_cols = [
+        "Cliente/Descripción", "Monto (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"
+    ]
+    cxc_placeholder = pd.DataFrame([{
+        "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
+        "Tipo de evidencia": "", "Comentario": ""
+    } for _ in range(3)])
+
+    cxc_df = st.data_editor(
+        cxc_placeholder,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="bg_cxc_clientes",
+        column_config={
+            "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
+            "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+    cxc_total = int(pd.to_numeric(cxc_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+    st.metric("Subtotal Cuentas por Cobrar a Clientes", f"₡{cxc_total:,.0f}")
+
+    st.markdown("---")
+
+    # 3) Inventarios (tres tablas con subtotales y total)
+    st.markdown("**Inventarios**")
+
+    inv_cols = ["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
+    inv_opts = {
+        "Materia prima": "bg_inv_mp",
+        "Producto en proceso": "bg_inv_pp",
+        "Producto terminado": "bg_inv_pt",
+    }
+
+    subtotales_inv = {}
+
+    for titulo, keyname in inv_opts.items():
+        st.markdown(f"*{titulo}*")
+        inv_placeholder = pd.DataFrame([{
+            "Detalle": "", "Valor (₡)": 0, "Verificado por asesor": False,
+            "Tipo de evidencia": "", "Comentario": ""
+        } for _ in range(3)])
+
+        df_inv = st.data_editor(
+            inv_placeholder,
+            use_container_width=True,
+            num_rows="dynamic",
+            hide_index=True,
+            key=keyname,
+            column_config={
+                "Detalle": st.column_config.TextColumn("Detalle"),
+                "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+                "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+                "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+                "Comentario": st.column_config.TextColumn("Comentario"),
+            },
+        )
+        subtotal = int(pd.to_numeric(df_inv.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+        subtotales_inv[titulo] = subtotal
+        st.caption(f"Subtotal {titulo}: **₡{subtotal:,.0f}**")
+        st.markdown("")
+
+    total_inventarios = int(sum(subtotales_inv.values()))
+    st.metric("**Total Inventarios**", f"₡{total_inventarios:,.0f}")
+
+    st.markdown("---")
+
+    # Total Activo Circulante
+    activo_circulante = int(caja_total + cxc_total + total_inventarios)
+    st.metric("💼 **Total Activo Circulante**", f"₡{activo_circulante:,.0f}")
+
+    st.divider()
+
+    # ========= Activo Fijo Neto =========
+    st.subheader("II. Activo Fijo Neto")
+    st.caption("Ingrese cada activo fijo; se calcula neto = valor bruto – depreciación acumulada.")
+
+    af_cols = [
+        "Activo", "Valor bruto (₡)", "Depreciación acum. (₡)",
+        "Verificado por asesor", "Tipo de evidencia", "Comentario"
+    ]
+    af_placeholder = pd.DataFrame([{
+        "Activo": "",
+        "Valor bruto (₡)": 0,
+        "Depreciación acum. (₡)": 0,
+        "Verificado por asesor": False,
+        "Tipo de evidencia": "",
+        "Comentario": "",
+    } for _ in range(4)])
+
+    with st.expander("Agregar/editar activos fijos"):
+        af_df = st.data_editor(
+            af_placeholder,
+            use_container_width=True,
+            num_rows="dynamic",
+            hide_index=True,
+            key="bg_activo_fijo",
+            column_config={
+                "Activo": st.column_config.TextColumn("Activo"),
+                "Valor bruto (₡)": st.column_config.NumberColumn("Valor bruto (₡)", min_value=0, step=25000, format="₡ %d"),
+                "Depreciación acum. (₡)": st.column_config.NumberColumn("Depreciación acum. (₡)", min_value=0, step=25000, format="₡ %d"),
+                "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+                "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+                "Comentario": st.column_config.TextColumn("Comentario"),
+            },
+        )
+    af_bruto = pd.to_numeric(af_df.get("Valor bruto (₡)", pd.Series()), errors="coerce").fillna(0)
+    af_depr  = pd.to_numeric(af_df.get("Depreciación acum. (₡)", pd.Series()), errors="coerce").fillna(0)
+    af_neto_series = (af_bruto - af_depr).clip(lower=0)
+    af_neto_total = int(af_neto_series.sum())
+    st.metric("🏭 **Activo Fijo Neto**", f"₡{af_neto_total:,.0f}")
+
+    st.divider()
+
+    # ========= Totales de Activo =========
+    total_activos = int(activo_circulante + af_neto_total)
+    st.metric("🧮 **Total Activos**", f"₡{total_activos:,.0f}")
+
+    st.divider()
+
+    # ========= Pasivo =========
+    st.subheader("III. Pasivo")
+
+    # A) Pasivo circulante
+    st.markdown("**Pasivo circulante**")
+
+    # Cuentas por pagar a proveedores (detalle) + verificación
+    st.markdown("*Cuentas por pagar a proveedores*")
+    cpp_cols = ["Proveedor", "Monto (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
+    cpp_placeholder = pd.DataFrame([{
+        "Proveedor": "", "Monto (₡)": 0, "Verificado por asesor": False,
+        "Tipo de evidencia": "", "Comentario": ""
+    } for _ in range(3)])
+
+    cpp_df = st.data_editor(
+        cpp_placeholder,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="bg_cpp",
+        column_config={
+            "Proveedor": st.column_config.TextColumn("Proveedor"),
+            "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+    cpp_total = int(pd.to_numeric(cpp_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+    st.caption(f"Subtotal CxP Proveedores: **₡{cpp_total:,.0f}**")
+
+    # Anticipos de clientes (pasivo)
+    st.markdown("*Anticipos de clientes*")
+    antic_cols = ["Cliente/Descripción", "Monto (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
+    antic_placeholder = pd.DataFrame([{
+        "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
+        "Tipo de evidencia": "", "Comentario": ""
+    } for _ in range(2)])
+
+    antic_df = st.data_editor(
+        antic_placeholder,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="bg_anticipos",
+        column_config={
+            "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
+            "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+    antic_total = int(pd.to_numeric(antic_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+    st.caption(f"Subtotal Anticipos de clientes: **₡{antic_total:,.0f}**")
+
+    # Cuentas por pagar a corto plazo (traídas de Deudas – corto)
+    st.markdown("*Cuentas por pagar a corto plazo (de Deudas Paso 6)*")
+    st.info(f"Total de corto plazo desde Deudas: **₡{tot_corto:,.0f}**")
+
+    pasivo_circulante = int(cpp_total + antic_total + tot_corto)
+    st.metric("💳 **Total Pasivo Circulante**", f"₡{pasivo_circulante:,.0f}")
+
+    st.markdown("---")
+
+    # B) Pasivo a largo plazo (de Deudas)
+    st.markdown("**Pasivo a largo plazo**")
+    st.info(f"Total de largo plazo desde Deudas: **₡{tot_largo:,.0f}**")
+    pasivo_largo = int(tot_largo)
+
+    # ========= Total Pasivo =========
+    total_pasivo = int(pasivo_circulante + pasivo_largo)
+    st.metric("📉 **Total Pasivos**", f"₡{total_pasivo:,.0f}")
+
+    st.divider()
+
+    # ========= Patrimonio y Capital de Trabajo =========
+    patrimonio = int(total_activos - total_pasivo)
+    capital_trabajo = int(activo_circulante - pasivo_circulante)
+
+    colA, colB = st.columns(2)
+    with colA:
+        st.metric("📈 **Patrimonio (Activo - Pasivo)**", f"₡{patrimonio:,.0f}")
+    with colB:
+        st.metric("🧰 **Capital de trabajo (AC - PC)**", f"₡{capital_trabajo:,.0f}")
+
+    st.divider()
+
+    # ========= Comentarios del asesor =========
+    st.subheader("Comentarios del asesor")
+    comentarios = st.text_area("Observaciones, aclaraciones o notas relevantes para el análisis:", key="bg_comentarios", height=140)
+
+    st.divider()
+
+    # ========= Guardar / Navegación =========
+    c1, c2 = st.columns([0.5, 0.5])
+    with c1:
+        if st.button("⬅️ Volver a Gastos operativos", key="bg_back_go", use_container_width=True):
+            st.session_state.step = 6
+            st.rerun()
+    with c2:
+        if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
+            # Consolidar para reporte
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["balance_general"] = {
+                "activo_circulante": {
+                    "caja_bancos": caja_df.fillna("").to_dict(orient="records"),
+                    "cxc_clientes": cxc_df.fillna("").to_dict(orient="records"),
+                    "inventarios": {
+                        "materia_prima": st.session_state.get("bg_inv_mp", pd.DataFrame()).fillna("").to_dict(orient="records"),
+                        "producto_proceso": st.session_state.get("bg_inv_pp", pd.DataFrame()).fillna("").to_dict(orient="records"),
+                        "producto_terminado": st.session_state.get("bg_inv_pt", pd.DataFrame()).fillna("").to_dict(orient="records"),
+                        "subtotales": {
+                            "materia_prima": subtotales_inv.get("Materia prima", 0),
+                            "producto_proceso": subtotales_inv.get("Producto en proceso", 0),
+                            "producto_terminado": subtotales_inv.get("Producto terminado", 0),
+                            "total_inventarios": total_inventarios,
+                        }
+                    },
+                    "totales": {
+                        "caja_bancos": caja_total,
+                        "cxc_clientes": cxc_total,
+                        "total_inventarios": total_inventarios,
+                        "activo_circulante": activo_circulante,
+                    }
+                },
+                "activo_fijo_neto": {
+                    "detalle": st.session_state.get("bg_activo_fijo", pd.DataFrame()).fillna("").to_dict(orient="records"),
+                    "total_neto": af_neto_total,
+                },
+                "activos_totales": total_activos,
+                "pasivo": {
+                    "pasivo_circulante": {
+                        "cxp_proveedores": cpp_df.fillna("").to_dict(orient="records"),
+                        "anticipos_clientes": antic_df.fillna("").to_dict(orient="records"),
+                        "deudas_corto_plazo": tot_corto,
+                        "total_pasivo_circulante": pasivo_circulante,
+                    },
+                    "pasivo_largo_plazo": pasivo_largo,
+                    "pasivo_total": total_pasivo,
+                },
+                "patrimonio": patrimonio,
+                "capital_trabajo": capital_trabajo,
+                "comentarios_asesor": comentarios,
+            }
+            st.success("Balance general guardado. Avanzando…")
+            st.session_state.step = 8
+            st.rerun()
+
+
+
+
 
