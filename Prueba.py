@@ -1549,10 +1549,9 @@ if st.session_state.get("step") == 5:
 # PASO 7 – Gastos operativos (step == 6)
 # =========================
 def _mensualizar_gasto(monto: float, periodicidad: str) -> float:
-    """Convierte un gasto por período a gasto mensual aproximado."""
     per = (periodicidad or "").lower()
     if per == "diario":       return monto * 30.0
-    if per == "semanal":      return monto * (52.0 / 12.0)  # ≈ 4.333
+    if per == "semanal":      return monto * (52.0 / 12.0)
     if per == "quincenal":    return monto * 2.0
     if per == "mensual":      return monto
     if per == "bimestral":    return monto / 2.0
@@ -1577,29 +1576,43 @@ if st.session_state.get("step") == 6:
 
     # Columnas base (entrada)
     base_cols = [
-        "Rubro",                    # select
-        "Detalle",                  # texto
-        "Monto por período (₡)",    # num
-        "Periodicidad",             # select
-        "Verificado por asesor",    # bool
-        "Tipo de evidencia",        # select
-        "Comentario",               # texto
+        "Rubro", "Detalle", "Monto por período (₡)", "Periodicidad",
+        "Verificado por asesor", "Tipo de evidencia", "Comentario",
     ]
 
-    # Placeholders iniciales (una fila por rubro)
-    placeholder_rows = []
-    for r in rubros:
-        placeholder_rows.append({
-            "Rubro": r,
-            "Detalle": "",
-            "Monto por período (₡)": 0,
-            "Periodicidad": "Mensual",
-            "Verificado por asesor": False,
-            "Tipo de evidencia": "",
-            "Comentario": "",
-        })
+    # ================== NUEVO: cargar lo guardado si existe ==================
+    guardado = (st.session_state.get("reporte", {})
+                .get("gastos_operativos", {})
+                .get("tabla", []))
+
+    if guardado:
+        df_base = pd.DataFrame(guardado).copy()
+        # Asegurar columnas base y tipos
+        for c in base_cols:
+            if c not in df_base.columns:
+                if c == "Monto por período (₡)":
+                    df_base[c] = 0
+                elif c == "Verificado por asesor":
+                    df_base[c] = False
+                else:
+                    df_base[c] = ""
+        df_base = df_base[base_cols]
+        # Tipos
+        df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
+        df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
+    else:
+        # Placeholders iniciales (una fila por rubro)
+        placeholder_rows = []
+        for r in rubros:
+            placeholder_rows.append({
+                "Rubro": r, "Detalle": "", "Monto por período (₡)": 0, "Periodicidad": "Mensual",
+                "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": "",
+            })
+        df_base = pd.DataFrame(placeholder_rows)
+    # ========================================================================
+
     df_in = st.data_editor(
-        pd.DataFrame(placeholder_rows),
+        df_base,
         use_container_width=True,
         num_rows="dynamic",
         hide_index=True,
@@ -1617,26 +1630,20 @@ if st.session_state.get("step") == 6:
 
     # --- Preparación y derivados ---
     df = df_in.copy()
-
-    # Asegurar tipos numéricos y booleanos
     if "Monto por período (₡)" not in df.columns:
         df["Monto por período (₡)"] = 0
     df["Monto por período (₡)"] = pd.to_numeric(df["Monto por período (₡)"], errors="coerce").fillna(0)
-
     if "Verificado por asesor" not in df.columns:
         df["Verificado por asesor"] = False
     df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
 
-    # Calcular "Gasto mensualizado (₡)"
     mensualizados = []
     for _, r in df.iterrows():
         monto = float(r.get("Monto por período (₡)") or 0)
         per = r.get("Periodicidad") or ""
         mensualizados.append(_mensualizar_gasto(monto, per))
-
     df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
 
-    # Editor con cálculos (derivadas bloqueadas)
     with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
         df_edit = st.data_editor(
             df,
@@ -1652,12 +1659,10 @@ if st.session_state.get("step") == 6:
                 "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
                 "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
                 "Comentario": st.column_config.TextColumn("Comentario"),
-                # Derivadas bloqueadas
                 "Gasto mensualizado (₡)": st.column_config.NumberColumn("Gasto mensualizado (₡)", format="₡ %d", disabled=True),
             },
         )
 
-    # Recalcular por si cambian entradas en el editor con cálculos
     if "Monto por período (₡)" not in df_edit.columns:
         df_edit["Monto por período (₡)"] = 0
     df_edit["Monto por período (₡)"] = pd.to_numeric(df_edit["Monto por período (₡)"], errors="coerce").fillna(0)
@@ -1670,14 +1675,12 @@ if st.session_state.get("step") == 6:
         monto = float(r.get("Monto por período (₡)") or 0)
         per = r.get("Periodicidad") or ""
         mensualizados.append(_mensualizar_gasto(monto, per))
-
     df = df_edit.copy()
     df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
 
     # --- Resumen ---
     valid_mask = (df["Periodicidad"].isin(periodicidades)) & (df["Monto por período (₡)"] > 0)
     df_valid = df[valid_mask].copy()
-
     total_gasto_mensual = int(df_valid["Gasto mensualizado (₡)"].sum()) if not df_valid.empty else 0
     total_gasto_verificado = int(df_valid.loc[df_valid["Verificado por asesor"], "Gasto mensualizado (₡)"].sum()) if not df_valid.empty else 0
 
@@ -1690,7 +1693,6 @@ if st.session_state.get("step") == 6:
 
     st.divider()
 
-    # Navegación / Guardar
     c1, c2 = st.columns([0.5, 0.5])
     with c1:
         if st.button("⬅️ Volver a Deudas", key="gastos_back_deudas", use_container_width=True):
@@ -1712,7 +1714,6 @@ if st.session_state.get("step") == 6:
             st.session_state.step = 7
             st.rerun()
 
-    # 👇 Detiene el render aquí mientras sigas en el Paso 1
     st.stop()
 
 
@@ -3579,6 +3580,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
