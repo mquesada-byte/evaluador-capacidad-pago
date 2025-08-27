@@ -1896,27 +1896,43 @@ if st.session_state.get("step") == 7:
 
     st.divider()
 
-    # Navegación / Guardar
-    c1, c2 = st.columns([0.5, 0.5])
-    with c1:
-        if st.button("⬅️ Volver a Gastos operativos", key="gfam_back_gop", use_container_width=True):
-            st.session_state.step = 6
-            st.rerun()
-    with c2:
-        if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True,
-                     disabled=(valid_mask.sum() == 0)):
-            st.session_state.setdefault("reporte", {})
-            st.session_state["reporte"]["gastos_familiares"] = {
-                "tabla": df.fillna("").to_dict(orient="records"),
-                "totales": {
-                    "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
-                    "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
-                    "registros_validos": int(valid_mask.sum()),
-                }
+# --- Navegación / Guardar (REEMPLAZA este bloque en Paso 8) ---
+c1, c2 = st.columns([0.5, 0.5])
+with c1:
+    if st.button("⬅️ Volver a Gastos operativos", key="gfam_back_gop", use_container_width=True):
+        st.session_state.step = 6
+        st.rerun()
+
+with c2:
+    disabled_next = (valid_mask.sum() == 0)
+    if st.button("Guardar y continuar ➡️ Ver Estado de Resultados", key="gfam_save_next_to_er",
+                 use_container_width=True, disabled=disabled_next):
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["gastos_familiares"] = {
+            "tabla": df.fillna("").to_dict(orient="records"),
+            "totales": {
+                "total_gastos_familiares_mensualizado_colones": int(total_gasto_fam_mensual),
+                "total_gastos_familiares_verificado_colones": int(total_gasto_fam_verificado),
+                "registros_validos": int(valid_mask.sum()),
             }
-            st.success("Gastos familiares guardados. Avanzando…")
-            st.session_state.step = 8
-            st.rerun()
+        }
+
+        # 👉 Ir al Estado de Resultados (multipage)
+        try:
+            # si el archivo está en la raíz del proyecto
+            st.switch_page("estado_resultados.py")
+        except Exception:
+            try:
+                # si está dentro de /pages
+                st.switch_page("pages/estado_resultados.py")
+            except Exception:
+                # Fallback: deja guardado y ofrece link manual
+                st.success("Gastos familiares guardados.")
+                st.page_link("estado_resultados.py", label="Abrir Estado de Resultados 📑", icon="📑")
+                st.stop()
+
+
+
 
 
 
@@ -2115,6 +2131,7 @@ with st.expander("Ver tablas de origen (si están disponibles)"):
     st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
     st.subheader("Deudas activas")
     st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
+
 
 
 
