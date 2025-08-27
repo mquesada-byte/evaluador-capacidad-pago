@@ -2628,6 +2628,72 @@ with col2:
     else:
         st.info("GPS no disponible aún.")
 
+# === Etapa 2: Cliente y Negocio (detalle + comentario del asesor) ===
+import streamlit as st
+
+def _fmt_antiguedad(anios, meses):
+    try:
+        a = int(anios or 0); m = int(meses or 0)
+        if a == 0 and m == 0:
+            return ""
+        return f"{a} año(s) y {m} mes(es)"
+    except Exception:
+        return ""
+
+# Preferir lo guardado en reporte -> cliente_negocio
+cn = (st.session_state.get("reporte", {}) or {}).get("cliente_negocio", {}) or {}
+cli_live = st.session_state.get("cliente", {}) or {}
+neg_live = st.session_state.get("negocio", {}) or {}
+
+cliente_nombre = cn.get("cliente_nombre") or cli_live.get("nombre_completo") or "(sin registrar)"
+cliente_cedula = cn.get("cliente_identificacion") or cli_live.get("identificacion") or "(sin registrar)"
+
+nombre_comercial = cn.get("nombre_comercial") or neg_live.get("nombre_comercial") or "—"
+sector = cn.get("sector_economico") or neg_live.get("sector_economico") or "—"
+actividad = cn.get("actividad_principal") or neg_live.get("actividad_principal") or "—"
+ubicacion = cn.get("ubicacion") or neg_live.get("ubicacion") or "—"
+persona_juridica = cn.get("persona_juridica") or ("Sí" if neg_live.get("persona_juridica") else "No")
+patente = cn.get("patente_municipal") or ("Sí" if neg_live.get("patente_municipal") else "No")
+registros = cn.get("registros_contables") or ("Sí" if neg_live.get("registros_contables") else "No")
+tipo_local = cn.get("tipo_local") or neg_live.get("tipo_local") or "—"
+antiguedad = cn.get("antiguedad") or _fmt_antiguedad(
+    neg_live.get("antiguedad_anios"), neg_live.get("antiguedad_meses")
+) or "—"
+
+# Comentario del asesor: preferir el de la valoración 3VAL; si no, obs_general
+coment_asesor = (
+    ((st.session_state.get("reporte", {}) or {}).get("valoracion_asesor", {}) or {}).get("comentario")
+    or st.session_state.get("obs_general", "")
+    or "—"
+)
+
+st.subheader("👤 Cliente y negocio")
+
+colL, colR = st.columns([0.55, 0.45], vertical_alignment="top")
+with colL:
+    st.markdown(
+        f"""
+**Cliente:** {cliente_nombre}  
+**Identificación:** {cliente_cedula}  
+
+**Nombre comercial:** {nombre_comercial}  
+**Actividad principal:** {actividad}  
+**Sector económico:** {sector}  
+**Tipo de local:** {tipo_local}  
+**Persona jurídica:** {persona_juridica}  
+**Patente municipal:** {patente}  
+**Registros contables:** {registros}  
+**Antigüedad del negocio:** {antiguedad}
+        """.strip()
+    )
+
+with colR:
+    st.markdown("**Ubicación / señas del negocio**")
+    st.info(ubicacion or "—")
+
+st.markdown("**Comentario del asesor**")
+st.info(coment_asesor)
+
 
 
 
