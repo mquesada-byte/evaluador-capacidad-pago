@@ -2531,13 +2531,17 @@ if st.session_state.get("step") == 7:
 # Lee los datos de pasos previos desde st.session_state, calcula
 # Estado de Resultados y Balance, y presenta un informe listo para revisión.
 # Incluye el Punto III: Formas de obtención de información de Ventas y Márgenes.
+
 import datetime as dt
 from zoneinfo import ZoneInfo
 import streamlit as st
 import pandas as pd
 import json
 
-st.set_page_config(page_title="Informe – Comité de Crédito", page_icon="📑", layout="centered")
+# Evitar error si otra página ya configuró el layout
+if not st.session_state.get("_page_config_set"):
+    st.set_page_config(page_title="Informe – Comité de Crédito", page_icon="📑", layout="centered")
+    st.session_state["_page_config_set"] = True
 
 TZ = ZoneInfo("America/Costa_Rica")
 
@@ -2549,13 +2553,24 @@ def _first_key_in_state(possible_keys):
     return None
 
 def _get_num(key_list, default=0.0):
+    """
+    Devuelve (valor_float | None, key_encontrada).
+    Si default es None, no lo convertimos a float.
+    """
     k = _first_key_in_state(key_list)
     if not k:
-        return float(default), None
+        return (None if default is None else float(default)), None
+    val = st.session_state.get(k)
+    if val in (None, "", "None"):
+        return (None if default is None else float(default)), k
     try:
-        return float(st.session_state[k]), k
+        return float(val), k
     except Exception:
-        return float(default), k
+        try:
+            s = str(val).strip().replace(",", "")
+            return float(s), k
+        except Exception:
+            return (None if default is None else float(default)), k
 
 def _get_text(key_list, default=""):
     k = _first_key_in_state(key_list)
@@ -2568,12 +2583,34 @@ def _get_text(key_list, default=""):
         return default, k
 
 def _get_tuple_coords():
-    # Busca lat/lon en distintas posibles claves
+    """
+    Busca lat/lon en varias ubicaciones conocidas.
+    Devuelve (lat, lon) como floats o (None, None) si no hay datos.
+    """
+    # 1) Dentro del bloque del asesor si existe
+    a = st.session_state.get("asesor", {}) or {}
+    lat = a.get("lat"); lon = a.get("lon")
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        return float(lat), float(lon)
+
+    # 2) Top-level keys alternativos
     lat_keys = ["gps_lat", "lat", "latitude"]
     lon_keys = ["gps_lon", "lon", "longitude", "lng"]
     lat, _ = _get_num(lat_keys, default=None)
     lon, _ = _get_num(lon_keys, default=None)
-    return lat, lon
+    if lat is not None and lon is not None:
+        return float(lat), float(lon)
+
+    # 3) Desde reporte->asesor->gps
+    rep_asesor = st.session_state.get("reporte", {}).get("asesor", {}) or {}
+    gps = rep_asesor.get("gps")
+    if isinstance(gps, dict):
+        lat = gps.get("lat"); lon = gps.get("lon")
+        if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+            return float(lat), float(lon)
+
+    # 4) Sin coordenadas
+    return None, None
 
 def _coerce_df(obj, cols_hint=None):
     if obj is None:
@@ -2644,8 +2681,6 @@ INV_PP_KEYS = ["bg_inv_pp"]
 INV_PT_KEYS = ["bg_inv_pt"]
 # Activo fijo
 AF_KEYS = ["bg_activo_fijo"]
-# Pasivos desde Deudas (paso 6 guardado)
-DEUDAS_TOTALES_KEYS = ["reporte"]
 # Comentarios balance
 COMENT_BG_KEYS = ["bg_comentarios"]
 
@@ -2663,27 +2698,40 @@ def _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_va
     return 0.0
 
 def _calc_resultados():
+    # Ventas / Compras (de tablas vivas si existieran)
     ventas_total, ventas_df, _ = _sum_from_state(VENTAS_KEYS, cols_hint=["detalle", "monto"])
     compras_total, compras_df, _ = _sum_from_state(COMPRAS_KEYS, cols_hint=["detalle", "monto"])
+
+    # Margen
     margen_pct, _ = _get_num(MARGEN_PCT_KEYS, default=None)
     margen_base_key = _first_key_in_state(MARGEN_BASE_KEYS)
     margen_base_val = (st.session_state.get(margen_base_key) or "").strip().lower() if margen_base_key else None
 
+    # Gastos operativos y otros ingresos
     go_total, go_df, _ = _sum_from_state(GO_KEYS, cols_hint=["rubro", "monto"])
     otros_total, otros_df, _ = _sum_from_state(OTROS_ING_KEYS, cols_hint=["detalle", "monto"])
-    gf_total, gf_df, _ = _sum_from_state(GF_KEYS, cols_hint=["rubro", "monto"])
 
+    # Gastos familiares (preferir total guardado en reporte; si no, sumar tabla viva)
+    gf_total = 0
+    try:
+        gf_total = int(st.session_state["reporte"]["gastos_familiares"]["totales"]["total_gastos_familiares_mensualizado_colones"])
+        gf_df = pd.DataFrame(st.session_state["reporte"]["gastos_familiares"]["tabla"])
+    except Exception:
+        gf_total, gf_df, _ = _sum_from_state(GF_KEYS, cols_hint=["rubro", "monto"])
+
+    # Utilidades
     ub = _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_val)
     uno = ub - go_total
     subtotal_post_otros = uno + otros_total
-    # Pago mensual de deudas: se usa desde el paso de deudas si existiera,
-    # pero en Resultados consideramos el *pago mensual* (no el saldo)
+
+    # Pago mensual de deudas (para resultados)
     pago_mens_deudas = 0
     try:
         _tot = st.session_state["reporte"]["deudas_activas"]["totales"]
         pago_mens_deudas = int(_tot.get("total_pago_mensual_colones", 0))
     except Exception:
         pass
+
     disponible = subtotal_post_otros - gf_total - pago_mens_deudas
 
     resultados = {
@@ -2827,7 +2875,7 @@ def _infer_fuentes_ventas_margen(resultados, balance):
 
     # Heurística: si en caja_bancos hay registros verificados -> "Verificación bancaria"
     caja_df = balance["dfs"]["caja"]
-    if "verificado por asesor" in (caja_df.columns.str.lower() if not caja_df.empty else []):
+    if not caja_df.empty and "verificado por asesor" in (caja_df.columns.str.lower()):
         if bool(caja_df["verificado por asesor"].fillna(False).astype(bool).any()):
             fuentes.add("Verificación bancaria (estados de cuenta)")
 
@@ -2837,12 +2885,12 @@ def _infer_fuentes_ventas_margen(resultados, balance):
             if bool(inv_df["verificado por asesor"].fillna(False).astype(bool).any()):
                 fuentes.add("Observación en campo (inventario/flujo de clientes/entrevistas)")
 
-    # Si no detectamos nada, usa defaults completos
+    # Defaults si no detectamos nada
     if not fuentes:
         fuentes.update(DEFAULT_FUENTES)
 
-    # Siempre incluí documentación si en ventas/compras hubo tablas
-    if not resultados["dfs"]["ventas"].empty or not resultados["dfs"]["compras"].empty:
+    # Siempre incluye documentación si hubo tablas de ventas/compras
+    if (not resultados["dfs"]["ventas"].empty) or (not resultados["dfs"]["compras"].empty):
         fuentes.add("Documentación de soporte (facturas/registro contable)")
 
     return sorted(fuentes)
@@ -2962,9 +3010,7 @@ ia_payload = {
     "cliente": cliente,
     "fecha_hora_visita": visita_str,
     "gps": {"lat": lat, "lon": lon},
-    "estado_resultados": {
-        k: v for k, v in res.items() if k != "dfs"
-    },
+    "estado_resultados": {k: v for k, v in res.items() if k != "dfs"},
     "balance_general": {
         "activo": bg["activo"],
         "pasivo": bg["pasivo"],
@@ -2988,6 +3034,7 @@ st.download_button(
     mime="application/json",
     use_container_width=True,
 )
+
 
 
 
