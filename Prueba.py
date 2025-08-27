@@ -2695,6 +2695,84 @@ st.markdown("**Comentario del asesor**")
 st.info(coment_asesor)
 
 
+# =========================
+# III. Valoración del asesor de crédito
+# (insertar este bloque antes del "IV. Estado de Resultados")
+# =========================
+
+def _leer_valoracion_asesor():
+    """Devuelve (dict_valoracion, fuente_str). Tolera faltantes."""
+    # 1) Preferir lo guardado por Paso 3VAL en el reporte
+    rep_val = st.session_state.get("reporte", {}).get("valoracion_asesor")
+    if isinstance(rep_val, dict) and rep_val:
+        return rep_val, "reporte.valoracion_asesor"
+    # 2) Fallback: estado en vivo
+    live_val = st.session_state.get("valoracion_asesor")
+    if isinstance(live_val, dict) and live_val:
+        return live_val, "session_state.valoracion_asesor"
+    # 3) Nada
+    return {}, "—"
+
+val, val_src = _leer_valoracion_asesor()
+
+# Campos con defaults seguros
+conoc = int((val.get("conocimiento_0a10") or 0) if str(val.get("conocimiento_0a10") or "").strip() != "" else 0)
+cred  = int((val.get("credibilidad_0a10") or 0) if str(val.get("credibilidad_0a10") or "").strip() != "" else 0)
+dudas = (val.get("dudas_declaracion") or "Sin dudas")
+clas  = (val.get("clasificacion") or "—")
+fact  = float(val.get("factor_asesor_0a1") or 0.0)
+
+ev_raw = val.get("evidencia", [])
+if isinstance(ev_raw, str):
+    evidencia = [s.strip() for s in ev_raw.split(",") if s.strip()]
+elif isinstance(ev_raw, list):
+    evidencia = [str(x).strip() for x in ev_raw if str(x).strip()]
+else:
+    evidencia = []
+coment = (val.get("comentario") or "").strip()
+
+# (Opcional) Detalle del cálculo del factor, si aplica
+avg = (conoc + cred) / 2.0
+base_calc = 0.6 + 0.04 * avg
+mult_dudas_map = {"Sin dudas": 1.00, "Dudas leves": 0.85, "Dudas serias": 0.60}
+mult_dudas = mult_dudas_map.get(dudas, 1.00)
+
+st.subheader("III. Valoración del asesor de crédito")
+
+colV1, colV2, colV3 = st.columns(3)
+with colV1:
+    st.metric("Conocimiento (0–10)", f"{conoc}")
+with colV2:
+    st.metric("Credibilidad (0–10)", f"{cred}")
+with colV3:
+    st.metric("Factor de confiabilidad", f"{fact:.2f}")
+
+colV4, colV5 = st.columns(2)
+with colV4:
+    st.write(f"**Percepción de veracidad:** {dudas}")
+with colV5:
+    st.write(f"**Clasificación del caso:** {clas}")
+
+# Evidencia observada
+st.markdown("**Evidencia observada:**")
+if evidencia:
+    st.markdown("\n".join([f"- {e}" for e in evidencia]))
+else:
+    st.caption("—")
+
+# Comentario del asesor
+st.markdown("**Comentario del asesor:**")
+st.info(coment or "—")
+
+# Glosa del factor (si hay datos)
+if (conoc or cred) and fact > 0:
+    st.caption(
+        f"Glosa del factor: base={base_calc:.2f} (0.60 + 0.04×promedio de conocimiento/credibilidad={avg:.1f}) × "
+        f"ajuste por dudas={mult_dudas:.2f} → {base_calc * mult_dudas:.2f}"
+        + (" (redondeado/limitado a [0.40–1.00])" if abs((base_calc * mult_dudas) - fact) > 1e-6 else "")
+    )
+# st.caption(f"Fuente de valoración: {val_src}")  # útil para depurar; dejar comentado si no quieres mostrarlo
+
 
 
 
