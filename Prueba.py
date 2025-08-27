@@ -1723,7 +1723,6 @@ if st.session_state.get("step") == 6:
 # PASO 8 – Gastos familiares (step == 7)
 # =========================
 def _mensualizar_gasto_fam(monto: float, periodicidad: str) -> float:
-    """Convierte un gasto por período a gasto mensual aproximado (familia)."""
     per = (periodicidad or "").lower()
     if per == "diario":       return monto * 30.0
     if per == "semanal":      return monto * (52.0 / 12.0)  # ≈ 4.333
@@ -1749,22 +1748,45 @@ if st.session_state.get("step") == 7:
         "Planilla/CCSS", "Recibos", "Foto/Chat", "No aplica", "Otro"
     ]
 
-    # Placeholders iniciales (una fila por rubro)
-    placeholder_rows = []
-    for r in rubros_fam:
-        placeholder_rows.append({
-            "Rubro": r,
-            "Detalle": "",
-            "Monto por período (₡)": 0,
-            "Periodicidad": "Mensual",
-            "Verificado por asesor": False,
-            "Tipo de evidencia": "",
-            "Comentario": "",
-        })
+    # Columnas base (entrada) — usaremos esto para recargar lo guardado
+    base_cols = [
+        "Rubro", "Detalle", "Monto por período (₡)", "Periodicidad",
+        "Verificado por asesor", "Tipo de evidencia", "Comentario",
+    ]
 
-    # Editor de captura
+    # ================== NUEVO: cargar lo guardado si existe ==================
+    guardado = (st.session_state.get("reporte", {})
+                .get("gastos_familiares", {})
+                .get("tabla", []))
+
+    if guardado:
+        df_base = pd.DataFrame(guardado).copy()
+        # Asegurar columnas base y tipos
+        for c in base_cols:
+            if c not in df_base.columns:
+                if c == "Monto por período (₡)":
+                    df_base[c] = 0
+                elif c == "Verificado por asesor":
+                    df_base[c] = False
+                else:
+                    df_base[c] = ""
+        df_base = df_base[base_cols]
+        df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
+        df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
+    else:
+        # Placeholders iniciales (una fila por rubro)
+        placeholder_rows = []
+        for r in rubros_fam:
+            placeholder_rows.append({
+                "Rubro": r, "Detalle": "", "Monto por período (₡)": 0, "Periodicidad": "Mensual",
+                "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": "",
+            })
+        df_base = pd.DataFrame(placeholder_rows)
+    # ========================================================================
+
+    # Editor de captura (ahora con df_base que puede venir del reporte guardado)
     df_in = st.data_editor(
-        pd.DataFrame(placeholder_rows),
+        df_base,
         use_container_width=True,
         num_rows="dynamic",
         hide_index=True,
@@ -1782,12 +1804,9 @@ if st.session_state.get("step") == 7:
 
     # --- Preparación y derivados ---
     df = df_in.copy()
-
-    # Tipos numéricos y booleanos
     if "Monto por período (₡)" not in df.columns:
         df["Monto por período (₡)"] = 0
     df["Monto por período (₡)"] = pd.to_numeric(df["Monto por período (₡)"], errors="coerce").fillna(0)
-
     if "Verificado por asesor" not in df.columns:
         df["Verificado por asesor"] = False
     df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
@@ -1816,12 +1835,11 @@ if st.session_state.get("step") == 7:
                 "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
                 "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
                 "Comentario": st.column_config.TextColumn("Comentario"),
-                # Derivadas bloqueadas
                 "Gasto mensualizado (₡)": st.column_config.NumberColumn("Gasto mensualizado (₡)", format="₡ %d", disabled=True),
             },
         )
 
-    # Recalcular por si hubo cambios en el editor con cálculos
+    # Recalcular por si hubo cambios
     if "Monto por período (₡)" not in df_edit.columns:
         df_edit["Monto por período (₡)"] = 0
     df_edit["Monto por período (₡)"] = pd.to_numeric(df_edit["Monto por período (₡)"], errors="coerce").fillna(0)
@@ -1879,7 +1897,6 @@ if st.session_state.get("step") == 7:
             st.session_state.step = 8
             st.rerun()
 
-    # 👇 Detiene el render aquí mientras sigas en el Paso 1
     st.stop()
 
 
@@ -3580,6 +3597,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
