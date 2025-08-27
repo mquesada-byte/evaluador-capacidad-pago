@@ -2141,14 +2141,13 @@ with col_nav2:
                 st.session_state["_nav_target"] = "BALANCE"
                 st.rerun()
 
-
-
+    st.stop()
 
 
 
 
 # =========================
-# PASO 8 – Balance general (step == 7)
+# PASO 9 – Balance general (step == 7)
 # =========================
 if st.session_state.get("step") == 7:
     import pandas as pd
@@ -3597,6 +3596,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
