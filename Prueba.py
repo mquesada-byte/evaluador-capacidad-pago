@@ -2147,9 +2147,9 @@ with col_nav2:
 
 
 # =========================
-# PASO 9 – Balance general (step == 7)
+# PASO 9 – Balance general (step == 8)
 # =========================
-if st.session_state.get("step") == 7:
+if st.session_state.get("step") == 8:
     import pandas as pd
 
     st.title("📒 Paso 9: Balance General")
@@ -2502,9 +2502,10 @@ if st.session_state.get("step") == 7:
                 "comentarios_asesor": str(comentarios or ""),
             }
             st.success("Balance general guardado. Avanzando…")
-            st.session_state.step = 8
+            st.session_state.step = 9  # <-- avanzar al paso siguiente
             st.rerun()
 
+    st.stop()
 
 
 ##############################################################################################################################
@@ -3596,6 +3597,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
