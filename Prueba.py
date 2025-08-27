@@ -2776,4 +2776,160 @@ if (conoc or cred) and fact > 0:
 
 
 
+# =========================
+# III-b. Análisis de ventas
+# (pegar después de la "Valoración del asesor" y antes del ER)
+# =========================
+
+def _num(x):
+    try:
+        if x is None: return 0.0
+        return float(str(x).replace(",", ""))
+    except Exception:
+        return 0.0
+
+def _fmt_col(x):
+    try:
+        return f"₡ {int(round(_num(x))):,}".replace(",", ".")
+    except Exception:
+        return "₡ 0"
+
+def _ajuste_tipicidad(valor, tipicidad):
+    """Regla simple como en 3A: Alto -10%, Bajo +10%, Típico sin ajuste."""
+    if valor is None: 
+        return None, "—"
+    v = _num(valor)
+    if tipicidad == "Alto":  return v * 0.90, "Alto → −10%"
+    if tipicidad == "Bajo":  return v * 1.10, "Bajo → +10%"
+    return v, "Típico (sin ajuste)"
+
+def _desv_pct(a, b):
+    """Desviación relativa promedio; None si no se puede."""
+    a, b = _num(a), _num(b)
+    if a <= 0 or b <= 0: 
+        return None
+    base = (a + b) / 2.0
+    return abs(a - b) / base
+
+def _precision_label(ape):
+    """Clasifica precisión de la clienta según el APE (error porcentual absoluto)."""
+    if ape is None: 
+        return "Indefinida"
+    if ape <= 0.20: 
+        return "Alta (≤20%)"
+    if ape <= 0.40: 
+        return "Media (20–40%)"
+    return "Baja (>40%)"
+
+rep = st.session_state.get("reporte", {})
+
+# 3A Top-down (declaración de la clienta)
+vtd = rep.get("ventas_topdown", {}) or {}
+top_raw      = vtd.get("monto_colones")
+tipicidad    = vtd.get("tipicidad")
+fuente       = vtd.get("fuente")
+conf_cli     = vtd.get("confianza_cliente_0a10")
+coment_td    = (vtd.get("comentario") or "").strip()
+top_ajustado, txt_ajuste = _ajuste_tipicidad(top_raw, tipicidad) if top_raw else (None, "—")
+
+# 3B Bottom-up
+vbu = rep.get("ventas_bottomup", {}) or {}
+bottom_val   = vbu.get("ventas_estimadas_colones")
+coment_bu    = (vbu.get("comentario") or "").strip()
+
+# 3C Insumos/Margen
+vin = rep.get("ventas_insumos_simple", rep.get("ventas_insumos", {})) or {}
+insumos_val  = None if vin.get("no_aplica") else vin.get("ventas_estimadas_colones")
+coment_ins   = (vin.get("comentario") or "").strip()
+tiene_regs   = vin.get("tiene_registros_compras", "")
+
+# Conciliación (si existe)
+vcon = rep.get("ventas_conciliacion", {}) or {}
+ventas_conc  = vcon.get("ventas_conciliadas_colones")
+max_dev      = vcon.get("desviacion_max_pct")   # ya viene como fracción (0–1) si usaste el código previo
+pesos        = vcon.get("pesos", {})
+det_conc     = vcon.get("detalle", {}) or {}
+
+# Factor/confiabilidad del asesor (contexto)
+val = rep.get("valoracion_asesor", {}) or {}
+factor_asesor = val.get("factor_asesor_0a1")
+dudas = val.get("dudas_declaracion")
+coment_asesor = (val.get("comentario") or "").strip()
+
+# Tabla de estimaciones
+filas = [
+    {"Ángulo": "Top-down (clienta)", "Monto bruto": _fmt_col(top_raw), "Ajuste": txt_ajuste if top_ajustado else "—", "Usado": _fmt_col(top_ajustado) if top_ajustado else "—"},
+    {"Ángulo": "Bottom-up (operativa)", "Monto bruto": _fmt_col(bottom_val), "Ajuste": "—", "Usado": _fmt_col(bottom_val) if bottom_val else "—"},
+    {"Ángulo": "Insumos/Margen", "Monto bruto": ("No aplica" if vin.get("no_aplica") else _fmt_col(insumos_val)), "Ajuste": "—", "Usado": "—" if vin.get("no_aplica") else (_fmt_col(insumos_val) if insumos_val else "—")},
+]
+st.subheader("III-b. Análisis de ventas")
+st.caption("Comparativa de ángulos y precisión declarativa de la clienta.")
+
+st.dataframe(
+    pd.DataFrame(filas),
+    use_container_width=True,
+    hide_index=True
+)
+
+# Si hay conciliación, mostrar resultado y métricas de precisión
+if ventas_conc:
+    ventas_conc = _num(ventas_conc)
+    # Error porcentual absoluto de la clienta (declaración ajustada vs conciliado)
+    ape = None
+    if top_ajustado and ventas_conc > 0:
+        ape = abs(_num(top_ajustado) - ventas_conc) / ventas_conc
+    # Desviación máxima entre métodos (si no viene precalculada, la calculamos)
+    if max_dev is None:
+        pares = []
+        for a, b in [(top_ajustado, bottom_val), (top_ajustado, insumos_val), (bottom_val, insumos_val)]:
+            d = _desv_pct(a, b)
+            if d is not None:
+                pares.append(d)
+        max_dev = max(pares) if pares else None
+
+    colS1, colS2, colS3 = st.columns(3)
+    with colS1:
+        st.metric("Ventas conciliadas", _fmt_col(ventas_conc))
+    with colS2:
+        st.metric("Precisión de la clienta", ("—" if ape is None else f"{(1-ape):.0%}"))
+    with colS3:
+        st.metric("Desviación máx. entre métodos", ("—" if max_dev is None else f"{max_dev:.0%}"))
+
+    # Calidad de la fuente declarativa y confianza
+    fuente_formal = fuente in ["Facturación electrónica", "POS/Datáfono", "Extractos bancarios/SINPE"]
+    colQ1, colQ2, colQ3 = st.columns(3)
+    with colQ1:
+        st.write(f"**Fuente Top-down:** {fuente or '—'}")
+        st.caption("Clasificación: " + ("Formal" if fuente_formal else ("—" if not fuente else "Informal")))
+    with colQ2:
+        st.write(f"**Confianza declarada por clienta:** {conf_cli if conf_cli is not None else '—'}/10")
+    with colQ3:
+        st.write(f"**Factor del asesor:** {f'{factor_asesor:.2f}' if factor_asesor else '—'}  ·  **Dudas:** {dudas or '—'}")
+
+    # Pesos (si existen)
+    if pesos:
+        st.markdown("**Ponderaciones en conciliación (Top/Bottom/Insumos):** "
+                    f"{pesos.get('top_down', 0):.2f} / {pesos.get('bottom_up', 0):.2f} / {pesos.get('insumos', 0):.2f}")
+
+# Comentarios específicos
+st.markdown("**Comentarios específicos de ventas:**")
+comentarios = []
+if coment_td:  comentarios.append(f"- Top-down (clienta): {coment_td}")
+if coment_bu:  comentarios.append(f"- Bottom-up: {coment_bu}")
+if coment_ins: comentarios.append(f"- Insumos/Margen: {coment_ins}")
+if comentarios:
+    st.markdown("\n".join(comentarios))
+else:
+    st.caption("—")
+
+# Comentario del asesor (si no lo mostraste ya en la sección anterior y quieres reiterarlo aquí)
+if coment_asesor:
+    st.markdown("**Comentario del asesor:**")
+    st.info(coment_asesor)
+
+# Etiqueta cualitativa de precisión (si hay APE)
+if ventas_conc and top_ajustado:
+    etiqueta = _precision_label(ape)
+    st.caption(f"**Etiqueta de precisión declarativa de la clienta:** {etiqueta}")
+
 
