@@ -2473,52 +2473,71 @@ if st.session_state.get("step") == 7:
             st.rerun()
     with c2:
         if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
-            # Consolidar para reporte
+            # --- Helper local: asegurar DataFrame ---
+            def _as_df(obj, cols=None):
+                if isinstance(obj, pd.DataFrame):
+                    return obj.copy()
+                return pd.DataFrame(obj or [], columns=cols)
+
             st.session_state.setdefault("reporte", {})
+
+            # Coerciones seguras desde session_state (pueden venir como DF o lista)
+            inv_mp_df  = _as_df(st.session_state.get("bg_inv_mp"))
+            inv_pp_df  = _as_df(st.session_state.get("bg_inv_pp"))
+            inv_pt_df  = _as_df(st.session_state.get("bg_inv_pt"))
+            af_df_save = _as_df(st.session_state.get("bg_activo_fijo"))
+
+            # También convertimos los que ya están en memoria (por consistencia)
+            caja_save  = _as_df(caja_df)
+            cxc_save   = _as_df(cxc_df)
+            cpp_save   = _as_df(cpp_df)
+            antic_save = _as_df(antic_df)
+
             st.session_state["reporte"]["balance_general"] = {
                 "activo_circulante": {
-                    "caja_bancos": caja_df.fillna("").to_dict(orient="records"),
-                    "cxc_clientes": cxc_df.fillna("").to_dict(orient="records"),
+                    "caja_bancos": caja_save.fillna("").to_dict(orient="records"),
+                    "cxc_clientes": cxc_save.fillna("").to_dict(orient="records"),
                     "inventarios": {
-                        "materia_prima": st.session_state.get("bg_inv_mp", pd.DataFrame()).fillna("").to_dict(orient="records"),
-                        "producto_proceso": st.session_state.get("bg_inv_pp", pd.DataFrame()).fillna("").to_dict(orient="records"),
-                        "producto_terminado": st.session_state.get("bg_inv_pt", pd.DataFrame()).fillna("").to_dict(orient="records"),
+                        "materia_prima":      inv_mp_df.fillna("").to_dict(orient="records"),
+                        "producto_proceso":   inv_pp_df.fillna("").to_dict(orient="records"),
+                        "producto_terminado": inv_pt_df.fillna("").to_dict(orient="records"),
                         "subtotales": {
-                            "materia_prima": subtotales_inv.get("Materia prima", 0),
-                            "producto_proceso": subtotales_inv.get("Producto en proceso", 0),
-                            "producto_terminado": subtotales_inv.get("Producto terminado", 0),
-                            "total_inventarios": total_inventarios,
+                            "materia_prima":        int(subtotales_inv.get("Materia prima", 0)),
+                            "producto_proceso":     int(subtotales_inv.get("Producto en proceso", 0)),
+                            "producto_terminado":   int(subtotales_inv.get("Producto terminado", 0)),
+                            "total_inventarios":    int(total_inventarios),
                         }
                     },
                     "totales": {
-                        "caja_bancos": caja_total,
-                        "cxc_clientes": cxc_total,
-                        "total_inventarios": total_inventarios,
-                        "activo_circulante": activo_circulante,
+                        "caja_bancos":       int(caja_total),
+                        "cxc_clientes":      int(cxc_total),
+                        "total_inventarios": int(total_inventarios),
+                        "activo_circulante": int(activo_circulante),
                     }
                 },
                 "activo_fijo_neto": {
-                    "detalle": st.session_state.get("bg_activo_fijo", pd.DataFrame()).fillna("").to_dict(orient="records"),
-                    "total_neto": af_neto_total,
+                    "detalle":    af_df_save.fillna("").to_dict(orient="records"),
+                    "total_neto": int(af_neto_total),
                 },
-                "activos_totales": total_activos,
+                "activos_totales": int(total_activos),
                 "pasivo": {
                     "pasivo_circulante": {
-                        "cxp_proveedores": cpp_df.fillna("").to_dict(orient="records"),
-                        "anticipos_clientes": antic_df.fillna("").to_dict(orient="records"),
-                        "deudas_corto_plazo": tot_corto,
-                        "total_pasivo_circulante": pasivo_circulante,
+                        "cxp_proveedores":         cpp_save.fillna("").to_dict(orient="records"),
+                        "anticipos_clientes":      antic_save.fillna("").to_dict(orient="records"),
+                        "deudas_corto_plazo":      int(tot_corto),
+                        "total_pasivo_circulante": int(pasivo_circulante),
                     },
-                    "pasivo_largo_plazo": pasivo_largo,
-                    "pasivo_total": total_pasivo,
+                    "pasivo_largo_plazo": int(pasivo_largo),
+                    "pasivo_total":       int(total_pasivo),
                 },
-                "patrimonio": patrimonio,
-                "capital_trabajo": capital_trabajo,
-                "comentarios_asesor": comentarios,
+                "patrimonio":      int(patrimonio),
+                "capital_trabajo": int(capital_trabajo),
+                "comentarios_asesor": str(comentarios or ""),
             }
             st.success("Balance general guardado. Avanzando…")
             st.session_state.step = 8
             st.rerun()
+
 
 
 ##############################################################################################################################
@@ -3610,6 +3629,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
