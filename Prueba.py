@@ -1583,6 +1583,173 @@ if st.session_state.get("step") == 5:
             st.rerun()
 
 
+# =========================
+# PASO 7 – Gastos operativos (step == 6)
+# =========================
+def _mensualizar_gasto(monto: float, periodicidad: str) -> float:
+    """Convierte un gasto por período a gasto mensual aproximado."""
+    per = (periodicidad or "").lower()
+    if per == "diario":       return monto * 30.0
+    if per == "semanal":      return monto * (52.0 / 12.0)  # ≈ 4.333
+    if per == "quincenal":    return monto * 2.0
+    if per == "mensual":      return monto
+    if per == "bimestral":    return monto / 2.0
+    if per == "trimestral":   return monto / 3.0
+    if per == "semestral":    return monto / 6.0
+    if per == "anual":        return monto / 12.0
+    return 0.0
+
+if st.session_state.get("step") == 6:
+    import pandas as pd
+
+    st.title("🧾 Paso 7: Gastos operativos")
+    st.caption("Registre los gastos del negocio u hogar relacionados a la operación. Puede indicar si fueron **verificados** y el **tipo de evidencia**.")
+
+    # Catálogos
+    rubros = ["Sueldos", "Alquileres", "Servicios públicos", "Impuestos/Patentes", "Pagos a proveedores", "Otros"]
+    periodicidades = ["Mensual", "Quincenal", "Semanal", "Diario", "Bimestral", "Trimestral", "Semestral", "Anual"]
+    evidencias = [
+        "Factura/Recibo", "Contrato/Arrendamiento", "Estado de cuenta/SINPE",
+        "Planilla/CCSS", "Recibos", "Foto/Chat", "No aplica", "Otro"
+    ]
+
+    # Columnas base (entrada)
+    base_cols = [
+        "Rubro",                    # select
+        "Detalle",                  # texto
+        "Monto por período (₡)",    # num
+        "Periodicidad",             # select
+        "Verificado por asesor",    # bool
+        "Tipo de evidencia",        # select
+        "Comentario",               # texto
+    ]
+
+    # Placeholders iniciales (una fila por rubro)
+    placeholder_rows = []
+    for r in rubros:
+        placeholder_rows.append({
+            "Rubro": r,
+            "Detalle": "",
+            "Monto por período (₡)": 0,
+            "Periodicidad": "Mensual",
+            "Verificado por asesor": False,
+            "Tipo de evidencia": "",
+            "Comentario": "",
+        })
+    df_in = st.data_editor(
+        pd.DataFrame(placeholder_rows),
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="de_gastos_operativos",
+        column_config={
+            "Rubro": st.column_config.SelectboxColumn("Rubro", options=rubros, required=False),
+            "Detalle": st.column_config.TextColumn("Detalle"),
+            "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
+            "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades, required=False),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+
+    # --- Preparación y derivados ---
+    df = df_in.copy()
+
+    # Asegurar tipos numéricos y booleanos
+    if "Monto por período (₡)" not in df.columns:
+        df["Monto por período (₡)"] = 0
+    df["Monto por período (₡)"] = pd.to_numeric(df["Monto por período (₡)"], errors="coerce").fillna(0)
+
+    if "Verificado por asesor" not in df.columns:
+        df["Verificado por asesor"] = False
+    df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
+
+    # Calcular "Gasto mensualizado (₡)"
+    mensualizados = []
+    for _, r in df.iterrows():
+        monto = float(r.get("Monto por período (₡)") or 0)
+        per = r.get("Periodicidad") or ""
+        mensualizados.append(_mensualizar_gasto(monto, per))
+
+    df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
+
+    # Editor con cálculos (derivadas bloqueadas)
+    with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
+        df_edit = st.data_editor(
+            df,
+            use_container_width=True,
+            num_rows="dynamic",
+            hide_index=True,
+            key="de_gastos_operativos_calc",
+            column_config={
+                "Rubro": st.column_config.SelectboxColumn("Rubro", options=rubros),
+                "Detalle": st.column_config.TextColumn("Detalle"),
+                "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
+                "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades),
+                "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+                "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+                "Comentario": st.column_config.TextColumn("Comentario"),
+                # Derivadas bloqueadas
+                "Gasto mensualizado (₡)": st.column_config.NumberColumn("Gasto mensualizado (₡)", format="₡ %d", disabled=True),
+            },
+        )
+
+    # Recalcular por si cambian entradas en el editor con cálculos
+    if "Monto por período (₡)" not in df_edit.columns:
+        df_edit["Monto por período (₡)"] = 0
+    df_edit["Monto por período (₡)"] = pd.to_numeric(df_edit["Monto por período (₡)"], errors="coerce").fillna(0)
+    if "Verificado por asesor" not in df_edit.columns:
+        df_edit["Verificado por asesor"] = False
+    df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
+
+    mensualizados = []
+    for _, r in df_edit.iterrows():
+        monto = float(r.get("Monto por período (₡)") or 0)
+        per = r.get("Periodicidad") or ""
+        mensualizados.append(_mensualizar_gasto(monto, per))
+
+    df = df_edit.copy()
+    df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
+
+    # --- Resumen ---
+    valid_mask = (df["Periodicidad"].isin(periodicidades)) & (df["Monto por período (₡)"] > 0)
+    df_valid = df[valid_mask].copy()
+
+    total_gasto_mensual = int(df_valid["Gasto mensualizado (₡)"].sum()) if not df_valid.empty else 0
+    total_gasto_verificado = int(df_valid.loc[df_valid["Verificado por asesor"], "Gasto mensualizado (₡)"].sum()) if not df_valid.empty else 0
+
+    st.markdown("**Resumen**")
+    st.write({
+        "Total gastos operativos (mensualizado)": f"₡ {total_gasto_mensual:,}".replace(",", "."),
+        "Total verificado (mensualizado)": f"₡ {total_gasto_verificado:,}".replace(",", "."),
+        "Registros válidos": int(valid_mask.sum()),
+    })
+
+    st.divider()
+
+    # Navegación / Guardar
+    c1, c2 = st.columns([0.5, 0.5])
+    with c1:
+        if st.button("⬅️ Volver a Deudas", key="gastos_back_deudas", use_container_width=True):
+            st.session_state.step = 5
+            st.rerun()
+    with c2:
+        if st.button("Guardar y continuar ➡️", key="gastos_save_next", use_container_width=True,
+                     disabled=(valid_mask.sum() == 0)):
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["gastos_operativos"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_gasto_operativo_mensualizado_colones": total_gasto_mensual,
+                    "total_gasto_operativo_verificado_colones": total_gasto_verificado,
+                    "registros_validos": int(valid_mask.sum()),
+                }
+            }
+            st.success("Gastos operativos guardados. Avanzando…")
+            st.session_state.step = 7
+            st.rerun()
+
 
 
 
