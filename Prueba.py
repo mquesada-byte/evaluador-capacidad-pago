@@ -170,15 +170,16 @@ if st.session_state.get("step", 1) == 1:
     with colA:
         st.write("Campo obligatorio: **Nombre del asesor**.")
     with colB:
-        if st.button("Siguiente ➡️", key="next_step_1", disabled=disabled_next, use_container_width=True):
+        if st.button("Siguiente ➡️", key="next_step_1",
+                     disabled=disabled_next, use_container_width=True):
             st.session_state.setdefault("reporte", {})
             st.session_state["reporte"]["asesor"] = asesor_para_reporte()
             st.session_state.step = 2
             st.rerun()
 
-# --- Fin de la pantalla del Paso 1 ---
-if st.session_state.get("step", 1) == 1:
-    st.stop()   # evita que se renderice lo que sigue (p.ej. Estado de Resultados)
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
 
 
 
@@ -336,6 +337,11 @@ if st.session_state.get("step") == 2:
             st.session_state.step = 3
             st.success("Datos guardados. Avanzando al Paso 3…")
             st.rerun()
+   
+    # 👇 Detiene el render aquí mientras sigas en el Paso 1
+    st.stop()
+
+
 
 
 # =========================
@@ -3528,6 +3534,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
