@@ -2612,6 +2612,36 @@ def _get_tuple_coords():
     # 4) Sin coordenadas
     return None, None
 
+# --- NUEVO: helpers para mostrar texto legible aunque vengan dicts ---
+def _smart_text_from_value(val, default=""):
+    """Convierte posibles dicts/listas/num a texto legible para encabezados."""
+    if val is None:
+        return default
+    if isinstance(val, str):
+        return val.strip() or default
+    if isinstance(val, (int, float)):
+        return str(val)
+    if isinstance(val, dict):
+        for k in ("nombre", "full_name", "display_name", "razon_social",
+                  "direccion", "address", "full_address", "ubicacion",
+                  "actividad", "giro", "giro_negocio", "detalle", "texto"):
+            if k in val and val[k]:
+                return str(val[k])
+        return default
+    if isinstance(val, list):
+        parts = [ _smart_text_from_value(x, "") for x in val if x is not None ]
+        return ", ".join([p for p in parts if p]) or default
+    return default
+
+def _prefer_dict(keys, default=""):
+    """Busca en varias claves y devuelve texto amigable (extrae campos si es dict)."""
+    for k in keys:
+        if k in st.session_state:
+            return _smart_text_from_value(st.session_state.get(k), default)
+    txt, _ = _get_text(keys, default)
+    return _smart_text_from_value(txt, default)
+# ---------------------------------------------------------------------
+
 def _coerce_df(obj, cols_hint=None):
     if obj is None:
         return pd.DataFrame(columns=cols_hint or ["detalle", "monto"])
@@ -2656,9 +2686,9 @@ def _sum_from_state(key_candidates, cols_hint=None, value_col="monto"):
 # Identidad/visita
 ASESOR_KEYS = ["asesor_nombre", "asesor", "nombre_asesor", "asesor_fullname"]
 VISITA_DT_KEYS = ["fecha_hora_cr", "timestamp_cr", "fecha_hora_visita"]
-CLIENTE_KEYS = ["cliente_nombre", "nombre_cliente", "solicitante"]
+CLIENTE_KEYS = ["cliente_nombre", "nombre_cliente", "solicitante", "cliente", "nombre_solicitante"]
 ACTIVIDAD_KEYS = ["actividad", "actividad_principal", "giro_negocio"]
-LUGAR_KEYS = ["lugar_operacion", "ubicacion_negocio", "direccion_negocio"]
+LUGAR_KEYS = ["lugar_operacion", "ubicacion_negocio", "direccion_negocio", "direccion", "direccion_visita"]
 
 # Ventas / Compras / Margen
 VENTAS_KEYS = ["ventas_df", "ventas_tabla", "registro_ventas", "ventas"]
@@ -2682,7 +2712,7 @@ INV_PT_KEYS = ["bg_inv_pt"]
 # Activo fijo
 AF_KEYS = ["bg_activo_fijo"]
 # Comentarios balance
-COMENT_BG_KEYS = ["bg_comentarios"]
+COMENT_BG_KEYS = ["bg_comentarios", "obs_bg", "comentarios_bg", "observaciones_bg"]
 
 # ============ Lógica de Estado de Resultados (recalcula) ============
 def _calc_utilidad_bruta(ventas_total, compras_total, margen_pct, margen_base_val):
@@ -2875,13 +2905,13 @@ def _infer_fuentes_ventas_margen(resultados, balance):
 
     # Heurística: si en caja_bancos hay registros verificados -> "Verificación bancaria"
     caja_df = balance["dfs"]["caja"]
-    if not caja_df.empty and "verificado por asesor" in (caja_df.columns.str.lower()):
+    if not caja_df.empty and ("verificado por asesor" in caja_df.columns.str.lower()):
         if bool(caja_df["verificado por asesor"].fillna(False).astype(bool).any()):
             fuentes.add("Verificación bancaria (estados de cuenta)")
 
     # Si existen columnas de verificación en inventarios -> "Observación en campo"
     for inv_df in [balance["dfs"]["inv_mp"], balance["dfs"]["inv_pp"], balance["dfs"]["inv_pt"]]:
-        if not inv_df.empty and "verificado por asesor" in inv_df.columns.str.lower():
+        if not inv_df.empty and ("verificado por asesor" in inv_df.columns.str.lower()):
             if bool(inv_df["verificado por asesor"].fillna(False).astype(bool).any()):
                 fuentes.add("Observación en campo (inventario/flujo de clientes/entrevistas)")
 
@@ -2900,7 +2930,8 @@ st.title("📑 Informe de Evaluación de Crédito – Comité")
 st.caption("Asociación Credimujer")
 
 # Encabezado: asesor, fecha/hora, GPS
-asesor, _ = _get_text(ASESOR_KEYS, default="(sin registrar)")
+asesor = _prefer_dict(["asesor", "asesor_info", "datos_asesor", "asesor_nombre", "nombre_asesor", "asesor_fullname"],
+                      default="(sin registrar)")
 visita_str, _ = _get_text(VISITA_DT_KEYS, default=None)
 if not visita_str:
     visita_dt = dt.datetime.now(tz=TZ)
@@ -2908,9 +2939,9 @@ if not visita_str:
 lat, lon = _get_tuple_coords()
 gps_str = f"{lat:.6f}, {lon:.6f}" if (lat is not None and lon is not None) else "(sin coordenadas)"
 
-cliente, _ = _get_text(CLIENTE_KEYS, default="(sin registrar)")
-actividad, _ = _get_text(ACTIVIDAD_KEYS, default="")
-lugar, _ = _get_text(LUGAR_KEYS, default="")
+cliente = _prefer_dict(CLIENTE_KEYS, default="(sin registrar)")
+actividad = _prefer_dict(ACTIVIDAD_KEYS, default="")
+lugar = _prefer_dict(LUGAR_KEYS, default="")
 
 with st.container():
     colA, colB, colC = st.columns([1.3, 1, 1])
@@ -2929,7 +2960,7 @@ st.divider()
 # II. Datos del Cliente (breve)
 st.subheader("II. Datos del Cliente")
 st.write("Observaciones generales del asesor (si aplican):")
-obs_general = st.session_state.get("obs_general", "")
+obs_general = _prefer_dict(["obs_general", "observaciones", "comentarios_asesor", "observaciones_asesor", "comentarios_generales"], default="—")
 st.info(obs_general or "—")
 
 st.divider()
@@ -3034,7 +3065,6 @@ st.download_button(
     mime="application/json",
     use_container_width=True,
 )
-
 
 
 
