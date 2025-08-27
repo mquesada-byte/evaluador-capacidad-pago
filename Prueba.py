@@ -1919,7 +1919,7 @@ if st.session_state.get("step") == 7:
             st.rerun()
 
 
-estado_resultados.py
+# estado_resultados.py
 # ---------------------------------------------------------
 # Lee montos cargados en pasos anteriores desde st.session_state
 # y calcula el Disponible para pago del préstamo (Credimujer).
@@ -2134,6 +2134,7 @@ with st.expander("Ver tablas de origen"):
     st.dataframe(gastos_fam_df, use_container_width=True)
     st.subheader("Deudas")
     st.dataframe(deudas_df, use_container_width=True)
+
 
 
 
