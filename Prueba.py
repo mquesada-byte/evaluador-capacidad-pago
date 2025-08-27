@@ -709,33 +709,8 @@ def _calc_ventas_desde_compras_simple(compras: float, tipo_margen: str, margen_p
         return int(round(ventas)), None
 
 if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
-    # ---- Si el sector es Servicios, este paso no aplica ----
-    sector = (st.session_state.get("negocio", {}).get("sector_economico") or "").strip()
-    if sector.lower() == "servicios":
-        st.title("🧮 Paso 3C: (No aplica para Servicios)")
-        st.info("Para actividades 100% de servicios, la estimación por compras no es representativa. "
-                "Usaremos 3A (Top-down) y 3B (Bottom-up) para la conciliación.")
 
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["ventas_insumos_simple"] = {
-            "no_aplica": True,
-            "motivo": "Actividad de servicios",
-            "sector": sector
-        }
-
-        colS1, colS2 = st.columns([0.5, 0.5])
-        with colS1:
-            if st.button("⬅️ Volver a 3B (Bottom-up)", key="skip3C_back3B", use_container_width=True):
-                st.session_state.step3 = "B"
-                st.rerun()
-        with colS2:
-            if st.button("Ir a Valoración del asesor ➡️", key="skip3C_goVAL", use_container_width=True):
-                st.session_state.step3 = "VAL"   # antes: "RES"
-                st.rerun()
-        st.stop()
-    # ----------------------------------------------------------------
-
-    # 3C normal (sí aplica)
+    # 3C SIEMPRE APLICA (se eliminó filtro por 'Servicios')
     init_paso3C_state_simple()
     vin = st.session_state.ventas_insumos_simple
 
@@ -799,9 +774,8 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
 
     oblig_ok = (int(vin["compras_mes"]) > 0 and ventas_est is not None)
 
-    # --- Navegación: columnas SIEMPRE definidas antes de usarlas ---
+    # --- Navegación ---
     colNav1, colNav2 = st.columns([0.5, 0.5])
-
     with colNav1:
         if st.button("⬅️ Volver a 3B (Bottom-up)", key="back_to_3B_from_3C_simple", use_container_width=True):
             st.session_state.step3 = "B"
@@ -826,7 +800,7 @@ if st.session_state.get("step") == 3 and st.session_state.get("step3") == "C":
                 "comentario": vin["comentario"].strip(),
                 "supuesto_cogs_equivale_compras": True,
             }
-            st.session_state.step3 = "VAL"   # salto correcto a Valoración del asesor
+            st.session_state.step3 = "VAL"   # salto a Valoración del asesor
             st.rerun()
 
 
@@ -1607,6 +1581,7 @@ if st.session_state.get("step") == 5:
             st.success("Deudas activas guardadas. Avanzando…")
             st.session_state.step = 6
             st.rerun()
+
 
 
 
