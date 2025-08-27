@@ -2185,7 +2185,7 @@ with col_nav2:
 if st.session_state.get("step") == 7:
     import pandas as pd
 
-    st.title("📒 Paso 8: Balance General")
+    st.title("📒 Paso 9: Balance General")
     st.caption(
         "Registre y/o verifique los saldos para construir el Balance General. "
         "Los pasivos por deudas se toman automáticamente del Paso 6 (deudas activas): "
@@ -2519,6 +2519,7 @@ if st.session_state.get("step") == 7:
             st.success("Balance general guardado. Avanzando…")
             st.session_state.step = 8
             st.rerun()
+
 
 
 
