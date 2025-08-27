@@ -1781,17 +1781,6 @@ if st.session_state.get("step") == 7:
         "Planilla/CCSS", "Recibos", "Foto/Chat", "No aplica", "Otro"
     ]
 
-    # Columnas base (entrada)
-    base_cols = [
-        "Rubro",                    # select
-        "Detalle",                  # texto libre
-        "Monto por período (₡)",    # num
-        "Periodicidad",             # select
-        "Verificado por asesor",    # bool
-        "Tipo de evidencia",        # select
-        "Comentario",               # texto
-    ]
-
     # Placeholders iniciales (una fila por rubro)
     placeholder_rows = []
     for r in rubros_fam:
@@ -1881,52 +1870,47 @@ if st.session_state.get("step") == 7:
     df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
 
     # --- Resumen ---
-    valid_mask = (df["Periodicidad"].isin(periodicidades)) & (df["Monto por período (₡)"] > 0)
+    df["Monto por período (₡)"] = pd.to_numeric(df["Monto por período (₡)"], errors="coerce").fillna(0)
+    valid_mask = df["Periodicidad"].isin(periodicidades) & (df["Monto por período (₡)"] > 0)
     df_valid = df[valid_mask].copy()
 
     total_gasto_fam_mensual = int(df_valid["Gasto mensualizado (₡)"].sum()) if not df_valid.empty else 0
     total_gasto_fam_verificado = int(df_valid.loc[df_valid["Verificado por asesor"], "Gasto mensualizado (₡)"].sum()) if not df_valid.empty else 0
+    reg_validos = int(valid_mask.sum())
 
     st.markdown("**Resumen**")
     st.write({
         "Total gastos familiares (mensualizado)": f"₡ {total_gasto_fam_mensual:,}".replace(",", "."),
         "Total verificado (mensualizado)": f"₡ {total_gasto_fam_verificado:,}".replace(",", "."),
-        "Registros válidos": int(valid_mask.sum()),
+        "Registros válidos": reg_validos,
     })
 
     st.divider()
 
-# --- Navegación / Guardar (PASO 8) ---
-c1, c2 = st.columns([0.5, 0.5])
-with c1:
-    if st.button("⬅️ Volver a Gastos operativos", key="gfam_back_gop", use_container_width=True):
-        st.session_state.step = 6
-        st.rerun()
+    # ========= Navegación / Guardar =========
+    disabled_next = (reg_validos == 0)
 
-with c2:
-    disabled_next = (valid_mask.sum() == 0)
-    if st.button("Guardar y continuar ➡️ Estado de Resultados", key="gfam_save_next_to_er",
-                 use_container_width=True, disabled=disabled_next):
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["gastos_familiares"] = {
-            "tabla": df.fillna("").to_dict(orient="records"),
-            "totales": {
-                "total_gastos_familiares_mensualizado_colones": int(total_gasto_fam_mensual),
-                "total_gastos_familiares_verificado_colones": int(total_gasto_fam_verificado),
-                "registros_validos": int(valid_mask.sum()),
+    c1, c2 = st.columns([0.5, 0.5])
+    with c1:
+        if st.button("⬅️ Volver a Gastos operativos", key="gfam_back_gop", use_container_width=True):
+            st.session_state.step = 6
+            st.rerun()
+    with c2:
+        if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True,
+                     disabled=disabled_next):
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["gastos_familiares"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
+                    "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
+                    "registros_validos": reg_validos,
+                }
             }
-        }
+            st.success("Gastos familiares guardados. Avanzando…")
+            st.session_state.step = 8
+            st.rerun()
 
-        # 1) Intentar abrir como multipage
-        try:
-            st.switch_page("estado_resultados.py")          # si está en raíz
-        except Exception:
-            try:
-                st.switch_page("pages/estado_resultados.py")  # si está en /pages
-            except Exception:
-                # 2) Fallback inline (router del encabezado)
-                st.session_state["_nav_target"] = "ER"
-                st.rerun()
 
 
 
@@ -3629,6 +3613,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
