@@ -1920,6 +1920,204 @@ if st.session_state.get("step") == 7:
 
 
 
+# estado_resultados.py
+# ---------------------------------------------------------
+# Lee st.session_state["reporte"] generado por los pasos 1–8
+# y calcula el Disponible para pago del préstamo (Credimujer).
+# No modifica los datos previos, solo los lee y resume.
+
+import streamlit as st
+import pandas as pd
+
+# Evita conflicto si otra página ya llamó set_page_config
+if not st.session_state.get("_page_config_set"):
+    st.set_page_config(page_title="Estado de Resultados", page_icon="📑")
+    st.session_state["_page_config_set"] = True
+
+
+# ========= Helpers de lectura/formatos =========
+def _getr(path, default=None):
+    """Obtiene un valor anidado desde st.session_state['reporte']."""
+    cur = st.session_state.get("reporte", {}) or {}
+    try:
+        for p in path:
+            cur = cur[p]
+        return cur
+    except Exception:
+        return default
+
+def _num(x, default=0.0):
+    try:
+        if x is None:
+            return float(default)
+        return float(x)
+    except Exception:
+        try:
+            s = str(x).strip().replace(",", "").replace("₡", "")
+            return float(s or default)
+        except Exception:
+            return float(default)
+
+def _num_or_none(x):
+    try:
+        if x is None or (isinstance(x, str) and x.strip() == ""):
+            return None
+        return float(str(x).strip().replace(",", "").replace("₡", ""))
+    except Exception:
+        return None
+
+def _fmt_col(x):
+    try:
+        return f"₡{int(round(_num(x))):,}".replace(",", ".")
+    except Exception:
+        return "₡0"
+
+
+# ========= Recolección (con rutas de origen) =========
+src = {}
+
+# 1) Ventas — preferir conciliadas
+ventas_total = _getr(["ventas_conciliacion", "ventas_conciliadas_colones"])
+if ventas_total:
+    src["ventas"] = "reporte.ventas_conciliacion.ventas_conciliadas_colones"
+else:
+    # Fallback: Top-down, Bottom-up, Insumos simple
+    ventas_total = (
+        _getr(["ventas_topdown", "monto_colones"]) or
+        _getr(["ventas_bottomup", "ventas_estimadas_colones"]) or
+        _getr(["ventas_insumos_simple", "ventas_estimadas_colones"]) or
+        _getr(["ventas_insumos", "ventas_estimadas_colones"])
+    )
+    if ventas_total:
+        if _getr(["ventas_topdown", "monto_colones"]):
+            src["ventas"] = "reporte.ventas_topdown.monto_colones"
+        elif _getr(["ventas_bottomup", "ventas_estimadas_colones"]):
+            src["ventas"] = "reporte.ventas_bottomup.ventas_estimadas_colones"
+        else:
+            src["ventas"] = "reporte.ventas_insumos_simple.ventas_estimadas_colones"
+ventas_total = _num(ventas_total, 0)
+
+# 2) Compras/Costos (de 3C simple)
+compras_total = _getr(["ventas_insumos_simple", "compras_mes_colones"])
+if compras_total is not None:
+    src["compras"] = "reporte.ventas_insumos_simple.compras_mes_colones"
+else:
+    compras_total = 0.0
+compras_total = _num(compras_total, 0)
+
+# 3) Margen (tipo + % desde 3C simple)
+tipo_margen = _getr(["ventas_insumos_simple", "tipo_margen"])      # "Sobre ventas" | "Sobre compras (markup)"
+margen_pct_raw = _getr(["ventas_insumos_simple", "margen_pct"])    # entero/str, ej.: 30
+margen_pct = _num_or_none(margen_pct_raw)
+if tipo_margen is not None and margen_pct is not None:
+    src["margen"] = "reporte.ventas_insumos_simple.(tipo_margen,margen_pct)"
+
+# 4) Gastos operativos (mensualizado)
+gastos_ope_total = _getr(["gastos_operativos", "totales", "total_gasto_operativo_mensualizado_colones"], 0)
+src["gastos_operativos"] = "reporte.gastos_operativos.totales.total_gasto_operativo_mensualizado_colones"
+gastos_ope_total = _num(gastos_ope_total, 0)
+
+# 5) Otros ingresos — preferir ponderado; si no, mensualizado
+otros_ing_total = _getr(["otros_ingresos", "totales", "total_ponderado_colones"])
+ruta_oi = "reporte.otros_ingresos.totales.total_ponderado_colones"
+if not otros_ing_total:
+    otros_ing_total = _getr(["otros_ingresos", "totales", "total_mensualizado_colones"], 0)
+    ruta_oi = "reporte.otros_ingresos.totales.total_mensualizado_colones"
+src["otros_ingresos"] = ruta_oi
+otros_ing_total = _num(otros_ing_total, 0)
+
+# 6) Gastos familiares — **SOLO** total mensualizado del Paso 8 (sin fallbacks)
+gastos_fam_total = _num(
+    _getr(["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"], 0),
+    0
+)
+src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_familiares_mensualizado_colones"
+
+# 7) Pago de deudas (mensualizado, para resultados)
+deudas_total = _getr(["deudas_activas", "totales", "total_pago_mensual_colones"], 0)
+src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
+deudas_total = _num(deudas_total, 0)
+
+
+# ========= Cálculos del Estado de Resultados =========
+# Utilidad bruta:
+# - Si hay margen y base: usar regla solicitada.
+# - Si no, fallback conservador: ventas - compras.
+utilidad_bruta = None
+if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)")):
+    pct = margen_pct if margen_pct <= 1 else margen_pct / 100.0
+    if tipo_margen == "Sobre ventas":
+        utilidad_bruta = ventas_total * pct
+    else:  # Sobre compras (markup)
+        utilidad_bruta = compras_total * pct
+if utilidad_bruta is None:
+    utilidad_bruta = max(0.0, ventas_total - compras_total)
+
+utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
+subtotal_post_otros = utilidad_neta_ope + otros_ing_total
+disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
+
+
+# ========= UI =========
+st.header("📑 Estado de Resultados (resumen de pasos previos)")
+
+with st.expander("🔎 Origen de datos (rutas detectadas)"):
+    st.json(src)
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Ventas", _fmt_col(ventas_total))
+with col2:
+    st.metric("Compras/Costos", _fmt_col(compras_total))
+with col3:
+    base_txt = ("ventas" if (tipo_margen == "Sobre ventas")
+                else ("compras" if (tipo_margen == "Sobre compras (markup)") else "—"))
+    pct_show = (margen_pct if (margen_pct is not None and margen_pct <= 1)
+                else (margen_pct or 0)/100) if (margen_pct is not None) else None
+    st.metric("Margen (base)", f"{pct_show:.0%} sobre {base_txt}" if pct_show is not None else "— sobre —")
+
+st.divider()
+
+col4, col5 = st.columns(2)
+with col4:
+    st.metric("🧮 Utilidad Bruta", _fmt_col(utilidad_bruta))
+with col5:
+    st.metric("🧾 Gastos Operativos", _fmt_col(gastos_ope_total))
+
+st.metric("📌 Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope))
+
+st.divider()
+
+col6, col7 = st.columns(2)
+with col6:
+    st.metric("➕ Otros ingresos", _fmt_col(otros_ing_total))
+with col7:
+    st.metric("Subtotal post-otros", _fmt_col(subtotal_post_otros))
+
+st.divider()
+
+col8, col9 = st.columns(2)
+with col8:
+    st.metric("👪 Gastos familiares", _fmt_col(gastos_fam_total))
+with col9:
+    st.metric("💳 Pago de deudas", _fmt_col(deudas_total))
+
+st.success(f"💰 **Disponible para el préstamo:** {_fmt_col(disponible_final)}")
+
+# (Opcional) Vista de apoyo con tablas si están en el reporte
+with st.expander("Ver tablas de origen (si están disponibles)"):
+    rep = st.session_state.get("reporte", {})
+    st.subheader("Otros ingresos")
+    st.dataframe(pd.DataFrame(rep.get("otros_ingresos", {}).get("tabla", [])), use_container_width=True)
+    st.subheader("Gastos operativos")
+    st.dataframe(pd.DataFrame(rep.get("gastos_operativos", {}).get("tabla", [])), use_container_width=True)
+    st.subheader("Gastos familiares")
+    st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
+    st.subheader("Deudas activas")
+    st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
+
+
+
 
 
 
