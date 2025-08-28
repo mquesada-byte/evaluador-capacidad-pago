@@ -68,6 +68,13 @@ with st.container(border=True):
         help="Compara Top-down, Bottom-up e Insumos y fija ventas conciliadas."
     )
 
+# Paso 8
+with st.container(border=True):
+    st.page_link(
+        "pages/08_Otros_ingresos.py",
+        label=f"{step_status('done_08')} 08 – Otros ingresos del hogar",
+        help="Registro y ponderación de otros ingresos del hogar."
+    )
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
