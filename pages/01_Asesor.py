@@ -89,7 +89,7 @@ def get_device_fingerprint():
     if isinstance(info, dict):
         fp["ip_public"] = info.get("ip")
         conn = info.get("connection") or {}
-        fp["network_domain"] = (conn.get("domain") or "").strip() or None  # a veces refleja host o dominio de red
+        fp["network_domain"] = (conn.get("domain") or "").strip() or None
         fp["isp"]            = conn.get("isp")
         fp["asn"]            = conn.get("asn")
         fp["org"]            = conn.get("org")
@@ -122,7 +122,9 @@ def asesor_para_reporte():
         "nombre": (a.get("nombre") or "").strip(),
         "fecha_hora": fecha.strftime("%d/%m/%Y %H:%M:%S") if fecha else "N/D",
         "hora_fuente": "Internet" if a.get("timestamp_source") == "internet" else "Dispositivo",
-        "gps": f"{a['lat']:.6f}, {a['lon']:.6f}" if a.get("lat") is not None and a.get("lon"] is not None else "No disponible",
+        "gps": f"{a['lat']:.6f}, {a['lon']:.6f}"
+               if a.get("lat") is not None and a.get("lon") is not None
+               else "No disponible",
         "google_maps": a.get("maps_url"),
         "google_maps_vista": a.get("maps_url_alt"),
         "openstreetmap": a.get("osm_url"),
@@ -250,4 +252,5 @@ with colB:
             st.success("Datos guardados. Continúa con el siguiente paso:")
             st.page_link("pages/02_Cliente_y_negocio.py", label="➡️ Ir a Paso 2 – Cliente y negocio")
             st.stop()
+
 
