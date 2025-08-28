@@ -92,6 +92,15 @@ with st.container(border=True):
         help="Gastos del negocio/hogar relacionados a la operación, mensualizados."
     )
 
+# Paso 11 – Gastos familiares
+with st.container(border=True):
+    st.page_link(
+        "pages/11_Gastos_familiares.py",
+        label=f"{step_status('done_11')} 11 – Gastos familiares",
+        help="Registro y mensualización de gastos del hogar, con opción de verificación/evidencia."
+    )
+
+
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
