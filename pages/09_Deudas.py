@@ -224,17 +224,9 @@ with c2:
         }
         st.session_state["done_09"] = True
 
-        # Próximo paso (ajusta al nombre real cuando lo tengas)
-        for nxt in [
-            "pages/10_Gastos_hogar.py",
-            "pages/10_Egresos_hogar.py",
-            "pages/10_Gastos_operativos.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Deudas activas guardadas. Abrí el **siguiente paso** desde el menú lateral.")
+        # Ir directamente al paso 10: Gastos operativos
+        try:
+            st.switch_page("pages/10_Gastos_operativos.py")
+        except Exception:
+            st.success("Deudas activas guardadas. Abrí **10 – Gastos operativos** desde el menú lateral.")
             st.stop()
