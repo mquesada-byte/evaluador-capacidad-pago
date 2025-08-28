@@ -68,17 +68,23 @@ base_cols = [
 ]
 deriv_cols = ["Ingreso mensualizado (₡)", "Factor confiabilidad (0.2–1.0)", "Ingreso ponderado (₡)"]
 
-# ---------- CARGA INICIAL: si ya guardaste, reusar lo guardado ----------
-guardado = (st.session_state.get("reporte", {})
-            .get("otros_ingresos", {})
-            .get("tabla", []))
+# ---------- CARGA INICIAL ----------
+guardado = (
+    st.session_state.get("reporte", {})
+    .get("otros_ingresos", {})
+    .get("tabla", [])
+)
+
 if guardado:
     df_base_inicial = pd.DataFrame(guardado).copy()
-    # Mantener solo columnas base y asegurar que existan todas
-    cols_a_dejar = [c for c in df_base_inicial.columns if c in base_cols]
     for c in base_cols:
         if c not in df_base_inicial.columns:
-            df_base_inicial[c] = 0 if c in ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"] else (False if c == "Verificado por asesor" else "")
+            if c == "Verificado por asesor":
+                df_base_inicial[c] = False
+            elif c in ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"]:
+                df_base_inicial[c] = 0
+            else:
+                df_base_inicial[c] = ""
     df_base_inicial = df_base_inicial[base_cols]
 else:
     df_base_inicial = pd.DataFrame([{c: "" for c in base_cols}] * 4)
@@ -87,7 +93,7 @@ else:
     df_base_inicial["Prob. continuidad (0–10)"] = 0
     df_base_inicial["Verificado por asesor"] = False
 
-# --- Data Editor base (captura) ---
+# --- Data Editor base ---
 df_in = st.data_editor(
     df_base_inicial,
     use_container_width=True,
@@ -108,7 +114,7 @@ df_in = st.data_editor(
     },
 )
 
-# --- Cálculos y tabla con cálculos (factor congelado) ---
+# --- Cálculos ---
 df = df_in.copy()
 num_cols = ["Monto por período (₡)", "Meses de continuidad", "Prob. continuidad (0–10)"]
 for c in num_cols:
@@ -141,6 +147,8 @@ def _recalcular_derivados(df_src: pd.DataFrame) -> pd.DataFrame:
 
 df = _recalcular_derivados(df)
 
+# Valor por defecto y editor con cálculos dentro del expander
+df_edit = df.copy()
 with st.expander("Editar tabla con cálculos (factor congelado)"):
     df_edit = st.data_editor(
         df,
@@ -164,10 +172,8 @@ with st.expander("Editar tabla con cálculos (factor congelado)"):
             "Ingreso ponderado (₡)": st.column_config.NumberColumn("Ingreso ponderado (₡)", format="₡ %d", disabled=True),
         },
     )
-else:
-    df_edit = df
 
-# Recalcular por si hubo cambios en el editor con cálculos
+# Recalcular por si hubo cambios
 for c in num_cols:
     if c not in df_edit.columns:
         df_edit[c] = 0
@@ -217,13 +223,7 @@ with c2:
             }
         }
         st.session_state["done_08"] = True
-
-        # Próximo paso sugerido (ajusta al nombre real cuando lo tengas)
-        for nxt in [
-            "pages/09_Gastos_hogar.py",
-            "pages/09_Egresos_hogar.py",
-            "pages/09_Gastos_operativos.py",
-        ]:
+        for nxt in ["pages/09_Gastos_hogar.py", "pages/09_Egresos_hogar.py", "pages/09_Gastos_operativos.py"]:
             try:
                 st.switch_page(nxt)
                 break
@@ -232,4 +232,3 @@ with c2:
         else:
             st.success("Otros ingresos guardados. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
-
