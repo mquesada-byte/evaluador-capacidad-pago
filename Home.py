@@ -100,6 +100,15 @@ with st.container(border=True):
         help="Registro y mensualización de gastos del hogar, con opción de verificación/evidencia."
     )
 
+# Paso 12 – Estado de Resultados
+with st.container(border=True):
+    st.page_link(
+        "pages/12_Estado_de_resultadosl.py",  # nombre exacto del archivo
+        label=f"{step_status('done_12')} 12 – Estado de resultados",
+        help="Resumen automático de ventas, costos y gastos; calcula el disponible para préstamo."
+    )
+
+
 
 
 st.divider()
