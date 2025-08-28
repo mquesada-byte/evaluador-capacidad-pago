@@ -76,6 +76,15 @@ with st.container(border=True):
         help="Registro y ponderación de otros ingresos del hogar."
     )
 
+# Paso 9 – Deudas activas del hogar
+with st.container(border=True):
+    st.page_link(
+        "pages/09_Deudas.py",
+        label=f"{step_status('done_09')} 09 – Deudas activas del hogar",
+        help="Préstamos/obligaciones vigentes; cuota mensual, saldos y clasificación por plazo."
+    )
+
+
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
 
