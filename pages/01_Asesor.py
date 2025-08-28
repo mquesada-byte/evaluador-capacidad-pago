@@ -83,7 +83,8 @@ if st.session_state.get("step", 1) == 1:
     st.title("🧭 Paso 1: Datos del asesor")
     st.caption("La fecha y hora se registran automáticamente y no pueden ser modificadas.")
 
-    asesor["nombre"] = st.text_input("Nombre completo del asesor *", value=asesor["nombre"])
+    asesor["nombre"] = st.text_input("Nombre completo del asesor *", value=asesor["nombre"], placeholder="Ej.: Steven Gerardo Salas Solano",   # ← texto tenue de ejemplo
+    help="Escribe tu nombre y apellidos completos.")
     fecha_hora_registro = asesor["fecha_hora"].strftime("%d/%m/%Y %H:%M:%S")
     st.text_input("📅 Fecha y hora de registro",
                   value=fecha_hora_registro + (" (Internet)" if asesor.get("timestamp_source") == "internet" else " (Dispositivo)"),
