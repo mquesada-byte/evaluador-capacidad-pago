@@ -19,6 +19,7 @@ def _mensualizar_gasto_fam(monto: float, periodicidad: str) -> float:
     if per == "anual":        return monto / 12.0
     return 0.0
 
+# ---------- UI ----------
 st.title("🏠 Paso 11: Gastos familiares")
 st.caption(
     "Registre los gastos del **hogar** (familia): alimentación, vivienda, educación, salud, "
@@ -154,6 +155,49 @@ st.write({
     "Registros válidos": reg_validos,
 })
 
-st.divider
+st.divider()
+
+# Navegación / Guardar
+c1, c2 = st.columns([0.5, 0.5])
+
+with c1:
+    if st.button("⬅️ Volver a 10 – Gastos operativos", key="gfam_back_gop", use_container_width=True):
+        try:
+            st.switch_page("pages/10_Gastos_operativos.py")
+        except Exception:
+            st.stop()
+
+with c2:
+    if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True, disabled=(reg_validos == 0)):
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["gastos_familiares"] = {
+            "tabla": df.fillna("").to_dict(orient="records"),
+            "totales": {
+                "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
+                "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
+                "registros_validos": reg_validos,
+            }
+        }
+        st.session_state["done_11"] = True
+
+        # Ir al próximo paso (archivo exacto solicitado primero)
+        for nxt in [
+            "pages/12_Estado_de_resultadosl.py",  # el nombre pedido
+            "pages/12_Estado_resultados.py",
+            "pages/12_Resultados.py",
+            "pages/12_Resumen.py",
+        ]:
+            try:
+                st.switch_page(nxt)
+                break
+            except Exception:
+                continue
+        else:
+            st.success("Gastos familiares guardados. Abrí el **siguiente paso** desde el menú lateral.")
+            st.stop()
+
+# Evitar render adicional
+st.stop()
+
 
 
