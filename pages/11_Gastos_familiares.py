@@ -156,14 +156,6 @@ st.write({
 
 st.divider()
 
-# Navegación / Guardar
-c1, c2 = st.columns([0.5, 0.5])
-with c1:
-    if st.button("⬅️ Volver a 10 – Gastos operativos", key="gfam_back_gop", use_container_width=True):
-        try:
-            st.switch_page("pages/10_Gastos_operativos.py")
-        except Exception:
-            st.stop()
 with c2:
     if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True, disabled=(reg_validos == 0)):
         st.session_state.setdefault("reporte", {})
@@ -177,8 +169,9 @@ with c2:
         }
         st.session_state["done_11"] = True
 
-        # Intentar ir al próximo paso (ajusta al nombre real cuando lo tengas)
+        # Ir al próximo paso (archivo exacto solicitado)
         for nxt in [
+            "pages/12_Estado_de_resultadosl.py",
             "pages/12_Estado_resultados.py",
             "pages/12_Resultados.py",
             "pages/12_Resumen.py",
@@ -191,7 +184,4 @@ with c2:
         else:
             st.success("Gastos familiares guardados. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
-
-# Evita render adicional
-st.stop()
 
