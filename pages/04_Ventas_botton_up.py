@@ -142,7 +142,7 @@ with colNav1:
         st.switch_page("pages/03_Ventas_top_down.py")
 
 with colNav2:
-    if st.button("Siguiente ➡️ (3C)", key="next_step_4", disabled=not obligatorios_ok, use_container_width=True):
+    if st.button("Siguiente ➡️ (5)", key="next_step_4", disabled=not obligatorios_ok, use_container_width=True):
         # Guardar bloque de reporte Bottom-up
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["ventas_bottomup"] = {
@@ -158,20 +158,10 @@ with colNav2:
         }
         st.session_state["done_04"] = True
 
-        # Intentar abrir el siguiente paso (3C / Insumos y margen).
-        # Ajusta el nombre real cuando lo tengas.
-        next_candidates = [
-            "pages/05_Ventas_insumos_simple.py",
-            "pages/05_Insumos_y_margen.py",
-            "pages/03C_Insumos_y_margen.py",
-        ]
-        for candidate in next_candidates:
-            try:
-                st.switch_page(candidate)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Ventas Bottom-up guardadas. Abrí el **siguiente paso (3C)** desde el menú lateral.")
+        # Ir al Paso 5 – Insumos/Margen
+        try:
+            st.switch_page("pages/05_Ventas_insumos_margen.py")
+        except Exception:
+            st.success("Ventas Bottom-up guardadas. Abre el **Paso 5 – Ventas (insumos/margen)** desde el menú lateral.")
             st.stop()
 
