@@ -3,6 +3,10 @@ import streamlit as st
 
 st.set_page_config(page_title="Evaluador de Capacidad de Pago", page_icon="💻")
 
+def step_status(flag: str) -> str:
+    """Devuelve un emoji según si el paso ya fue completado en esta sesión."""
+    return "✅" if st.session_state.get(flag) else "⏳"
+
 st.title("🏠 Evaluador de Capacidad de Pago")
 st.write("Usa el menú lateral o los enlaces de abajo para navegar por los pasos.")
 
@@ -12,7 +16,7 @@ st.divider()
 with st.container(border=True):
     st.page_link(
         "pages/01_Asesor.py",
-        label="➡️ 01 – Datos del asesor",
+        label=f"{step_status('done_01')} 01 – Datos del asesor",
         help="Identificación del asesor, fecha/hora (CR) y geolocalización."
     )
 
@@ -20,7 +24,7 @@ with st.container(border=True):
 with st.container(border=True):
     st.page_link(
         "pages/02_Cliente_y_negocio.py",
-        label="➡️ 02 – Cliente y negocio",
+        label=f"{step_status('done_02')} 02 – Cliente y negocio",
         help="Datos del cliente y del negocio para iniciar la evaluación."
     )
 
@@ -34,3 +38,4 @@ with st.container(border=True):
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
+
