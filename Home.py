@@ -60,6 +60,13 @@ with st.container(border=True):
         help="Evaluación cualitativa (conocimiento, credibilidad, dudas y evidencia)."
     )
 
+# Paso 7 – Conciliación de ventas
+with st.container(border=True):
+    st.page_link(
+        "pages/07_Conciliación_de_ventas.py",  # usa el nombre exacto del archivo
+        label=f"{step_status('done_07')} 07 – Conciliación de ventas",
+        help="Compara Top-down, Bottom-up e Insumos y fija ventas conciliadas."
+    )
 
 
 st.divider()
