@@ -2106,14 +2106,12 @@ col_nav1, col_nav2 = st.columns([0.5, 0.5])
 
 with col_nav1:
     if st.button("⬅️ Volver a Gastos familiares", use_container_width=True):
-        # Si tu flujo por pasos está en una sola app:
         st.session_state.step = 7  # Paso 8: Gastos familiares
-        st.session_state["_nav_target"] = None
         st.rerun()
 
 with col_nav2:
     if st.button("Continuar ➡️ Balance general", type="primary", use_container_width=True):
-        # (Opcional) Persistimos un resumen del ER para el reporte final
+        # Persistimos un resumen del ER para el reporte final
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["estado_resultados"] = {
             "ventas_colones": int(round(ventas_total)),
@@ -2130,18 +2128,18 @@ with col_nav2:
             "disponible_para_prestamo_colones": int(round(disponible_final)),
         }
 
-        # Intentar abrir Balance General (multipage)
+        # 1) Intento multipage
         try:
-            st.switch_page("balance_general.py")              # raíz
+            st.switch_page("balance_general.py")
         except Exception:
             try:
-                st.switch_page("pages/balance_general.py")    # /pages
+                st.switch_page("pages/balance_general.py")
             except Exception:
-                # Fallback: marca intención y deja que el router del main la procese
-                st.session_state["_nav_target"] = "BALANCE"
+                # 2) Fallback para flujo de una sola página
+                st.session_state.step = 8  # <-- Balance general
                 st.rerun()
 
-    st.stop()
+st.stop()
 
 
 
@@ -3597,6 +3595,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
