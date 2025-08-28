@@ -2139,7 +2139,9 @@ with col_nav2:
                 st.session_state.step = 8  # <-- Balance general
                 st.rerun()
 
-st.stop()
+# 🔧 FIX: solo detenemos el render si NO vamos a Balance (evita bloquear el bloque de step==8)
+if st.session_state.get("step") != 8:
+    st.stop()
 
 
 
@@ -3595,6 +3597,7 @@ st.session_state["reporte"]["balance_general"] = {
     "patrimonio": int(round(patrimonio)),
     "capital_trabajo": int(round(capital_trabajo)),
 }
+
 
 
 
