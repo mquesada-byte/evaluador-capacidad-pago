@@ -147,7 +147,7 @@ def _recalcular_derivados(df_src: pd.DataFrame) -> pd.DataFrame:
 
 df = _recalcular_derivados(df)
 
-# Valor por defecto y editor con cálculos dentro del expander
+# Editor con cálculos dentro del expander
 df_edit = df.copy()
 with st.expander("Editar tabla con cálculos (factor congelado)"):
     df_edit = st.data_editor(
@@ -223,12 +223,9 @@ with c2:
             }
         }
         st.session_state["done_08"] = True
-        for nxt in ["pages/09_Gastos_hogar.py", "pages/09_Egresos_hogar.py", "pages/09_Gastos_operativos.py"]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Otros ingresos guardados. Abrí el **siguiente paso** desde el menú lateral.")
+        try:
+            st.switch_page("pages/09_Deudas.py")
+        except Exception:
+            st.success("Otros ingresos guardados. Abrí **Paso 9 – Deudas** desde el menú lateral.")
             st.stop()
+
