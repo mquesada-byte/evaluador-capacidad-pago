@@ -47,3 +47,4 @@ with st.container(border=True):
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
 
+
