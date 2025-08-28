@@ -2118,6 +2118,8 @@ with col_nav2:
             except Exception:
                 st.info("Abrí la página **Balance general** desde el sidebar.")
 
+# --- CORTAR EJECUCIÓN DE ESTA PÁGINA ---
+st.stop()
 
 
 
@@ -2885,6 +2887,7 @@ if coment_asesor:
 if ventas_conc and top_ajustado:
     etiqueta = _precision_label(ape)
     st.caption(f"**Etiqueta de precisión declarativa de la clienta:** {etiqueta}")
+
 
 
 
