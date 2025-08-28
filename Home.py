@@ -1,23 +1,20 @@
+# Home.py
 import streamlit as st
 
 st.set_page_config(page_title="Evaluador de Capacidad de Pago", page_icon="💻")
 
 st.title("🏠 Evaluador de Capacidad de Pago")
-st.write(
-    "Bienvenido. Usa el menú lateral o el botón de abajo para iniciar con el **Paso 1 – Datos del asesor**."
-)
+st.write("Usa el menú lateral o el enlace de abajo para iniciar con el **Paso 1 – Datos del asesor**.")
 
-col1, col2 = st.columns(2)
+st.divider()
 
-with col1:
-    # Enlace visible (si por permisos del navegador no funciona switch_page)
-    st.page_link("pages/01_Asesor.py", label="➡️ Abrir Paso 1 – Datos del asesor", help="Ir a la página del Asesor")
+# ÚNICO paso habilitado por ahora
+with st.container(border=True):
+    st.page_link(
+        "pages/01_Asesor.py",
+        label="➡️ 01 – Datos del asesor",
+        help="Identificación del asesor, fecha/hora (CR) y geolocalización."
+    )
 
-with col2:
-    # Navegación programática (opcional)
-    if st.button("Iniciar ahora ➡️ Paso 1", use_container_width=True, type="primary"):
-        try:
-            st.switch_page("pages/01_Asesor.py")
-        except Exception:
-            st.info("Si no navegó automáticamente, usa el enlace de la izquierda o el link de arriba.")
-
+st.divider()
+st.info("También podés abrir el Paso 1 desde el menú lateral.")
