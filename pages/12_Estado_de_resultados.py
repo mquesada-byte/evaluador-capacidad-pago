@@ -1,21 +1,13 @@
-# estado_resultados.py
+# pages/12_Estado_de_resultadosl.py
 # ---------------------------------------------------------
-# Lee st.session_state["reporte"] generado por los pasos 1–8
+# Lee st.session_state["reporte"] generado por los pasos previos
 # y calcula el Disponible para pago del préstamo (Credimujer).
 # No modifica los datos previos, solo los lee y resume.
 
 import streamlit as st
 import pandas as pd
 
-# Evita conflicto si otra página ya llamó set_page_config
-if not st.session_state.get("_page_config_set"):
-    st.set_page_config(page_title="Estado de Resultados", page_icon="📑")
-    st.session_state["_page_config_set"] = True
-
-# Asegura que no arrastre un "step == 8" de otra pantalla
-# (evita que algo externo fuerce a mostrar el balance aquí).
-if st.session_state.get("step") == 8:
-    st.session_state["step"] = None
+st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
 
 # ========= Helpers de lectura/formatos =========
 def _getr(path, default=None):
@@ -132,7 +124,8 @@ subtotal_post_otros = utilidad_neta_ope + otros_ing_total
 disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
 
 # ========= UI =========
-st.header("📑 Estado de Resultados (resumen de pasos previos)")
+st.title("📑 Paso 12: Estado de Resultados")
+st.caption("Resumen automático a partir de tus pasos previos.")
 
 with st.expander("🔎 Origen de datos (rutas detectadas)"):
     st.json(src)
@@ -143,9 +136,11 @@ with col2: st.metric("Compras/Costos", _fmt_col(compras_total))
 with col3:
     base_txt = ("ventas" if (tipo_margen == "Sobre ventas")
                 else ("compras" if (tipo_margen == "Sobre compras (markup)") else "—"))
-    pct_show = (margen_pct if (margen_pct is not None and margen_pct <= 1)
-                else (margen_pct or 0)/100) if (margen_pct is not None) else None
-    st.metric("Margen (base)", f"{pct_show:.0%} sobre {base_txt}" if pct_show is not None else "— sobre —")
+    if margen_pct is not None:
+        pct_show = margen_pct if margen_pct <= 1 else (margen_pct / 100.0)
+        st.metric("Margen (base)", f"{pct_show:.0%} sobre {base_txt}")
+    else:
+        st.metric("Margen (base)", "— sobre —")
 
 st.divider()
 
@@ -184,9 +179,13 @@ st.divider()
 col_nav1, col_nav2 = st.columns([0.5, 0.5])
 
 with col_nav1:
-    if st.button("⬅️ Volver a Gastos familiares", use_container_width=True):
-        st.session_state.step = 7
-        st.rerun()
+    if st.button("⬅️ Volver a 11 – Gastos familiares", use_container_width=True):
+        for prev in ["pages/11_Gastos_familiares.py"]:
+            try:
+                st.switch_page(prev)
+                break
+            except Exception:
+                continue
 
 with col_nav2:
     if st.button("Continuar ➡️ Balance general", type="primary", use_container_width=True):
@@ -205,14 +204,23 @@ with col_nav2:
             "subtotal_post_otros_colones": int(round(subtotal_post_otros)),
             "disponible_para_prestamo_colones": int(round(disponible_final)),
         }
-        # Navega a la página del Balance (dos intentos por ruta)
-        try:
-            st.switch_page("pages/balance_general.py")
-        except Exception:
+        st.session_state["done_12"] = True
+        # Intentar ir a Balance general (varias rutas posibles)
+        for nxt in [
+            "pages/13_Balance_general.py",
+            "pages/balance_general.py",
+            "balance_general.py",
+            "pages/13_Balance.py",
+        ]:
             try:
-                st.switch_page("balance_general.py")
+                st.switch_page(nxt)
+                break
             except Exception:
-                st.info("Abrí la página **Balance general** desde el sidebar.")
+                continue
+        else:
+            st.success("Estado de resultados guardado. Abrí **Balance general** desde el menú lateral.")
+            st.stop()
 
-# --- CORTAR EJECUCIÓN DE ESTA PÁGINA ---
+# Corta ejecución
 st.stop()
+
