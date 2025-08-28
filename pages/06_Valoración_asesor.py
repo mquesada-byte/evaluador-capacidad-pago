@@ -131,7 +131,3 @@ with colb2:
 # 👇 Detiene el render aquí mientras sigas en esta página
 st.stop()
 
-
-
-    # 👇 Detiene el render aquí mientras sigas en el Paso 1
-    st.stop()
