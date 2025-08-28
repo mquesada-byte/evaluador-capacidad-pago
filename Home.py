@@ -1,5 +1,6 @@
 # Home.py
 import streamlit as st
+
 st.set_page_config(page_title="Evaluador de Capacidad de Pago", page_icon="💻")
 
 st.title("🏠 Evaluador de Capacidad de Pago")
@@ -7,6 +8,7 @@ st.write("Usa el menú lateral o los enlaces de abajo para navegar por los pasos
 
 st.divider()
 
+# Paso 1
 with st.container(border=True):
     st.page_link(
         "pages/01_Asesor.py",
@@ -14,11 +16,12 @@ with st.container(border=True):
         help="Identificación del asesor, fecha/hora (CR) y geolocalización."
     )
 
+# Paso 2
 with st.container(border=True):
     st.page_link(
-        "pages/02_Cliente_y_negocio.py",   # <-- nombre con .py
+        "pages/02_Cliente_y_negocio.py",
         label="➡️ 02 – Cliente y negocio",
-        help="Datos del cliente/negocio para iniciar la evaluación."
+        help="Datos del cliente y del negocio para iniciar la evaluación."
     )
 
 st.divider()
