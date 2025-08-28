@@ -6,11 +6,6 @@ from zoneinfo import ZoneInfo
 import time, requests
 import streamlit as st
 from streamlit_js_eval import get_geolocation
-# Para leer info del navegador/JS
-try:
-    from streamlit_js_eval import streamlit_js_eval as js_eval
-except Exception:
-    js_eval = None
 
 st.set_page_config(page_title="Paso 1: Datos del asesor", page_icon="🧭")
 
@@ -57,46 +52,7 @@ def swapped_links(lat, lon):
 def plausible_cr_area(lat, lon):
     return (8.0 <= lat <= 12.0) and (-90.0 <= lon <= -80.0)
 
-# ---- Huella del dispositivo (no hay hostname real de cliente en navegador) ----
-def get_device_fingerprint():
-    """Recoge datos del navegador/OS y red (IP pública y dominio/ISP) desde el cliente."""
-    fp = {"source": "browser", "note": "El nombre real de la computadora no es accesible desde el navegador."}
-    if js_eval is None:
-        return fp
-
-    def J(expr, key_suffix):
-        try:
-            return js_eval(js_expressions=expr, key=f"js_{key_suffix}")
-        except Exception:
-            return None
-
-    fp["user_agent"]            = J("navigator.userAgent", "ua")
-    fp["platform"]              = J("navigator.platform", "platform")
-    fp["vendor"]                = J("navigator.vendor", "vendor")
-    fp["language"]              = J("navigator.language", "lang")
-    fp["languages"]             = J("navigator.languages", "langs")
-    fp["timezone"]              = J("Intl.DateTimeFormat().resolvedOptions().timeZone", "tz")
-    fp["device_memory_gb"]      = J("navigator.deviceMemory || null", "mem")
-    fp["hardware_concurrency"]  = J("navigator.hardwareConcurrency || null", "cores")
-    fp["screen"] = {
-        "width":       J("screen.width",  "sw"),
-        "height":      J("screen.height", "sh"),
-        "pixel_ratio": J("window.devicePixelRatio", "dpr"),
-        "color_depth": J("screen.colorDepth", "depth"),
-    }
-    # IP pública + datos de conexión (CORS enabled)
-    info = J('await fetch("https://ipwho.is/").then(r=>r.json()).catch(_=>null)', "ipwho")
-    if isinstance(info, dict):
-        fp["ip_public"] = info.get("ip")
-        conn = info.get("connection") or {}
-        fp["network_domain"] = (conn.get("domain") or "").strip() or None
-        fp["isp"]            = conn.get("isp")
-        fp["asn"]            = conn.get("asn")
-        fp["org"]            = conn.get("org")
-
-    return fp
-
-# ---- Estado inicial (sin usar 'step') ----
+# ---- Estado inicial ----
 def init_asesor_state():
     st.session_state.setdefault("asesor", {})
     st.session_state.setdefault("geo_request", False)
@@ -111,9 +67,6 @@ def init_asesor_state():
         a["fecha_hora"] = ts or now_in_cr_fallback()
     a.setdefault("lat", None); a.setdefault("lon", None)
     a.setdefault("maps_url", None); a.setdefault("maps_url_alt", None); a.setdefault("osm_url", None)
-    # Capturamos huella del dispositivo 1 sola vez
-    if "device" not in a or not a["device"]:
-        a["device"] = get_device_fingerprint()
 
 def asesor_para_reporte():
     a = st.session_state.get("asesor", {})
@@ -128,7 +81,6 @@ def asesor_para_reporte():
         "google_maps": a.get("maps_url"),
         "google_maps_vista": a.get("maps_url_alt"),
         "openstreetmap": a.get("osm_url"),
-        "device": a.get("device", {}),  # ← huella
     }
 
 # =================== UI ===================
@@ -228,10 +180,6 @@ with col2:
         }
         st.caption(msgs.get(status, "Aún no hay coordenadas registradas."))
 
-# Mostrar huella del dispositivo (solo lectura)
-with st.expander("Huella del dispositivo (capturada automáticamente)"):
-    st.json(asesor.get("device", {}), expanded=False)
-
 st.divider()
 
 # ---- Navegación (multipágina) ----
@@ -244,7 +192,6 @@ with colB:
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["asesor"] = asesor_para_reporte()
         st.session_state["done_01"] = True
-
         # Navegar al Paso 2
         try:
             st.switch_page("pages/02_Cliente_y_negocio.py")
@@ -252,5 +199,6 @@ with colB:
             st.success("Datos guardados. Continúa con el siguiente paso:")
             st.page_link("pages/02_Cliente_y_negocio.py", label="➡️ Ir a Paso 2 – Cliente y negocio")
             st.stop()
+
 
 
