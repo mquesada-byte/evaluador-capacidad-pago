@@ -1,0 +1,223 @@
+# =========================
+# PASO 6 – Deudas activas del hogar (step == 5)
+# =========================
+def _mensualizar_pago(monto: float, periodicidad: str) -> float:
+    per = (periodicidad or "").lower()
+    if per == "diario":       return monto * 30.0
+    if per == "semanal":      return monto * (52.0 / 12.0)
+    if per == "quincenal":    return monto * 2.0
+    if per == "mensual":      return monto
+    if per == "bimestral":    return monto / 2.0
+    if per == "trimestral":   return monto / 3.0
+    if per == "semestral":    return monto / 6.0
+    if per == "anual":        return monto / 12.0
+    return 0.0
+
+if st.session_state.get("step") == 5:
+    import pandas as pd
+
+    st.title("💳 Paso 6: Deudas activas del hogar")
+    st.caption(
+        "Registre los préstamos/obligaciones vigentes del cliente o su núcleo. "
+        "Se calculará la **cuota mensual total** (para resultados) y el **saldo total adeudado** (para balance). "
+        "Incluye **clasificación por plazo** para separar **pasivo circulante** y **pasivo a largo plazo**."
+    )
+
+    # Catálogos
+    relaciones = ["Cliente", "Pareja", "Hogar (compartida)", "Otro"]
+    tipos_deuda = ["Préstamo personal", "Préstamo de negocio", "Hipotecario", "Vehículo",
+                   "Tarjeta de crédito", "Comercio/Tienda", "Microcrédito", "Otro"]
+    periodicidades_pago = ["Mensual", "Quincenal", "Semanal", "Diario", "Bimestral", "Trimestral", "Semestral", "Anual"]
+    evidencias = ["Estado de cuenta", "Contrato", "Tabla de amortización", "Recibo de pago",
+                  "SINPE/Extracto", "Credid", "Equifax", "Foto/Chat", "No aplica", "Otro"]
+    estados = ["Al día", "Atraso"]
+    plazos = ["Corto plazo (≤12 meses)", "Largo plazo (>12 meses)"]
+
+    # Columnas base (entrada)
+    base_cols = [
+        "Titular",
+        "Acreedor/Entidad",
+        "Tipo de deuda",
+        "Saldo adeudado (₡)",
+        "Cuota por período (₡)",
+        "Periodicidad de pago",
+        "Verificado por asesor",
+        "Tipo de evidencia",
+        "Estado",
+        "Días de atraso",
+        "Comentario",
+        "Meses restantes (opcional)",
+        "Plazo (clasificación)",
+    ]
+
+    # ========= NUEVO: CARGA INICIAL DESDE LO GUARDADO (si existe) =========
+    guardado = (st.session_state.get("reporte", {})
+                .get("deudas_activas", {})
+                .get("tabla", []))
+    if guardado:
+        df_base_inicial = pd.DataFrame(guardado).copy()
+        # Quitar columnas derivadas si vinieron en la tabla guardada
+        cols_presentes = [c for c in df_base_inicial.columns if c in base_cols]
+        for c in base_cols:
+            if c not in df_base_inicial.columns:
+                # defaults sensatos por tipo
+                if c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+                    df_base_inicial[c] = 0
+                elif c == "Verificado por asesor":
+                    df_base_inicial[c] = False
+                else:
+                    df_base_inicial[c] = ""
+        df_base_inicial = df_base_inicial[base_cols]
+    else:
+        df_base_inicial = pd.DataFrame([{c: "" for c in base_cols}] * 4)
+        # tipos numéricos por defecto en base
+        for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+            df_base_inicial[c] = 0
+        df_base_inicial["Verificado por asesor"] = False
+    # ======================================================================
+
+    # Editor de captura rápido
+    df_in = st.data_editor(
+        df_base_inicial,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="de_deudas_activas",
+        column_config={
+            "Titular": st.column_config.SelectboxColumn("Titular", options=relaciones, required=False),
+            "Acreedor/Entidad": st.column_config.TextColumn("Acreedor/Entidad"),
+            "Tipo de deuda": st.column_config.SelectboxColumn("Tipo de deuda", options=tipos_deuda, required=False),
+            "Saldo adeudado (₡)": st.column_config.NumberColumn("Saldo adeudado (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Cuota por período (₡)": st.column_config.NumberColumn("Cuota por período (₡)", min_value=0, step=1000, format="₡ %d"),
+            "Periodicidad de pago": st.column_config.SelectboxColumn("Periodicidad de pago", options=periodicidades_pago, required=False),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Estado": st.column_config.SelectboxColumn("Estado", options=estados, required=False),
+            "Días de atraso": st.column_config.NumberColumn("Días de atraso", min_value=0, max_value=3650, step=1, format="%d"),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+            "Meses restantes (opcional)": st.column_config.NumberColumn("Meses restantes (opcional)", min_value=0, max_value=600, step=1, format="%d"),
+            "Plazo (clasificación)": st.column_config.SelectboxColumn("Plazo (clasificación)", options=plazos, required=False),
+        },
+    )
+
+    # --- Preparación y derivados (SIN CAMBIOS) ---
+    df = df_in.copy()
+    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+        if c not in df.columns:
+            df[c] = 0
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+    if "Verificado por asesor" not in df.columns:
+        df["Verificado por asesor"] = False
+    df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
+
+    if "Plazo (clasificación)" not in df.columns:
+        df["Plazo (clasificación)"] = ""
+    df["Plazo (clasificación)"] = df["Plazo (clasificación)"].astype(str)
+
+    auto_mask = df["Plazo (clasificación)"].isin(["", "nan", "None"])
+    df.loc[auto_mask & (df["Meses restantes (opcional)"] > 0) & (df["Meses restantes (opcional)"] <= 12),
+           "Plazo (clasificación)"] = "Corto plazo (≤12 meses)"
+    df.loc[auto_mask & (df["Meses restantes (opcional)"] > 12),
+           "Plazo (clasificación)"] = "Largo plazo (>12 meses)"
+
+    cuotas_mens = []
+    for _, r in df.iterrows():
+        cuota = float(r.get("Cuota por período (₡)") or 0)
+        per = r.get("Periodicidad de pago") or ""
+        cuotas_mens.append(_mensualizar_pago(cuota, per))
+    df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
+
+    with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
+        df_edit = st.data_editor(
+            df,
+            use_container_width=True,
+            num_rows="dynamic",
+            hide_index=True,
+            key="de_deudas_activas_calc",
+            column_config={
+                "Titular": st.column_config.SelectboxColumn("Titular", options=relaciones),
+                "Acreedor/Entidad": st.column_config.TextColumn("Acreedor/Entidad"),
+                "Tipo de deuda": st.column_config.SelectboxColumn("Tipo de deuda", options=tipos_deuda),
+                "Saldo adeudado (₡)": st.column_config.NumberColumn("Saldo adeudado (₡)", min_value=0, step=10000, format="₡ %d"),
+                "Cuota por período (₡)": st.column_config.NumberColumn("Cuota por período (₡)", min_value=0, step=1000, format="₡ %d"),
+                "Periodicidad de pago": st.column_config.SelectboxColumn("Periodicidad de pago", options=periodicidades_pago),
+                "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+                "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+                "Estado": st.column_config.SelectboxColumn("Estado", options=estados),
+                "Días de atraso": st.column_config.NumberColumn("Días de atraso", min_value=0, max_value=3650, step=1, format="%d"),
+                "Comentario": st.column_config.TextColumn("Comentario"),
+                "Meses restantes (opcional)": st.column_config.NumberColumn("Meses restantes (opcional)", min_value=0, max_value=600, step=1, format="%d"),
+                "Plazo (clasificación)": st.column_config.SelectboxColumn("Plazo (clasificación)", options=plazos),
+                "Cuota mensualizada (₡)": st.column_config.NumberColumn("Cuota mensualizada (₡)", format="₡ %d", disabled=True),
+            },
+        )
+
+    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+        if c not in df_edit.columns:
+            df_edit[c] = 0
+        df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce").fillna(0)
+    if "Verificado por asesor" not in df_edit.columns:
+        df_edit["Verificado por asesor"] = False
+    df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
+
+    cuotas_mens = []
+    for _, r in df_edit.iterrows():
+        cuota = float(r.get("Cuota por período (₡)") or 0)
+        per = r.get("Periodicidad de pago") or ""
+        cuotas_mens.append(_mensualizar_pago(cuota, per))
+    df = df_edit.copy()
+    df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
+
+    # --- Resumen (SIN CAMBIOS) ---
+    valid_mask = (df["Periodicidad de pago"].isin(periodicidades_pago)) & \
+                 ((df["Cuota por período (₡)"] > 0) | (df["Saldo adeudado (₡)"] > 0))
+    df_valid = df[valid_mask].copy()
+
+    total_pago_mensual = int(df_valid["Cuota mensualizada (₡)"].sum()) if not df_valid.empty else 0
+    total_adeudado = int(df_valid["Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+    total_pago_verificado = int(df_valid.loc[df_valid["Verificado por asesor"], "Cuota mensualizada (₡)"].sum()) if not df_valid.empty else 0
+
+    corto_mask = df_valid["Plazo (clasificación)"].eq("Corto plazo (≤12 meses)")
+    largo_mask = df_valid["Plazo (clasificación)"].eq("Largo plazo (>12 meses)")
+    total_adeudado_corto = int(df_valid.loc[corto_mask, "Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+    total_adeudado_largo = int(df_valid.loc[largo_mask, "Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+
+    st.markdown("**Resumen**")
+    st.write({
+        "Total pago mensual (a Resultados)": f"₡ {total_pago_mensual:,}".replace(",", "."),
+        "Total pago mensual verificado": f"₡ {total_pago_verificado:,}".replace(",", "."),
+        "Total adeudado (a Balance general)": f"₡ {total_adeudado:,}".replace(",", "."),
+        "→ Pasivo circulante (corto plazo)": f"₡ {total_adeudado_corto:,}".replace(",", "."),
+        "→ Pasivo a largo plazo": f"₡ {total_adeudado_largo:,}".replace(",", "."),
+        "Registros válidos": int(valid_mask.sum()),
+    })
+
+    st.divider()
+
+    # Navegación / Guardar (SIN CAMBIOS)
+    c1, c2 = st.columns([0.5, 0.5])
+    with c1:
+        if st.button("⬅️ Volver a Otros ingresos", key="deudas_back_step4", use_container_width=True):
+            st.session_state.step = 4
+            st.session_state.step3 = "RES"
+            st.rerun()
+    with c2:
+        if st.button("Guardar y continuar ➡️", key="deudas_save_next", use_container_width=True,
+                     disabled=(valid_mask.sum() == 0)):
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["deudas_activas"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_pago_mensual_colones": total_pago_mensual,
+                    "total_pago_mensual_verificado_colones": total_pago_verificado,
+                    "total_adeudado_colones": total_adeudado,
+                    "total_adeudado_corto_plazo_colones": total_adeudado_corto,
+                    "total_adeudado_largo_plazo_colones": total_adeudado_largo,
+                    "registros_validos": int(valid_mask.sum()),
+                }
+            }
+            st.success("Deudas activas guardadas. Avanzando…")
+            st.session_state.step = 6
+            st.rerun()
+
+    st.stop()
