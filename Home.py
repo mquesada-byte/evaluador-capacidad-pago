@@ -44,6 +44,15 @@ with st.container(border=True):
         help="Estimación operativa (clientes x ticket) para el último mes calendario."
     )
 
+# Paso 5 (Insumos/Margen desde compras)
+with st.container(border=True):
+    st.page_link(
+        "pages/05_Ventas_insumos_margen.py",
+        label=f"{step_status('done_05')} 05 – Ventas (insumos/margen)",
+        help="Estimación de ventas a partir de compras y margen declarado."
+    )
+
+
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
 
