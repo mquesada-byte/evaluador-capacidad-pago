@@ -237,7 +237,6 @@ with c1:
         st.switch_page("pages/05_Ventas_insumos_margen.py")
 with c2:
     if st.button("Editar 03/04", use_container_width=True):
-        # Te llevo a 03; desde ahí podés pasar a 04
         st.switch_page("pages/03_Ventas_top_down.py")
 with c3:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
@@ -263,20 +262,14 @@ with c3:
         }
         st.session_state["done_07"] = True
 
-        # Intentar ir al próximo paso (sugerido: 08 – Otros ingresos)
-        for nxt in [
-            "pages/08_Otros_ingresos.py",
-            "pages/08_Otros_ingresos_mensualizados.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Conciliación guardada. Abrí el **siguiente paso** desde el menú lateral.")
+        # Llevar directo a 08_Otros_ingresos.py
+        try:
+            st.switch_page("pages/08_Otros_ingresos.py")
+        except Exception:
+            st.success("Conciliación guardada. Abrí **08 – Otros ingresos** desde el menú lateral.")
             st.stop()
 
 # Evita render adicional
 st.stop()
+
 
