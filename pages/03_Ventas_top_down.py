@@ -101,7 +101,7 @@ with colNav1:
         st.switch_page("pages/02_Cliente_y_negocio.py")
 
 with colNav2:
-    if st.button("Siguiente ➡️ (3B)", key="next_step_3A", disabled=not obligatorios_ok, use_container_width=True):
+    if st.button("Siguiente ➡️ (4)", key="next_step_3A", disabled=not obligatorios_ok, use_container_width=True):
         # Guardar bloque de reporte Top-down
         st.session_state.setdefault("reporte", {})
         fuente_final = vtd["fuente_otro"].strip() if vtd["fuente"] == "Otro" else vtd["fuente"]
@@ -116,10 +116,11 @@ with colNav2:
         }
         st.session_state["done_03A"] = True
 
-        # Intentar ir al subpaso 3B (ajusta el nombre cuando lo tengas)
+        # Ir al Paso 4 – Ventas Bottom-up (según tu nombre de archivo)
         try:
-            st.switch_page("pages/03_Ventas_bottom_up.py")   # <- cambia a tu archivo real 3B
+            st.switch_page("pages/04_Ventas_botton_up.py")
         except Exception:
-            st.success("Ventas Top-down guardadas. Abrí el **Paso 3B** desde el menú lateral cuando esté disponible.")
+            st.success("Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
             st.stop()
+
 
