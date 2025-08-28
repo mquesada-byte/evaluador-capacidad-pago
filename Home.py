@@ -68,7 +68,7 @@ with st.container(border=True):
         help="Compara Top-down, Bottom-up e Insumos y fija ventas conciliadas."
     )
 
-# Paso 8
+# Paso 8 (Otros ingresos)
 with st.container(border=True):
     st.page_link(
         "pages/08_Otros_ingresos.py",
