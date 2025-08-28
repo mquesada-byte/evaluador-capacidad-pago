@@ -205,10 +205,10 @@ with col_nav2:
             "disponible_para_prestamo_colones": int(round(disponible_final)),
         }
         st.session_state["done_12"] = True
-        # Intentar ir a Balance general (varias rutas posibles)
+        # -> Principal: 13_Balance_general.py
         for nxt in [
-            "pages/13_Balance_general.py",
-            "pages/balance_general.py",
+            "pages/13_Balance_general.py",  # principal
+            "pages/balance_general.py",     # alternativas por si cambia el nombre
             "balance_general.py",
             "pages/13_Balance.py",
         ]:
@@ -223,4 +223,5 @@ with col_nav2:
 
 # Corta ejecución
 st.stop()
+
 
