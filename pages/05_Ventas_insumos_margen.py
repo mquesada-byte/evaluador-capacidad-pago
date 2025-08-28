@@ -113,7 +113,6 @@ oblig_ok = (int(vin["compras_mes"]) > 0 and ventas_est is not None)
 colNav1, colNav2 = st.columns([0.5, 0.5])
 with colNav1:
     if st.button("⬅️ Volver a 4 (Bottom-up)", key="back_to_4_from_5", use_container_width=True):
-        # Soporta ambas variantes de nombre del archivo del paso 4
         for prev_page in ["pages/04_Ventas_Botton_up.py", "pages/04_Ventas_botton_up.py"]:
             try:
                 st.switch_page(prev_page)
@@ -142,13 +141,13 @@ with colNav2:
         }
         st.session_state["done_05"] = True
 
-        # Ir a una página de valoración si existe; si no, avisar.
-        for nxt in ["pages/06_Valoracion.py", "pages/06_Valoración.py"]:
+        # Ir a 06_Valoración_asesor.py (con fallback sin tilde)
+        try:
+            st.switch_page("pages/06_Valoración_asesor.py")
+        except Exception:
             try:
-                st.switch_page(nxt)
-                break
+                st.switch_page("pages/06_Valoracion_asesor.py")
             except Exception:
-                continue
-        else:
-            st.success("Datos guardados. Continúa con el siguiente paso desde el menú lateral.")
-            st.stop()
+                st.success("Datos guardados. Abrí **06 – Valoración del asesor** desde el menú lateral.")
+                st.stop()
+
