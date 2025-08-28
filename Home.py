@@ -17,4 +17,4 @@ with st.container(border=True):
     )
 
 st.divider()
-st.info("También podés abrir el Paso 1 desde el menú lateral.")
+st.info("También puedes abrir los diferentes pasos desde el menú lateral.")
