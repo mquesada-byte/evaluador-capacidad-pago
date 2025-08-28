@@ -154,34 +154,6 @@ st.write({
     "Registros válidos": reg_validos,
 })
 
-st.divider()
+st.divider
 
-with c2:
-    if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True, disabled=(reg_validos == 0)):
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["gastos_familiares"] = {
-            "tabla": df.fillna("").to_dict(orient="records"),
-            "totales": {
-                "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
-                "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
-                "registros_validos": reg_validos,
-            }
-        }
-        st.session_state["done_11"] = True
-
-        # Ir al próximo paso (archivo exacto solicitado)
-        for nxt in [
-            "pages/12_Estado_de_resultadosl.py",
-            "pages/12_Estado_resultados.py",
-            "pages/12_Resultados.py",
-            "pages/12_Resumen.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Gastos familiares guardados. Abrí el **siguiente paso** desde el menú lateral.")
-            st.stop()
 
