@@ -108,7 +108,13 @@ with st.container(border=True):
         help="Resumen automático de ventas, costos y gastos; calcula el disponible para préstamo."
     )
 
-
+# Paso 13 – Balance general
+with st.container(border=True):
+    st.page_link(
+        "pages/13_Balance_general.py",
+        label=f"{step_status('done_13')} 13 – Balance general",
+        help="Activos, pasivos, patrimonio y capital de trabajo."
+    )
 
 
 st.divider()
