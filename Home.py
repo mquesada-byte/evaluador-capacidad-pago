@@ -52,6 +52,15 @@ with st.container(border=True):
         help="Estimación de ventas a partir de compras y margen declarado."
     )
 
+# Paso 6 – Valoración del asesor
+with st.container(border=True):
+    st.page_link(
+        "pages/06_Valoración_asesor.py",  # usa el nombre exacto del archivo
+        label=f"{step_status('done_06')} 06 – Valoración del asesor",
+        help="Evaluación cualitativa (conocimiento, credibilidad, dudas y evidencia)."
+    )
+
+
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
