@@ -24,5 +24,13 @@ with st.container(border=True):
         help="Datos del cliente y del negocio para iniciar la evaluación."
     )
 
+# Paso 3A
+with st.container(border=True):
+    st.page_link(
+        "pages/03_Ventas_top_down.py",
+        label=f"{step_status('done_03A')} 03A – Ventas (Top-down)",
+        help="Declaración directa de ventas del último mes calendario."
+    )
+
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
