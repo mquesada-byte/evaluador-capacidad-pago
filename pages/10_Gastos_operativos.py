@@ -179,20 +179,13 @@ with c2:
         }
         st.session_state["done_10"] = True
 
-        # Intentar ir al próximo paso (ajusta al nombre real cuando lo tengas)
-        for nxt in [
-            "pages/11_Resultados.py",
-            "pages/11_Estado_resultados.py",
-            "pages/11_Resumen.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Gastos operativos guardados. Abrí el **siguiente paso** desde el menú lateral.")
+        # Ir al próximo paso: 11_Gastos_familiares.py
+        try:
+            st.switch_page("pages/11_Gastos_familiares.py")
+        except Exception:
+            st.success("Gastos operativos guardados. Abrí **11 – Gastos familiares** desde el menú lateral.")
             st.stop()
 
 # Evita render extra
 st.stop()
+
