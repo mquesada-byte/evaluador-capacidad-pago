@@ -90,7 +90,6 @@ st.divider()
 colb1, colb2 = st.columns(2)
 with colb1:
     if st.button("⬅️ Volver a 5 (Insumos/Margen)", key="val_back_5", use_container_width=True):
-        # Soporta ambas variantes del nombre del paso 5
         for prev_page in ["pages/05_Ventas_insumos_margen.py"]:
             try:
                 st.switch_page(prev_page)
@@ -112,10 +111,12 @@ with colb2:
         }
         st.session_state["done_06"] = True
 
-        # Navegar al paso de Conciliación (ajusta al nombre real si ya lo tenés)
+        # Ir a 07_Conciliación_de_ventas.py (con fallbacks)
         for nxt in [
-            "pages/07_Conciliacion_ventas.py",
+            "pages/07_Conciliación_de_ventas.py",
+            "pages/07_Conciliacion_de_ventas.py",
             "pages/07_Conciliación_ventas.py",
+            "pages/07_Conciliacion_ventas.py",
             "pages/07_Conciliacion.py",
         ]:
             try:
@@ -126,6 +127,10 @@ with colb2:
         else:
             st.success("Valoración guardada. Abrí **Conciliación de ventas** desde el menú lateral.")
             st.stop()
+
+# 👇 Detiene el render aquí mientras sigas en esta página
+st.stop()
+
 
 
     # 👇 Detiene el render aquí mientras sigas en el Paso 1
