@@ -4,7 +4,7 @@ import streamlit as st
 st.set_page_config(page_title="Evaluador de Capacidad de Pago", page_icon="💻")
 
 st.title("🏠 Evaluador de Capacidad de Pago")
-st.write("Usa el menú lateral o el enlace de abajo para iniciar con el **Paso 1 – Datos del asesor**.")
+st.write("Usa el menú lateral o el enlace de abajo para iniciar con el recorrido")
 
 st.divider()
 
