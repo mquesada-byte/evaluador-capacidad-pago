@@ -155,7 +155,11 @@ with colNav2:
             "antiguedad": antiguedad_str(n["antiguedad_anios"], n["antiguedad_meses"]),
         }
         st.session_state["done_02"] = True
-        # Si aún no existe el paso 3, mostramos mensaje y frenamos
-        st.success("Datos guardados. Continúa con el siguiente paso desde el menú lateral.")
-        st.stop()
+
+        # Ir directo al Paso 3A – Ventas Top-down
+        try:
+            st.switch_page("pages/03_Ventas_top_down.py")
+        except Exception:
+            st.success("Datos guardados. Abre el **Paso 3A – Ventas Top-down** desde el menú lateral.")
+            st.stop()
 
