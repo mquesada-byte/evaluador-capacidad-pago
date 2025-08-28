@@ -84,6 +84,14 @@ with st.container(border=True):
         help="Préstamos/obligaciones vigentes; cuota mensual, saldos y clasificación por plazo."
     )
 
+# Paso 10 – Gastos operativos
+with st.container(border=True):
+    st.page_link(
+        "pages/10_Gastos_operativos.py",
+        label=f"{step_status('done_10')} 10 – Gastos operativos",
+        help="Gastos del negocio/hogar relacionados a la operación, mensualizados."
+    )
+
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
