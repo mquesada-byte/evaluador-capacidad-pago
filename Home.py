@@ -39,7 +39,7 @@ with st.container(border=True):
 # Paso 4 (Bottom-up)
 with st.container(border=True):
     st.page_link(
-        "pages/04_Ventas_Botton_up.py",  # <- nombre exacto de tu archivo
+        "pages/04_Ventas_botton_up.py",  # <- nombre exacto de tu archivo
         label=f"{step_status('done_04')} 04 – Ventas (Bottom-up)",
         help="Estimación operativa (clientes x ticket) para el último mes calendario."
     )
