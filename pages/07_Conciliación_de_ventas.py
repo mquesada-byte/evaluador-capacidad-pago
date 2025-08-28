@@ -280,6 +280,3 @@ with c3:
 # Evita render adicional
 st.stop()
 
-
-    # 👇 Detiene el render aquí mientras sigas en el Paso 1
-    st.stop()
