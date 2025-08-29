@@ -433,7 +433,8 @@ else:
 st.divider()
 
 # Navegación
-c1, c2 = st.columns(2)
+c1, c2, c3 = st.columns([0.33, 0.34, 0.33])
+
 with c1:
     if st.button("⬅️ Volver a 13 – Balance General", use_container_width=True):
         for prev in ["pages/13_Balance_general.py", "13_Balance_general.py"]:
@@ -442,11 +443,31 @@ with c1:
                 break
             except Exception:
                 continue
+
 with c2:
+    if st.button("Guardar y continuar ➡️", use_container_width=True):
+        # Marcar paso completado (opcional)
+        st.session_state["done_14"] = True
+        # Ir al análisis IA (con y sin tilde por compatibilidad de archivos)
+        for nxt in [
+            "pages/15_Análisis_IA.py",
+            "pages/15_Analisis_IA.py",
+            "15_Analisis_IA.py",
+        ]:
+            try:
+                st.switch_page(nxt)
+                break
+            except Exception:
+                continue
+        else:
+            st.success("Informe final listo. Abrí **15 – Análisis IA** desde el menú lateral.")
+            st.stop()
+
+with c3:
     if st.button("Ir al inicio 🏠", use_container_width=True):
         try:
             st.switch_page("Home.py")
         except Exception:
-            st.experimental_rerun()
+            st.rerun()
 
 
