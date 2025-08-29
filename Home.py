@@ -116,6 +116,22 @@ with st.container(border=True):
         help="Activos, pasivos, patrimonio y capital de trabajo."
     )
 
+# --- Paso 14: Informe final (PDF) ------------------------
+with st.sidebar:
+    st.markdown("### Paso 14")
+    if st.button("📑 Informe final (PDF)", key="go_step_14", use_container_width=True):
+        try:
+            st.switch_page("pages/14_Informe_final.py")
+        except Exception:
+            st.error("No se encontró: pages/14_Informe_final.py")
+
+# (Si llevas conteo de progreso, recuerda subir el total a 14 y, opcionalmente,
+# crear/usar la bandera st.session_state['done_14'] cuando se complete el paso 14.)
+
+{"num": 14, "title": "Informe final (PDF)", "icon": "📑",
+ "path": "pages/14_Informe_final.py", "done_key": "done_14"}
+
+
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
