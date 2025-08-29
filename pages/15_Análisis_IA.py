@@ -1,22 +1,30 @@
 # pages/15_Analisis_IA.py
 import os
+import io
 import datetime as dt
 import streamlit as st
-import pandas as pd
+import pandas as pd  # opcional, por si lo necesitás más adelante
 
 st.set_page_config(page_title="Paso 15: Análisis asistido (IA)", page_icon="🤖")
 
 st.title("🤖 Paso 15: Análisis asistido (IA)")
-st.caption("Resumen y recomendación automática a partir del informe final y el balance.")
+st.caption("Resumen y recomendación automática a partir de TODA la información consolidada en `reporte`.")
 
 # ====== Helpers ======
+def _num(x):
+    try:
+        if x is None: return 0.0
+        return float(str(x).replace(",", "").replace("₡", "").strip())
+    except Exception:
+        return 0.0
+
 def _fmt_col(x):
     try:
-        return f"₡ {int(round(float(str(x).replace(',', '').replace('₡', '').strip() or 0))):,}".replace(",", ".")
+        return f"₡ {int(round(_num(x))):,}".replace(",", ".")
     except Exception:
         return "₡ 0"
 
-def _mk_prompt(rep: dict) -> str:
+def _mk_prompt(rep: dict, tono: str) -> str:
     er = rep.get("estado_resultados", {}) or {}
     bg = rep.get("balance_general", {}) or {}
     deudas = rep.get("deudas_activas", {}).get("totales", {}) or {}
@@ -34,8 +42,7 @@ def _mk_prompt(rep: dict) -> str:
     capital_trabajo = bg.get("capital_trabajo")
 
     return f"""
-Eres un analista de crédito microfinanzas. Con un tono profesional y claro,
-haz un **análisis de capacidad de pago** y **riesgos** con estos datos (valores mensuales y totales):
+Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago** y **riesgos** con estos datos (valores mensuales y totales):
 
 - Ventas: {ventas}
 - Utilidad neta operativa: {utilidad_neta_ope}
@@ -49,7 +56,7 @@ haz un **análisis de capacidad de pago** y **riesgos** con estos datos (valores
 - Patrimonio: {patrimonio}
 - Capital de trabajo: {capital_trabajo}
 
-Entrega el resultado en **Markdown** con estas secciones:
+Entrega la respuesta en **Markdown** con estas secciones:
 1) Fortalezas del negocio (viñetas)
 2) Riesgos / banderas rojas (viñetas)
 3) Lectura financiera (2–3 párrafos)
@@ -61,10 +68,11 @@ Concluye con un párrafo final de criterio del analista.
 
 def _fallback_local(rep: dict) -> str:
     er = rep.get("estado_resultados", {}) or {}
-    disponible = er.get("disponible_para_prestamo_colones") or 0
-    ventas = er.get("ventas_colones") or 0
-    ratio = (float(disponible) / float(ventas)) if (ventas and float(ventas) > 0) else 0.0
-    sug_cuota = max(0, int((disponible or 0) * 0.35))
+    disponible = _num(er.get("disponible_para_prestamo_colones") or 0)
+    ventas = _num(er.get("ventas_colones") or 0)
+    ratio = (disponible / ventas) if ventas > 0 else 0.0
+    sug_cuota_30 = int(disponible * 0.30)
+    sug_cuota_35 = int(disponible * 0.35)
     return f"""
 ## Fortalezas
 - Flujo disponible estimado: {_fmt_col(disponible)}
@@ -79,11 +87,10 @@ El negocio muestra un disponible mensual de {_fmt_col(disponible)}. La relación
 Consolidar documentación y validar estacionalidad.
 
 ## Capacidad de pago
-Como referencia, una cuota objetivo del 30–35% del disponible sería {_fmt_col(int((disponible or 0)*0.30))} a {_fmt_col(int((disponible or 0)*0.35))}.
+Como referencia, una cuota objetivo del 30–35% del disponible sería {_fmt_col(sug_cuota_30)} a {_fmt_col(sug_cuota_35)}.
 
 ## Recomendación
-- Monto y plazo a definir según política interna; cuota sugerida aprox.: **{_fmt_col(sug_cuota)}**.
-- Mantener ratio cuota/ingreso ≤ 35%.
+- Monto y plazo a definir según política interna; mantener ratio cuota/ingreso ≤ 35%.
 
 ## Pendientes de verificación
 - [ ] Confirmar registros/evidencia
@@ -93,95 +100,156 @@ Como referencia, una cuota objetivo del 30–35% del disponible sería {_fmt_col
 **Criterio del analista:** sujeto a verificación de evidencias y política vigente.
 """.strip()
 
-def _save_pdf(md_text: str, filename: str = "analisis_ia.pdf"):
+def _pdf_from_md(md_text: str) -> bytes:
+    """Convierte un markdown simple en PDF (texto plano estilizado) y devuelve bytes."""
     try:
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.pagesizes import LETTER
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.lib import colors
 
-        # Fuente con tildes (si está en el repo). Si falla, usa Helvetica.
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=LETTER, leftMargin=40, rightMargin=40, topMargin=48, bottomMargin=36)
+
+        # Registrar fuente con tildes (si está disponible)
         try:
             pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
             font_name = "DejaVu"
         except Exception:
             font_name = "Helvetica"
 
-        doc = SimpleDocTemplate(filename, pagesize=LETTER, leftMargin=40, rightMargin=40, topMargin=48, bottomMargin=36)
         styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name="Body", fontName=font_name, fontSize=10.5, leading=14))
-        styles.add(ParagraphStyle(name="Title", fontName=font_name, fontSize=15, leading=19, spaceAfter=12))
+        styles.add(ParagraphStyle(name="Body", fontName=font_name, fontSize=10.5, leading=14, textColor=colors.black))
+        styles.add(ParagraphStyle(name="Title", fontName=font_name, fontSize=15, leading=19, spaceAfter=12, textColor=colors.black))
 
         story = []
         story.append(Paragraph("Análisis asistido (IA)", styles["Title"]))
         story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), styles["Body"]))
         story.append(Spacer(1, 10))
 
-        # Convierte el Markdown simple a párrafos (sin render completo de MD).
-        for line in md_text.split("\n"):
-            if not line.strip():
+        # Render muy simple de MD
+        for raw in md_text.split("\n"):
+            line = raw.strip()
+            if not line:
                 story.append(Spacer(1, 6))
                 continue
-            # Reemplazo mínimo para títulos/viñetas
+            # Limpieza mínima para **negritas**
             line = line.replace("**", "").replace("__", "")
             story.append(Paragraph(line, styles["Body"]))
 
         doc.build(story)
-        return filename
+        pdf_bytes = buf.getvalue()
+        buf.close()
+        return pdf_bytes
     except Exception as e:
-        st.info("No se pudo generar el PDF. ¿Instalaste `reportlab` y (opcional) `DejaVuSans.ttf`?")
+        st.warning("No se pudo generar el PDF. Verificá que `reportlab` esté instalado y (opcionalmente) `DejaVuSans.ttf`.")
         st.exception(e)
-        return None
+        return b""
+
+def _get_openai_key():
+    # Prioriza st.secrets, luego variables de entorno comunes
+    candidates = []
+    try:
+        if hasattr(st, "secrets"):
+            for k in ["OPENAI_API_KEY", "openai_api_key", "OPENAI_KEY"]:
+                if k in st.secrets:
+                    candidates.append(st.secrets[k])
+    except Exception:
+        pass
+    for envk in ["OPENAI_API_KEY", "openai_api_key", "OPENAI_KEY"]:
+        if os.getenv(envk):
+            candidates.append(os.getenv(envk))
+    return next((c for c in candidates if c), None)
+
+def _call_openai_chat(model: str, system_prompt: str, user_prompt: str, api_key: str) -> str:
+    """
+    Intenta con SDK nuevo (openai>=1.x). Si falla, intenta con SDK legacy (openai<1).
+    Devuelve el contenido en Markdown o lanza excepción.
+    """
+    # Intento moderno
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,
+        )
+        return resp.choices[0].message.content
+    except Exception:
+        # Intento legacy
+        try:
+            import openai
+            openai.api_key = api_key
+            resp = openai.ChatCompletion.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.3,
+            )
+            return resp["choices"][0]["message"]["content"]
+        except Exception as e2:
+            raise e2
 
 # ====== Carga del reporte consolidado ======
 reporte = st.session_state.get("reporte", {}) or {}
 if not reporte:
-    st.warning("No se encontró información previa en memoria. Volvé a generar el informe final.")
+    st.warning("No se encontró información previa en memoria (`st.session_state['reporte']`). Volvé al Paso 14 y generá el informe.")
     st.stop()
 
-# ====== Parámetros de la IA ======
+# ====== Opciones de la IA ======
 with st.expander("Opciones de análisis IA"):
     modelo = st.selectbox("Modelo", ["gpt-4o-mini", "gpt-4o", "gpt-4.1"], index=0)
     tono = st.selectbox("Tono", ["Profesional", "Conciso", "Detallado"], index=0)
+    ver_prompt = st.checkbox("Mostrar prompt generado", value=False)
 
+# ====== Generación ======
 col_g, col_d = st.columns([0.6, 0.4])
+
 with col_g:
-    if st.button("Generar análisis", type="primary"):
-        prompt = _mk_prompt(reporte) + f"\n\nTono pedido: {tono}."
-        analysis_md = None
+    if st.button("Generar análisis", type="primary", use_container_width=True):
+        prompt = _mk_prompt(reporte, tono)
+        if ver_prompt:
+            with st.expander("Prompt utilizado"):
+                st.code(prompt)
 
-        # Intento con OpenAI (si hay API key y librería)
-        api_key = st.secrets.get("OPENAI_API_KEY") if hasattr(st, "secrets") else None
-        api_key = api_key or os.getenv("OPENAI_API_KEY")
+        api_key = _get_openai_key()
         try:
-            from openai import OpenAI
             if not api_key:
-                raise RuntimeError("Falta OPENAI_API_KEY")
-            client = OpenAI(api_key=api_key)
-            resp = client.chat.completions.create(
-                model=modelo,
-                messages=[
-                    {"role": "system", "content": "Eres analista senior de crédito en microfinanzas."},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.3,
-            )
-            analysis_md = resp.choices[0].message.content
-        except Exception:
-            # Fallback local
-            analysis_md = _fallback_local(reporte)
+                raise RuntimeError("Falta OPENAI_API_KEY en st.secrets o variables de entorno.")
 
-        st.session_state["analisis_ia_md"] = analysis_md
+            md = _call_openai_chat(
+                model=modelo,
+                system_prompt="Eres analista senior de crédito en microfinanzas.",
+                user_prompt=prompt,
+                api_key=api_key,
+            )
+        except Exception:
+            # Fallback local (sin API o error)
+            md = _fallback_local(reporte)
+
+        st.session_state["analisis_ia_md"] = md
+        # Generar PDF ya mismo para que quede disponible
+        st.session_state["analisis_ia_pdf_bytes"] = _pdf_from_md(md)
         st.success("Análisis generado.")
 
 with col_d:
-    if st.session_state.get("analisis_ia_md"):
-        if st.button("📄 Descargar PDF"):
-            path = _save_pdf(st.session_state["analisis_ia_md"], "analisis_ia.pdf")
-            if path:
-                st.download_button("Descargar análisis (PDF)", data=open(path, "rb").read(),
-                                   file_name="analisis_ia.pdf", mime="application/pdf")
+    pdf_bytes = st.session_state.get("analisis_ia_pdf_bytes", b"")
+    if pdf_bytes:
+        st.download_button(
+            "📄 Descargar análisis (PDF)",
+            data=pdf_bytes,
+            file_name="analisis_ia.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
 st.divider()
 st.subheader("Resultado")
@@ -190,11 +258,14 @@ st.markdown(st.session_state.get("analisis_ia_md", "_Todavía no generaste el an
 # ====== Navegación ======
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
-    if st.button("⬅️ Volver a 14 – Informe final"):
+    if st.button("⬅️ Volver a 14 – Informe final", use_container_width=True):
         try:
             st.switch_page("pages/14_Informe_final.py")
         except Exception:
             st.stop()
 with c2:
-    if st.button("Ir al inicio 🏠"):
-        st.switch_page("Home.py")
+    if st.button("Ir al inicio 🏠", use_container_width=True):
+        try:
+            st.switch_page("Home.py")
+        except Exception:
+            st.experimental_rerun()
