@@ -131,6 +131,13 @@ with st.sidebar:
 {"num": 14, "title": "Informe final (PDF)", "icon": "📑",
  "path": "pages/14_Informe_final.py", "done_key": "done_14"}
 
+# Paso 15 – Análisis asistido (IA)
+with st.container(border=True):
+    st.page_link(
+        "pages/15_Analisis_IA.py",
+        label=f"{step_status('done_15')} 15 – Análisis asistido (IA)",
+        help="Genera el análisis del caso con IA y permite descargarlo en PDF."
+    )
 
 
 st.divider()
