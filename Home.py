@@ -14,9 +14,41 @@ def first_existing(paths):
             return p
     return None
 
+# --- Estado de OpenAI (sin revelar detalles de configuración) ---
+def _openai_activo() -> bool:
+    # Verifica que exista configuración y que el SDK esté instalado.
+    key = None
+    try:
+        # Puede venir desde configuración interna de la app
+        key = st.secrets.get("OPENAI_CONFIG") or st.secrets.get("OPENAI_API_KEY")
+    except Exception:
+        pass
+    key = key or os.getenv("OPENAI_CONFIG") or os.getenv("OPENAI_API_KEY")
+
+    sdk_ok = False
+    try:
+        from openai import OpenAI  # SDK nuevo
+        sdk_ok = True
+    except Exception:
+        try:
+            import openai as _legacy_openai  # Compatibilidad
+            sdk_ok = True
+        except Exception:
+            pass
+    return bool(key) and sdk_ok
+
+ok_ai = _openai_activo()
+
 st.title("🏠 Evaluador de Capacidad de Pago")
+st.caption(f"**OpenAI:** {'✅ activo' if ok_ai else '⚠️ no disponible'}")
 st.write("Usa el menú lateral o los enlaces de abajo para navegar por los pasos.")
 st.divider()
+
+with st.sidebar:
+    if ok_ai:
+        st.success("OpenAI: activo")
+    else:
+        st.warning("OpenAI: no disponible")
 
 # Paso 1
 with st.container(border=True):
@@ -139,7 +171,7 @@ with st.container(border=True):
     else:
         st.info("Crea `pages/14_Informe_final.py` para habilitar el Paso 14.")
 
-# Paso 15 – Análisis asistido (IA) (sin acentos en el nombre de archivo)
+# Paso 15 – Análisis asistido (IA)
 with st.container(border=True):
     p15 = first_existing([
         "pages/15_Analisis_IA.py",
@@ -155,5 +187,6 @@ with st.container(border=True):
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
+
 
 
