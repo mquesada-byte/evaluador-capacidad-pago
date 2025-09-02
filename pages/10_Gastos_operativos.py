@@ -9,14 +9,14 @@ st.set_page_config(page_title="Paso 10: Gastos operativos", page_icon="🧾")
 # =========================
 def _mensualizar_gasto(monto: float, periodicidad: str) -> float:
     per = (periodicidad or "").lower()
-    if per == "diario":       return monto * 30.0
-    if per == "semanal":      return monto * (52.0 / 12.0)
-    if per == "quincenal":    return monto * 2.0
-    if per == "mensual":      return monto
-    if per == "bimestral":    return monto / 2.0
-    if per == "trimestral":   return monto / 3.0
-    if per == "semestral":    return monto / 6.0
-    if per == "anual":        return monto / 12.0
+    if per == "diario":        return monto * 30.0
+    if per == "semanal":       return monto * (52.0 / 12.0)
+    if per == "quincenal":     return monto * 2.0
+    if per == "mensual":       return monto
+    if per == "bimestral":     return monto / 2.0
+    if per == "trimestral":    return monto / 3.0
+    if per == "semestral":     return monto / 6.0
+    if per == "anual":         return monto / 12.0
     return 0.0
 
 st.title("🧾 Paso 10: Gastos operativos")
@@ -152,6 +152,11 @@ st.write({
 
 st.divider()
 
+# --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
+st.subheader("Finalizar este paso")
+sin_gastos = st.checkbox("El hogar o negocio no tiene gastos operativos que reportar.", key="sin_gastos")
+puede_continuar = (valid_mask.sum() > 0) or sin_gastos
+
 # Navegación / Guardar
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
@@ -166,15 +171,15 @@ with c2:
         "Guardar y continuar ➡️",
         key="gastos_save_next",
         use_container_width=True,
-        disabled=(valid_mask.sum() == 0)
+        disabled=not puede_continuar
     ):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["gastos_operativos"] = {
-            "tabla": df.fillna("").to_dict(orient="records"),
+            "tabla": df.fillna("").to_dict(orient="records") if valid_mask.sum() > 0 else [],
             "totales": {
-                "total_gasto_operativo_mensualizado_colones": total_gasto_mensual,
-                "total_gasto_operativo_verificado_colones": total_gasto_verificado,
-                "registros_validos": int(valid_mask.sum()),
+                "total_gasto_operativo_mensualizado_colones": total_gasto_mensual if not sin_gastos else 0,
+                "total_gasto_operativo_verificado_colones": total_gasto_verificado if not sin_gastos else 0,
+                "registros_validos": int(valid_mask.sum()) if not sin_gastos else 0,
             }
         }
         st.session_state["done_10"] = True
@@ -185,7 +190,4 @@ with c2:
         except Exception:
             st.success("Gastos operativos guardados. Abrí **11 – Gastos familiares** desde el menú lateral.")
             st.stop()
-
-# Evita render extra
-st.stop()
 
