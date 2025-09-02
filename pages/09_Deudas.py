@@ -9,14 +9,14 @@ st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="�
 # =========================
 def _mensualizar_pago(monto: float, periodicidad: str) -> float:
     per = (periodicidad or "").lower()
-    if per == "diario":       return monto * 30.0
-    if per == "semanal":      return monto * (52.0 / 12.0)
-    if per == "quincenal":    return monto * 2.0
-    if per == "mensual":      return monto
-    if per == "bimestral":    return monto / 2.0
-    if per == "trimestral":   return monto / 3.0
-    if per == "semestral":    return monto / 6.0
-    if per == "anual":        return monto / 12.0
+    if per == "diario":        return monto * 30.0
+    if per == "semanal":       return monto * (52.0 / 12.0)
+    if per == "quincenal":     return monto * 2.0
+    if per == "mensual":       return monto
+    if per == "bimestral":     return monto / 2.0
+    if per == "trimestral":    return monto / 3.0
+    if per == "semestral":     return monto / 6.0
+    if per == "anual":         return monto / 12.0
     return 0.0
 
 st.title("💳 Paso 9: Deudas activas del hogar")
@@ -196,6 +196,11 @@ st.write({
 
 st.divider()
 
+# --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
+st.subheader("Finalizar este paso")
+sin_deudas = st.checkbox("El hogar no tiene deudas activas que reportar.", key="sin_deudas")
+puede_continuar = (valid_mask.sum() > 0) or sin_deudas
+
 # Navegación / Guardar
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
@@ -208,22 +213,21 @@ with c1:
                 continue
 
 with c2:
-    if st.button("Guardar y continuar ➡️", key="deudas_save_next", use_container_width=True,
-                 disabled=(valid_mask.sum() == 0)):
+    if st.button("Guardar y continuar ➡️", key="deudas_save_next", use_container_width=True, disabled=not puede_continuar):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["deudas_activas"] = {
-            "tabla": df.fillna("").to_dict(orient="records"),
+            "tabla": df.fillna("").to_dict(orient="records") if valid_mask.sum() > 0 else [],
             "totales": {
-                "total_pago_mensual_colones": total_pago_mensual,
-                "total_pago_mensual_verificado_colones": total_pago_verificado,
-                "total_adeudado_colones": total_adeudado,
-                "total_adeudado_corto_plazo_colones": total_adeudado_corto,
-                "total_adeudado_largo_plazo_colones": total_adeudado_largo,
-                "registros_validos": int(valid_mask.sum()),
+                "total_pago_mensual_colones": total_pago_mensual if not sin_deudas else 0,
+                "total_pago_mensual_verificado_colones": total_pago_verificado if not sin_deudas else 0,
+                "total_adeudado_colones": total_adeudado if not sin_deudas else 0,
+                "total_adeudado_corto_plazo_colones": total_adeudado_corto if not sin_deudas else 0,
+                "total_adeudado_largo_plazo_colones": total_adeudado_largo if not sin_deudas else 0,
+                "registros_validos": int(valid_mask.sum()) if not sin_deudas else 0,
             }
         }
         st.session_state["done_09"] = True
-
+        
         # Ir directamente al paso 10: Gastos operativos
         try:
             st.switch_page("pages/10_Gastos_operativos.py")
