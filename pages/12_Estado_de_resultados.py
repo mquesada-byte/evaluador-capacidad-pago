@@ -51,8 +51,19 @@ def _fmt_col(x):
     except Exception:
         return "₡0"
 
+# ========= Guardrail para datos faltantes =========
+if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["reporte"]:
+    st.warning("¡Faltan datos de Ventas! Por favor, regresa al **Paso 5** para ingresar la información de ventas, compras y margen.")
+    if st.button("⬅️ Volver a 5 – Ventas"):
+        try:
+            st.switch_page("pages/05_Ventas_insumos_margen.py")
+        except Exception:
+            st.stop()
+    st.stop()
+    
 # ========= Recolección (con rutas de origen) =========
 src = {}
+vin = st.session_state["reporte"]["ventas_p5"]
 
 # 1) Ventas - Se busca en múltiples lugares, priorizando Conciliación y luego el Paso 5
 ventas_total = _getr(["ventas_conciliacion", "ventas_conciliadas_colones"])
@@ -73,20 +84,33 @@ else:
             src["ventas"] = "reporte.ventas_bottomup.ventas_estimadas_colones"
 ventas_total = _num(ventas_total, 0)
 
-# 2) Compras/Costos (Corregido para buscar en la clave "ventas_p5")
-compras_total = _getr(["ventas_p5", "compras_mes_colones"])
-if compras_total is not None:
+# 2) Compras/Costos (Corregido para buscar según el modo del Paso 5)
+compras_total = 0.0
+if vin["modo"] == "Bienes (insumos/margen)":
+    compras_total = _getr(["ventas_p5", "compras_mes_colones"])
     src["compras"] = "reporte.ventas_p5.compras_mes_colones"
+elif vin["modo"] == "Servicio con costo = % de ventas":
+    compras_total = _getr(["ventas_p5", "costo_estimado_colones"])
+    src["compras"] = "reporte.ventas_p5.costo_estimado_colones"
 else:
-    compras_total = 0.0
+    src["compras"] = "No aplica (modo Servicio por comisión)"
 compras_total = _num(compras_total, 0)
 
 # 3) Margen (tipo + % - Corregido para buscar en la clave "ventas_p5")
-tipo_margen = _getr(["ventas_p5", "tipo_margen"])
-margen_pct_raw = _getr(["ventas_p5", "margen_pct"])
-margen_pct = _num_or_none(margen_pct_raw)
-if tipo_margen is not None and margen_pct is not None:
-    src["margen"] = "reporte.ventas_p5.(tipo_margen,margen_pct)"
+tipo_margen = None
+margen_pct = None
+if vin["modo"] == "Bienes (insumos/margen)":
+    tipo_margen = _getr(["ventas_p5", "tipo_margen"])
+    margen_pct = _num_or_none(_getr(["ventas_p5", "margen_pct"]))
+    if tipo_margen is not None and margen_pct is not None:
+        src["margen"] = "reporte.ventas_p5.(tipo_margen,margen_pct)"
+elif vin["modo"] == "Servicio por comisión (%)":
+    tipo_margen = "Sobre facturación bruta"
+    margen_pct = _num_or_none(_getr(["ventas_p5", "comision_pct"]))
+    if tipo_margen is not None and margen_pct is not None:
+        src["margen"] = "reporte.ventas_p5.comision_pct"
+else:
+    src["margen"] = "No aplica (modo Servicio con costo)"
 
 # 4) Gastos operativos
 gastos_ope_total = _num(
@@ -115,9 +139,9 @@ src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 
 # ========= Cálculos =========
 utilidad_bruta = None
-if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)")):
-    pct = margen_pct / 100.0 if margen_pct > 1 else margen_pct
-    if tipo_margen == "Sobre ventas":
+if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta")):
+    pct = margen_pct / 100.0
+    if tipo_margen == "Sobre ventas" or tipo_margen == "Sobre facturación bruta":
         utilidad_bruta = ventas_total * pct
     else:
         utilidad_bruta = compras_total * pct
@@ -139,11 +163,14 @@ col1, col2, col3 = st.columns(3)
 with col1: st.metric("Ventas", _fmt_col(ventas_total))
 with col2: st.metric("Compras/Costos", _fmt_col(compras_total))
 with col3:
-    base_txt = ("ventas" if (tipo_margen == "Sobre ventas")
-                else ("compras" if (tipo_margen == "Sobre compras (markup)") else "—"))
+    base_txt = "—"
+    if tipo_margen == "Sobre ventas" or tipo_margen == "Sobre facturación bruta":
+        base_txt = "ventas"
+    elif tipo_margen == "Sobre compras (markup)":
+        base_txt = "compras"
+
     if margen_pct is not None:
-        pct_show = margen_pct if margen_pct <= 1 else (margen_pct / 100.0)
-        st.metric("Margen (base)", f"{pct_show:.0%} sobre {base_txt}")
+        st.metric("Margen (base)", f"{margen_pct:.0f}% sobre {base_txt}")
     else:
         st.metric("Margen (base)", "— sobre —")
 
@@ -193,7 +220,11 @@ with col_nav1:
                 continue
 
 with col_nav2:
-    if st.button("Continuar ➡️ Balance general", type="primary", use_container_width=True):
+    if st.button(
+        "Continuar ➡️ Balance general",
+        type="primary",
+        use_container_width=True,
+    ):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["estado_resultados"] = {
             "ventas_colones": int(round(ventas_total)),
