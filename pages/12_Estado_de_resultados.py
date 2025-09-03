@@ -1,4 +1,3 @@
-# pages/12_Estado_de_resultadosl.py
 # ---------------------------------------------------------
 # Lee st.session_state["reporte"] generado por los pasos previos
 # y calcula el Disponible para pago del préstamo (Credimujer).
@@ -11,15 +10,20 @@ st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
 
 # ========= Helpers de lectura/formatos =========
 def _getr(path, default=None):
+    """
+    Lee un valor del reporte en session_state, navegando por una lista de claves.
+    Ejemplo: _getr(["ventas_p5", "ventas_estimadas_colones"])
+    """
     cur = st.session_state.get("reporte", {}) or {}
     try:
         for p in path:
             cur = cur[p]
         return cur
-    except Exception:
+    except (KeyError, IndexError, TypeError):
         return default
 
 def _num(x, default=0.0):
+    """Convierte un valor a float de manera segura."""
     try:
         if x is None:
             return float(default)
@@ -32,6 +36,7 @@ def _num(x, default=0.0):
             return float(default)
 
 def _num_or_none(x):
+    """Convierte un valor a float o retorna None."""
     try:
         if x is None or (isinstance(x, str) and x.strip() == ""):
             return None
@@ -40,6 +45,7 @@ def _num_or_none(x):
         return None
 
 def _fmt_col(x):
+    """Formatea un número como moneda de Costa Rica."""
     try:
         return f"₡{int(round(_num(x))):,}".replace(",", ".")
     except Exception:
@@ -48,40 +54,39 @@ def _fmt_col(x):
 # ========= Recolección (con rutas de origen) =========
 src = {}
 
-# 1) Ventas
+# 1) Ventas - Se busca en múltiples lugares, priorizando Conciliación y luego el Paso 5
 ventas_total = _getr(["ventas_conciliacion", "ventas_conciliadas_colones"])
 if ventas_total:
     src["ventas"] = "reporte.ventas_conciliacion.ventas_conciliadas_colones"
 else:
     ventas_total = (
+        _getr(["ventas_p5", "ventas_estimadas_colones"]) or
         _getr(["ventas_topdown", "monto_colones"]) or
-        _getr(["ventas_bottomup", "ventas_estimadas_colones"]) or
-        _getr(["ventas_insumos_simple", "ventas_estimadas_colones"]) or
-        _getr(["ventas_insumos", "ventas_estimadas_colones"])
+        _getr(["ventas_bottomup", "ventas_estimadas_colones"])
     )
     if ventas_total:
-        if _getr(["ventas_topdown", "monto_colones"]):
+        if _getr(["ventas_p5", "ventas_estimadas_colones"]):
+            src["ventas"] = "reporte.ventas_p5.ventas_estimadas_colones"
+        elif _getr(["ventas_topdown", "monto_colones"]):
             src["ventas"] = "reporte.ventas_topdown.monto_colones"
-        elif _getr(["ventas_bottomup", "ventas_estimadas_colones"]):
-            src["ventas"] = "reporte.ventas_bottomup.ventas_estimadas_colones"
         else:
-            src["ventas"] = "reporte.ventas_insumos_simple.ventas_estimadas_colones"
+            src["ventas"] = "reporte.ventas_bottomup.ventas_estimadas_colones"
 ventas_total = _num(ventas_total, 0)
 
-# 2) Compras/Costos (de 3C simple)
-compras_total = _getr(["ventas_insumos_simple", "compras_mes_colones"])
+# 2) Compras/Costos (Corregido para buscar en la clave "ventas_p5")
+compras_total = _getr(["ventas_p5", "compras_mes_colones"])
 if compras_total is not None:
-    src["compras"] = "reporte.ventas_insumos_simple.compras_mes_colones"
+    src["compras"] = "reporte.ventas_p5.compras_mes_colones"
 else:
     compras_total = 0.0
 compras_total = _num(compras_total, 0)
 
-# 3) Margen (tipo + % desde 3C simple)
-tipo_margen = _getr(["ventas_insumos_simple", "tipo_margen"])
-margen_pct_raw = _getr(["ventas_insumos_simple", "margen_pct"])
+# 3) Margen (tipo + % - Corregido para buscar en la clave "ventas_p5")
+tipo_margen = _getr(["ventas_p5", "tipo_margen"])
+margen_pct_raw = _getr(["ventas_p5", "margen_pct"])
 margen_pct = _num_or_none(margen_pct_raw)
 if tipo_margen is not None and margen_pct is not None:
-    src["margen"] = "reporte.ventas_insumos_simple.(tipo_margen,margen_pct)"
+    src["margen"] = "reporte.ventas_p5.(tipo_margen,margen_pct)"
 
 # 4) Gastos operativos
 gastos_ope_total = _num(
@@ -111,7 +116,7 @@ src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 # ========= Cálculos =========
 utilidad_bruta = None
 if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)")):
-    pct = margen_pct if margen_pct <= 1 else margen_pct / 100.0
+    pct = margen_pct / 100.0 if margen_pct > 1 else margen_pct
     if tipo_margen == "Sobre ventas":
         utilidad_bruta = ventas_total * pct
     else:
