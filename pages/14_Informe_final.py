@@ -105,7 +105,7 @@ rep_ases = rep.get("asesor", {}) or {}
 asesor_nombre = rep_ases.get("nombre") or ases.get("nombre") or "(sin registrar)"
 fecha_str = rep_ases.get("fecha_hora") or _fmt_dt(ases.get("fecha_hora")) or dt.datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")
 fuente_hora = rep_ases.get("hora_fuente") or ("Internet" if ases.get("timestamp_source") == "internet"
-                                              else ("Dispositivo" if ases.get("timestamp_source") else "—"))
+                                             else ("Dispositivo" if ases.get("timestamp_source") else "—"))
 
 # GPS
 lat = ases.get("lat"); lon = ases.get("lon")
@@ -172,6 +172,7 @@ vcon = rep.get("ventas_conciliacion", {}) or {}
 ventas_conc  = vcon.get("ventas_conciliadas_colones")
 max_dev      = vcon.get("desviacion_max_pct")   # fracción 0–1 si existía
 pesos        = vcon.get("pesos", {}) or {}
+estimaciones = vcon.get("estimaciones", [])
 
 # ========= UI =========
 st.title("📑 Informe final")
@@ -238,6 +239,12 @@ filas = [
     {"Ángulo": "Insumos/Margen", "Monto bruto": ("No aplica" if vin.get("no_aplica") else _fmt_col(insumos_val)), "Ajuste": "—", "Usado": "—" if vin.get("no_aplica") else (_fmt_col(insumos_val) if insumos_val else "—")},
 ]
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+
+# Cuadro de estimaciones disponibles
+if estimaciones:
+    st.subheader("Estimaciones de ventas disponibles")
+    st.dataframe(pd.DataFrame(estimaciones), use_container_width=True, hide_index=True)
+
 
 ape = None
 if ventas_conc:
@@ -374,6 +381,29 @@ def _build_pdf_bytes() -> bytes:
         story.append(t_sales)
         story.append(Spacer(1, 6))
 
+        # Tabla de estimaciones para el PDF
+        if estimaciones:
+            story.append(Paragraph("Estimaciones de ventas disponibles", h3))
+            est_data = [
+                ["Fecha", "Ángulo", "Monto", "Comentarios"]
+            ]
+            for row in estimaciones:
+                est_data.append([
+                    row.get("Fecha", "—"),
+                    row.get("Ángulo", "—"),
+                    _fmt_col(row.get("Monto (en colones)")),
+                    row.get("Comentarios", "—")
+                ])
+            t_est = Table(est_data, colWidths=[80, 100, 100, 210])
+            t_est.setStyle(TableStyle([
+                ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+                ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+                ("ALIGN", (0,0), (-1,-1), "LEFT"),
+                ("ALIGN", (2,1), (2,-1), "RIGHT"),
+            ]))
+            story.append(t_est)
+            story.append(Spacer(1, 6))
+
         if ventas_conc:
             ape_loc = None
             if top_ajustado and _num(ventas_conc) > 0:
@@ -469,5 +499,4 @@ with c3:
             st.switch_page("Home.py")
         except Exception:
             st.rerun()
-
 
