@@ -240,10 +240,14 @@ filas = [
 ]
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
-# Cuadro de estimaciones disponibles
+# Cuadro de estimaciones disponibles (siempre visible)
+st.subheader("Estimaciones de ventas disponibles")
 if estimaciones:
-    st.subheader("Estimaciones de ventas disponibles")
-    st.dataframe(pd.DataFrame(estimaciones), use_container_width=True, hide_index=True)
+    df_est = pd.DataFrame(estimaciones)
+else:
+    # Crear un DataFrame vacío con las columnas esperadas
+    df_est = pd.DataFrame(columns=["Fecha", "Ángulo", "Monto (en colones)", "Comentarios"])
+st.dataframe(df_est, use_container_width=True, hide_index=True)
 
 
 ape = None
@@ -499,4 +503,5 @@ with c3:
             st.switch_page("Home.py")
         except Exception:
             st.rerun()
+
 
