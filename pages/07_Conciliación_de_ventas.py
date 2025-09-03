@@ -1,4 +1,3 @@
-# pages/07_Conciliación_de_ventas.py
 import streamlit as st
 import pandas as pd
 
@@ -35,7 +34,7 @@ def _fmt_col(x: int | float | None) -> str:
         return str(x)
 
 def _nivel_confiabilidad(max_dev: float | None, num_metodos: int, fuente: str | None,
-                         conf_cli: int | None, factor_asesor: float, dudas: str) -> str:
+                          conf_cli: int | None, factor_asesor: float, dudas: str) -> str:
     # Si hay dudas serias, capea en "Baja"
     if dudas == "Dudas serias":
         return "Baja"
@@ -91,10 +90,20 @@ if isinstance(top_raw, (int, float)) and top_raw > 0 and tipicidad in ["Típico"
 vbu = rep.get("ventas_bottomup", {})
 bottom_val = vbu.get("ventas_estimadas_colones")
 
-# 05 Insumos (puede no aplicar)
-vin = rep.get("ventas_insumos_simple", rep.get("ventas_insumos", {}))
-insumos_no_aplica = bool(vin.get("no_aplica")) if isinstance(vin, dict) else False
-insumos_val = None if insumos_no_aplica else vin.get("ventas_estimadas_colones")
+# 05 Insumos (ahora maneja todos los modos de Paso 5)
+vin = rep.get("ventas_p5", {})
+modo_p5 = vin.get("modo")
+insumos_val = vin.get("ventas_estimadas_colones")
+insumos_decl = None
+if modo_p5 == "Bienes (insumos/margen)":
+    insumos_decl = vin.get("compras_mes_colones")
+elif modo_p5 == "Servicio por comisión (%)":
+    insumos_decl = vin.get("facturacion_bruta_mes_colones")
+elif modo_p5 == "Servicio con costo = % de ventas":
+    insumos_decl = vin.get("ventas_reportadas_mes_colones")
+else:
+    insumos_decl = None
+    insumos_val = None
 
 disponibles = [x for x in [top_adj, bottom_val, insumos_val] if isinstance(x, (int, float)) and x > 0]
 if len(disponibles) == 0:
@@ -120,7 +129,7 @@ if len(disponibles) == 0:
 filas = [
     {"Ángulo": "Top-down", "Monto declarado": _fmt_col(top_raw), "Ajuste tipicidad": top_ajuste_txt if top_adj else "—", "Usado en conciliación": _fmt_col(top_adj)},
     {"Ángulo": "Bottom-up", "Monto declarado": _fmt_col(bottom_val), "Ajuste tipicidad": "—", "Usado en conciliación": _fmt_col(bottom_val)},
-    {"Ángulo": "Insumos/Margen", "Monto declarado": "No aplica" if insumos_no_aplica else _fmt_col(insumos_val), "Ajuste tipicidad": "—", "Usado en conciliación": "—" if insumos_no_aplica else _fmt_col(insumos_val)},
+    {"Ángulo": modo_p5, "Monto declarado": _fmt_col(insumos_decl) if insumos_decl is not None else "No aplica", "Ajuste tipicidad": "—", "Usado en conciliación": _fmt_col(insumos_val) if insumos_val is not None else "—"},
 ]
 st.write("**Estimaciones disponibles**")
 st.table(pd.DataFrame(filas))
@@ -154,16 +163,17 @@ dudas_extra_top = {"Sin dudas": 1.00, "Dudas leves": 0.90, "Dudas serias": 0.75}
 # ---- Pesos crudos antes de outliers ----
 w_top = (w_top_base * fuente_factor * conf_factor * factor_asesor * dudas_extra_top) if top_adj else 0.0
 w_bottom = (w_bottom_base * factor_asesor) if bottom_val else 0.0
-w_ins = (w_ins_base * factor_asesor * (1.0 if (vin.get("tiene_registros_compras") == "Sí") else 0.80)) if insumos_val else 0.0
+# La ponderación del método de insumos ahora depende de si se usaron registros
+w_ins = (w_ins_base * factor_asesor * (1.0 if (vin.get("tiene_registros_compras") == "Sí" or vin.get("tiene_registros_fact") == "Sí") else 0.80)) if insumos_val is not None else 0.0
 
 # Consistencia (penaliza outliers >40% vs mediana)
-vals = [x for x in [top_adj, bottom_val, insumos_val] if x]
+vals = [x for x in [top_adj, bottom_val, insumos_val] if x is not None]
 median_ref = None
 if len(vals) >= 2:
     median_ref = sorted(vals)[len(vals)//2]
 
 def _penaliza_outlier(v, w):
-    if v and median_ref:
+    if v is not None and median_ref is not None:
         d = abs(v - median_ref) / median_ref
         return w * (0.30 if d > 0.40 else 1.0)
     return w
@@ -178,7 +188,7 @@ if w_sum == 0:
     # fallback si todo quedó en 0
     w_top = 1.0 if top_adj else 0.0
     w_bottom = 1.0 if bottom_val else 0.0
-    w_ins = 1.0 if insumos_val else 0.0
+    w_ins = 1.0 if insumos_val is not None else 0.0
     w_sum = w_top + w_bottom + w_ins
 w_top_n, w_bottom_n, w_ins_n = (w_top / w_sum, w_bottom / w_sum, w_ins / w_sum)
 
@@ -188,7 +198,7 @@ if top_adj:
     ventas_conc += top_adj * w_top_n
 if bottom_val:
     ventas_conc += bottom_val * w_bottom_n
-if insumos_val:
+if insumos_val is not None:
     ventas_conc += insumos_val * w_ins_n
 
 # Desviación máxima entre pares
@@ -200,7 +210,7 @@ for a, b in [(top_adj, bottom_val), (top_adj, insumos_val), (bottom_val, insumos
 max_dev = max(desv_list) if desv_list else None
 
 # Confiabilidad final
-num_metodos = len([x for x in [top_adj, bottom_val, insumos_val] if x])
+num_metodos = len([x for x in [top_adj, bottom_val, insumos_val] if x is not None])
 confiab = _nivel_confiabilidad(max_dev, num_metodos, fuente, conf_cli, factor_asesor, dudas)
 
 # Rango
@@ -271,5 +281,3 @@ with c3:
 
 # Evita render adicional
 st.stop()
-
-
