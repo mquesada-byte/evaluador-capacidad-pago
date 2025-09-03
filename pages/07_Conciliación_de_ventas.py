@@ -1,19 +1,12 @@
-# pages/07_Ventas_conciliacion.py
-# ---------------------------------------------------------
-# Conciliación de ventas (Top-down vs Bottom-up vs Insumos)
-#
-# Requiere:
-# - Que 06 haya guardado reporte["valoracion_asesor"]["factor_asesor_0a1"]
-# - Que los pasos anteriores hayan guardado sus datos en st.session_state["reporte"]
-# ---------------------------------------------------------
-
 import streamlit as st
 import pandas as pd
 
-# ---------- Config ----------
 st.set_page_config(page_title="Paso 7: Conciliación de ventas", page_icon="🧮")
 
-# ---------- Helpers ----------
+# =========================
+# PASO 7 – Conciliación de ventas (Top-down vs Bottom-up vs Insumos)
+# Requiere: que 06 haya guardado reporte["valoracion_asesor"]["factor_asesor_0a1"]
+# =========================
 def _ajuste_tipicidad(valor: float, tipicidad: str) -> tuple[float, str]:
     """Devuelve (valor_ajustado, texto_ajuste). Regla simple: Alto -10%, Bajo +10%."""
     f = 1.0
@@ -41,7 +34,7 @@ def _fmt_col(x: int | float | None) -> str:
         return str(x)
 
 def _nivel_confiabilidad(max_dev: float | None, num_metodos: int, fuente: str | None,
-                          conf_cli: int | None, factor_asesor: float, dudas: str) -> str:
+                             conf_cli: int | None, factor_asesor: float, dudas: str) -> str:
     # Si hay dudas serias, capea en "Baja"
     if dudas == "Dudas serias":
         return "Baja"
@@ -98,7 +91,7 @@ vbu = rep.get("ventas_bottomup", {})
 bottom_val = vbu.get("ventas_estimadas_colones")
 
 # 05 Insumos (ahora maneja todos los modos de Paso 5)
-vin = rep.get("ventas_insumos_simple", rep.get("ventas_insumos", {})) # Corregido para leer de la variable correcta
+vin = rep.get("ventas_p5", {})
 modo_p5 = vin.get("modo")
 insumos_val = vin.get("ventas_estimadas_colones")
 insumos_decl = None
@@ -224,31 +217,6 @@ confiab = _nivel_confiabilidad(max_dev, num_metodos, fuente, conf_cli, factor_as
 rango_min = min(disponibles) if disponibles else None
 rango_max = max(disponibles) if disponibles else None
 
-# ---- Crear lista de estimaciones ----
-estimaciones = []
-if top_adj:
-    estimaciones.append({
-        "Fecha": st.session_state.get("asesor", {}).get("fecha_hora", ""),
-        "Ángulo": "Top-down",
-        "Monto (en colones)": int(round(top_adj)),
-        "Comentarios": rep.get("ventas_topdown", {}).get("comentario", ""),
-    })
-if bottom_val:
-    estimaciones.append({
-        "Fecha": st.session_state.get("asesor", {}).get("fecha_hora", ""),
-        "Ángulo": "Bottom-up",
-        "Monto (en colones)": int(round(bottom_val)),
-        "Comentarios": rep.get("ventas_bottomup", {}).get("comentario", ""),
-    })
-if insumos_val is not None:
-    estimaciones.append({
-        "Fecha": st.session_state.get("asesor", {}).get("fecha_hora", ""),
-        "Ángulo": "Insumos/Margen",
-        "Monto (en colones)": int(round(insumos_val)),
-        "Comentarios": rep.get("ventas_insumos", {}).get("comentario", ""),
-    })
-
-
 # Mostrar resultados
 st.subheader("Resultado conciliado")
 st.success(
@@ -300,8 +268,7 @@ with c3:
                 "confianza_cliente": conf_cli,
                 "factor_asesor": round(factor_asesor, 2),
                 "dudas_declaracion": dudas,
-            },
-            "estimaciones": estimaciones, # Agregado para el reporte final
+            }
         }
         st.session_state["done_07"] = True
 
