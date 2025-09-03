@@ -41,21 +41,22 @@ def init_paso5_state():
     vin.setdefault("modo", "Bienes (insumos/margen)")
 
     # --- 1) Bienes ---
-    vin.setdefault("tiene_registros_compras", "Sí")    # "Sí" | "No"
-    vin.setdefault("compras_mes", 0)                   # ₡
-    vin.setdefault("tipo_margen", "Sobre ventas")     # "Sobre ventas" | "Sobre compras (markup)"
-    vin.setdefault("margen_pct", 30)                  # %
+    vin.setdefault("tiene_registros_compras", "Sí")      # "Sí" | "No"
+    vin.setdefault("compras_mes", 0)                      # ₡
+    vin.setdefault("tipo_margen", "Sobre ventas")        # "Sobre ventas" | "Sobre compras (markup)"
+    vin.setdefault("margen_pct", 30)                      # %
 
     # --- 2) Servicio por comisión ---
-    vin.setdefault("tiene_registros_fact", "Sí")      # "Sí" | "No"
-    vin.setdefault("facturacion_bruta_mes", 0)        # ₡ facturado al cliente final
-    vin.setdefault("comision_pct", 10)                # %
+    vin.setdefault("tiene_registros_fact", "Sí")        # "Sí" | "No"
+    vin.setdefault("facturacion_bruta_mes", 0)           # ₡ facturado al cliente final
+    vin.setdefault("comision_pct", 10)                   # %
 
     # --- 3) Servicio con costo = % de ventas ---
-    vin.setdefault("ventas_reportadas_mes", 0)        # ₡ ventas/ingresos directos del negocio
-    vin.setdefault("costo_pct_sobre_ventas", 10)      # % del costo (transporte/otros) sobre ventas
+    vin.setdefault("ventas_reportadas_mes", 0)           # ₡ ventas/ingresos directos del negocio
+    vin.setdefault("costo_pct_sobre_ventas", 10)         # % del costo (transporte/otros) sobre ventas
 
     vin.setdefault("comentario", "")
+    st.session_state.setdefault("no_data_p5", False) # Nueva variable de estado para la casilla
 
 # =========================
 # Cálculos
@@ -106,9 +107,18 @@ def _calc_servicio_costo_pct_ventas(ventas: float, costo_pct: float):
 init_paso5_state()
 vin = st.session_state.ventas_p5
 mes_etiqueta, mes_iso = _mes_anterior_label()
+oblig_ok = False # Inicializa la variable de validación
 
 st.title("🧮 Paso 5: Ventas")
 st.caption(f"Mes de referencia: **{mes_etiqueta}**.")
+
+# Opciones "No tengo datos" para deshabilitar los campos
+st.session_state.no_data_p5 = st.checkbox(
+    "No tengo datos para este mes",
+    value=st.session_state.no_data_p5
+)
+
+is_disabled = st.session_state.no_data_p5
 
 # Selector de modo
 vin["modo"] = st.selectbox(
@@ -123,7 +133,8 @@ vin["modo"] = st.selectbox(
         "• Bienes: estima ventas desde compras + margen. "
         "• Comisión: ingreso = facturación bruta × % comisión. "
         "• Costo % ventas: se ingresan ventas y el costo directo como % de esas ventas."
-    )
+    ),
+    disabled=is_disabled
 )
 
 st.markdown("---")
@@ -136,13 +147,15 @@ if vin["modo"] == "Bienes (insumos/margen)":
             "¿Tiene facturas o registros de compras del mes?",
             options=["Sí", "No"],
             index=0 if vin["tiene_registros_compras"] == "Sí" else 1,
-            help="No es obligatorio, pero mejora la confiabilidad."
+            help="No es obligatorio, pero mejora la confiabilidad.",
+            disabled=is_disabled
         )
 
     vin["compras_mes"] = st.number_input(
         f"Compras del mes de {mes_etiqueta} (₡) *",
         min_value=0, step=1000, value=int(vin["compras_mes"]),
-        help="Total pagado/por pagar a proveedores durante el mes (aprox. COGS)."
+        help="Total pagado/por pagar a proveedores durante el mes (aprox. COGS).",
+        disabled=is_disabled
     )
 
     st.markdown("---")
@@ -153,21 +166,24 @@ if vin["modo"] == "Bienes (insumos/margen)":
             options=["Sobre ventas", "Sobre compras (markup)"],
             index=0 if vin["tipo_margen"] == "Sobre ventas" else 1,
             help=("Si dice 'gano 30% de lo que vendo' → Sobre ventas. "
-                  "Si dice 'vendo 50% más caro que el costo' → Sobre compras (markup).")
+                  "Si dice 'vendo 50% más caro que el costo' → Sobre compras (markup)."),
+            disabled=is_disabled
         )
     with colM2:
         max_pct = 95 if vin["tipo_margen"] == "Sobre ventas" else 500
         vin["margen_pct"] = st.number_input(
             "Margen (%) *",
             min_value=0, max_value=max_pct, step=1, value=int(vin["margen_pct"]),
-            help=("Debe ser < 100% si es sobre ventas; puede ser >100% si es markup sobre compras.")
+            help=("Debe ser < 100% si es sobre ventas; puede ser >100% si es markup sobre compras."),
+            disabled=is_disabled
         )
 
     vin["comentario"] = st.text_area(
         "Comentario (opcional)",
         value=vin["comentario"],
         placeholder="Notas: compras para stock, cambios de precios, feriados, etc.",
-        height=80
+        height=80,
+        disabled=is_disabled
     )
 
     ventas_est, warn = _calc_ventas_bienes_desde_compras(
@@ -191,26 +207,30 @@ elif vin["modo"] == "Servicio por comisión (%)":
             "¿Tiene registros de facturación/ingresos del mes?",
             options=["Sí", "No"],
             index=0 if vin["tiene_registros_fact"] == "Sí" else 1,
-            help="Factura o total cobrado a los clientes por el servicio en el mes."
+            help="Factura o total cobrado a los clientes por el servicio en el mes.",
+            disabled=is_disabled
         )
     with colR2:
         vin["comision_pct"] = st.number_input(
             "Comisión que gana el negocio (%) *",
             min_value=0, max_value=100, step=1, value=int(vin["comision_pct"]),
-            help="Ej.: 10% por administración del servicio."
+            help="Ej.: 10% por administración del servicio.",
+            disabled=is_disabled
         )
 
     vin["facturacion_bruta_mes"] = st.number_input(
         f"Facturación bruta del servicio en {mes_etiqueta} (₡) *",
         min_value=0, step=1000, value=int(vin["facturacion_bruta_mes"]),
-        help="Total cobrado al cliente final por el servicio (base de cálculo de la comisión)."
+        help="Total cobrado al cliente final por el servicio (base de cálculo de la comisión).",
+        disabled=is_disabled
     )
 
     vin["comentario"] = st.text_area(
         "Comentario (opcional)",
         value=vin["comentario"],
         placeholder="Notas: contratos especiales, descuentos, comisiones variables, etc.",
-        height=80
+        height=80,
+        disabled=is_disabled
     )
 
     ventas_est, warn = _calc_ventas_servicio_comision(
@@ -232,20 +252,23 @@ else:
     vin["ventas_reportadas_mes"] = st.number_input(
         f"Ventas/Ingresos reportados del mes {mes_etiqueta} (₡) *",
         min_value=0, step=1000, value=int(vin["ventas_reportadas_mes"]),
-        help="Monto total que ingresa al negocio por el servicio en el mes."
+        help="Monto total que ingresa al negocio por el servicio en el mes.",
+        disabled=is_disabled
     )
 
     vin["costo_pct_sobre_ventas"] = st.number_input(
         "Costo directo como % de las ventas *",
         min_value=0, max_value=100, step=1, value=int(vin["costo_pct_sobre_ventas"]),
-        help="Ej.: 10% (transporte y otros)."
+        help="Ej.: 10% (transporte y otros).",
+        disabled=is_disabled
     )
 
     vin["comentario"] = st.text_area(
         "Comentario (opcional)",
         value=vin["comentario"],
         placeholder="Notas: variaciones puntuales, contratos especiales, etc.",
-        height=80
+        height=80,
+        disabled=is_disabled
     )
 
     ventas_est, costo_estimado, warn = _calc_servicio_costo_pct_ventas(
@@ -255,17 +278,22 @@ else:
 
     if warn:
         st.warning(warn)
-    elif ventas_est is not None:
+    elif ventas_est is not None and ventas_est > 0:
         st.info(
             f"**Ventas registradas {mes_etiqueta}:** {_fmt_crc(ventas_est)}  \n"
             f"**Costo directo estimado ({vin['costo_pct_sobre_ventas']}%):** {_fmt_crc(costo_estimado)}"
         )
 
+    # Definir la validación de obligatorios para este modo
     oblig_ok = (int(vin["ventas_reportadas_mes"]) > 0 and ventas_est is not None)
 
 # =========================
 # Navegación
 # =========================
+# La validación final ahora considera la casilla "No hay datos"
+if st.session_state.no_data_p5:
+    oblig_ok = True
+
 colNav1, colNav2 = st.columns([0.5, 0.5])
 with colNav1:
     if st.button("⬅️ Volver a 4 (Bottom-up)", key="back_to_4_from_5", use_container_width=True):
@@ -315,7 +343,7 @@ with colNav2:
                 "mes_iso": mes_iso,
                 "ventas_reportadas_mes_colones": int(vin["ventas_reportadas_mes"]),
                 "costo_pct_sobre_ventas": int(vin["costo_pct_sobre_ventas"]),
-                "costo_estimado_colones": int(round(costo_estimado)) if ventas_est is not None else None,
+                "costo_estimado_colones": int(round(costo_estimado)) if costo_estimado is not None else None,
                 "ventas_estimadas_colones": int(round(ventas_est)) if ventas_est is not None else None,
                 "comentario": vin["comentario"].strip(),
             }
@@ -331,4 +359,3 @@ with colNav2:
             except Exception:
                 st.success("Datos guardados. Abrí **06 – Valoración del asesor** desde el menú lateral.")
                 st.stop()
-
