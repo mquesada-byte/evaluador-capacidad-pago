@@ -3,7 +3,7 @@ import streamlit as st
 import datetime as dt
 from zoneinfo import ZoneInfo
 
-st.set_page_config(page_title="Paso 4: Ventas Bottom-up", page_icon="📊")
+st.set_page_config(page_title="Paso 4: Ventas Botton-up", page_icon="📊")
 
 TZ = ZoneInfo("America/Costa_Rica")
 
@@ -27,12 +27,13 @@ def _mes_anterior_label():
 def init_paso4_state():
     st.session_state.setdefault("ventas_bottomup", {})
     vbu = st.session_state.ventas_bottomup
-    vbu.setdefault("unidad_clientes", "Día")     # "Día" | "Semana" | "Mes"
-    vbu.setdefault("clientes", 0)                # clientes por unidad seleccionada
-    vbu.setdefault("dias_abiertos", 0)           # si unidad = Día
-    vbu.setdefault("semanas_abiertas", 4)        # si unidad = Semana
-    vbu.setdefault("ticket_promedio", 0)         # ₡ por cliente
+    vbu.setdefault("unidad_clientes", "Día")      # "Día" | "Semana" | "Mes"
+    vbu.setdefault("clientes", 0)                  # clientes por unidad seleccionada
+    vbu.setdefault("dias_abiertos", 0)             # si unidad = Día
+    vbu.setdefault("semanas_abiertas", 4)          # si unidad = Semana
+    vbu.setdefault("ticket_promedio", 0)           # ₡ por cliente
     vbu.setdefault("comentario", "")
+    st.session_state.setdefault("no_data", False) # Nueva variable de estado para la casilla
 
 def _calc_bottom_up_total(vbu: dict) -> int:
     unidad = vbu.get("unidad_clientes", "Día")
@@ -58,67 +59,84 @@ mes_etiqueta, mes_iso = _mes_anterior_label()
 st.title("📊 Paso 4: Ventas – Bottom-up (operativa)")
 st.caption(f"Estimación del último mes calendario: **{mes_etiqueta}**.")
 
-# Unidad
+# Casilla para la opción "No hay datos"
+st.session_state.no_data = st.checkbox(
+    "No tengo datos para este mes",
+    value=st.session_state.no_data
+)
+
+# Unidad, Entradas según la unidad, y Comentario, deshabilitados si la casilla está marcada
+is_disabled = st.session_state.no_data
+
 vbu["unidad_clientes"] = st.selectbox(
     "Clientes medidos por *",
     options=["Día", "Semana", "Mes"],
     index=["Día", "Semana", "Mes"].index(vbu["unidad_clientes"]) if vbu["unidad_clientes"] in ["Día", "Semana", "Mes"] else 0,
-    help="Elija si los clientes que declarará son por día, por semana o por mes."
+    help="Elija si los clientes que declarará son por día, por semana o por mes.",
+    disabled=is_disabled # Deshabilitar si se marca la casilla
 )
 
-# Entradas según la unidad
 if vbu["unidad_clientes"] == "Día":
     col1, col2, col3 = st.columns([0.33, 0.33, 0.34])
     with col1:
         vbu["dias_abiertos"] = st.number_input(
             "Días abiertos en el mes *", min_value=0, max_value=31, step=1, value=int(vbu["dias_abiertos"]),
-            help="Cantidad de días que operó el negocio en el mes de referencia."
+            help="Cantidad de días que operó el negocio en el mes de referencia.",
+            disabled=is_disabled
         )
     with col2:
         vbu["clientes"] = st.number_input(
             "Clientes por día *", min_value=0, step=1, value=int(vbu["clientes"]),
-            help="Promedio de clientes atendidos por día."
+            help="Promedio de clientes atendidos por día.",
+            disabled=is_disabled
         )
     with col3:
         vbu["ticket_promedio"] = st.number_input(
             "Ticket promedio (₡/cliente) *", min_value=0, step=100, value=int(vbu["ticket_promedio"]),
-            help="Venta promedio por cliente en colones."
+            help="Venta promedio por cliente en colones.",
+            disabled=is_disabled
         )
 elif vbu["unidad_clientes"] == "Semana":
     col1, col2, col3 = st.columns([0.33, 0.33, 0.34])
     with col1:
         vbu["semanas_abiertas"] = st.number_input(
             "Semanas abiertas en el mes *", min_value=0, max_value=5, step=1, value=int(vbu["semanas_abiertas"]),
-            help="Número de semanas efectivas trabajadas en el mes (usualmente 4–5)."
+            help="Número de semanas efectivas trabajadas en el mes (usualmente 4–5).",
+            disabled=is_disabled
         )
     with col2:
         vbu["clientes"] = st.number_input(
             "Clientes por semana *", min_value=0, step=1, value=int(vbu["clientes"]),
-            help="Promedio de clientes atendidos por semana."
+            help="Promedio de clientes atendidos por semana.",
+            disabled=is_disabled
         )
     with col3:
         vbu["ticket_promedio"] = st.number_input(
             "Ticket promedio (₡/cliente) *", min_value=0, step=100, value=int(vbu["ticket_promedio"]),
-            help="Venta promedio por cliente en colones."
+            help="Venta promedio por cliente en colones.",
+            disabled=is_disabled
         )
 else:  # "Mes"
     col1, col2 = st.columns([0.5, 0.5])
     with col1:
         vbu["clientes"] = st.number_input(
             "Clientes en el mes *", min_value=0, step=1, value=int(vbu["clientes"]),
-            help="Total de clientes atendidos en todo el mes."
+            help="Total de clientes atendidos en todo el mes.",
+            disabled=is_disabled
         )
     with col2:
         vbu["ticket_promedio"] = st.number_input(
             "Ticket promedio (₡/cliente) *", min_value=0, step=100, value=int(vbu["ticket_promedio"]),
-            help="Venta promedio por cliente en colones."
+            help="Venta promedio por cliente en colones.",
+            disabled=is_disabled
         )
 
 vbu["comentario"] = st.text_area(
     "Comentario (opcional)",
     value=vbu["comentario"],
     placeholder="Notas breves: p. ej., cierres, feriados, eventos o cambios que afecten este cálculo.",
-    height=80
+    height=80,
+    disabled=is_disabled
 )
 
 st.divider()
@@ -128,12 +146,16 @@ total_estimado = _calc_bottom_up_total(vbu)
 st.info(f"**Ventas estimadas (Bottom-up) para {mes_etiqueta}: ₡ {total_estimado:,}**".replace(",", "."))
 
 # -------- Validación obligatorios --------
-if vbu["unidad_clientes"] == "Día":
-    obligatorios_ok = (vbu["dias_abiertos"] > 0 and vbu["clientes"] > 0 and vbu["ticket_promedio"] > 0)
-elif vbu["unidad_clientes"] == "Semana":
-    obligatorios_ok = (vbu["semanas_abiertas"] > 0 and vbu["clientes"] > 0 and vbu["ticket_promedio"] > 0)
+# La validación ahora incluye la opción "no_data"
+if st.session_state.no_data:
+    obligatorios_ok = True
 else:
-    obligatorios_ok = (vbu["clientes"] > 0 and vbu["ticket_promedio"] > 0)
+    if vbu["unidad_clientes"] == "Día":
+        obligatorios_ok = (vbu["dias_abiertos"] > 0 and vbu["clientes"] > 0 and vbu["ticket_promedio"] > 0)
+    elif vbu["unidad_clientes"] == "Semana":
+        obligatorios_ok = (vbu["semanas_abiertas"] > 0 and vbu["clientes"] > 0 and vbu["ticket_promedio"] > 0)
+    else:
+        obligatorios_ok = (vbu["clientes"] > 0 and vbu["ticket_promedio"] > 0)
 
 # Navegación
 colNav1, colNav2 = st.columns([0.5, 0.5])
