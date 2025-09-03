@@ -109,8 +109,12 @@ elif vin["modo"] == "Servicio por comisión (%)":
     margen_pct = _num_or_none(_getr(["ventas_p5", "comision_pct"]))
     if tipo_margen is not None and margen_pct is not None:
         src["margen"] = "reporte.ventas_p5.comision_pct"
-else:
-    src["margen"] = "No aplica (modo Servicio con costo)"
+elif vin["modo"] == "Servicio con costo = % de ventas":
+    tipo_margen = "Costo directo"
+    margen_pct = _num_or_none(_getr(["ventas_p5", "costo_pct_sobre_ventas"]))
+    if tipo_margen is not None and margen_pct is not None:
+        src["margen"] = "reporte.ventas_p5.costo_pct_sobre_ventas"
+
 
 # 4) Gastos operativos
 gastos_ope_total = _num(
@@ -139,12 +143,15 @@ src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 
 # ========= Cálculos =========
 utilidad_bruta = None
-if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta")):
-    pct = margen_pct / 100.0
-    if tipo_margen == "Sobre ventas" or tipo_margen == "Sobre facturación bruta":
-        utilidad_bruta = ventas_total * pct
+if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
+    if tipo_margen == "Costo directo":
+        utilidad_bruta = ventas_total - compras_total
     else:
-        utilidad_bruta = compras_total * pct
+        pct = margen_pct / 100.0
+        if tipo_margen == "Sobre ventas" or tipo_margen == "Sobre facturación bruta":
+            utilidad_bruta = ventas_total * pct
+        else:
+            utilidad_bruta = compras_total * pct
 if utilidad_bruta is None:
     utilidad_bruta = max(0.0, ventas_total - compras_total)
 
@@ -168,9 +175,11 @@ with col3:
         base_txt = "ventas"
     elif tipo_margen == "Sobre compras (markup)":
         base_txt = "compras"
+    elif tipo_margen == "Costo directo":
+        base_txt = "ventas"
 
     if margen_pct is not None:
-        st.metric("Margen (base)", f"{margen_pct:.0f}% sobre {base_txt}")
+        st.metric(f"Margen ({tipo_margen})", f"{margen_pct:.0f}% sobre {base_txt}")
     else:
         st.metric("Margen (base)", "— sobre —")
 
