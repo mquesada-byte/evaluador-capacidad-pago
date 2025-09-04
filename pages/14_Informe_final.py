@@ -482,121 +482,64 @@ def _build_pdf_bytes() -> bytes:
         story.append(t_sales)
         story.append(Spacer(1, 6))
 
-        # Tabla de estimaciones para el PDF
-        if estimaciones:
-            story.append(Paragraph("Estimaciones de ventas disponibles", h3))
-            est_data = [
-                ["Fecha", "Ángulo", "Monto", "Comentarios"]
-            ]
-            for row in estimaciones:
-                est_data.append([
-                    row.get("Fecha", "—"),
-                    row.get("Ángulo", "—"),
-                    _fmt_col(row.get("Monto (en colones)")),
-                    row.get("Comentarios", "—")
-                ])
-            t_est = Table(est_data, colWidths=[80, 100, 100, 210])
-            t_est.setStyle(TableStyle([
+        # Estado de resultados
+        er = st.session_state.get("reporte", {}).get("estado_resultados", {})
+        if er:
+            story.append(PageBreak())
+            story.append(Paragraph("Estado de Resultados", h2))
+            t_er = Table([
+                ["Ventas", _fmt_col(er.get("ventas_colones"))],
+                ["Compras/Costos", _fmt_col(er.get("compras_costos_colones"))],
+                ["Utilidad Bruta", _fmt_col(er.get("utilidad_bruta_colones"))],
+                ["Gastos Operativos", _fmt_col(er.get("gastos_operativos_colones"))],
+                ["Utilidad Neta Operativa", _fmt_col(er.get("utilidad_neta_operativa_colones"))],
+                ["Otros ingresos", _fmt_col(er.get("otros_ingresos_colones"))],
+                ["Gastos familiares", _fmt_col(er.get("gastos_familiares_colones"))],
+                ["Pago de deudas", _fmt_col(er.get("pago_de_deudas_colones"))],
+                ["Subtotal post-otros", _fmt_col(er.get("subtotal_post_otros_colones"))],
+                ["Disponible para préstamo", _fmt_col(er.get("disponible_para_prestamo_colones"))],
+            ], colWidths=[250, 150])
+            t_er.setStyle(TableStyle([
                 ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
                 ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-                ("ALIGN", (0,0), (-1,-1), "LEFT"),
-                ("ALIGN", (2,1), (2,-1), "RIGHT"),
+                ("ALIGN", (1,0), (1,-1), "RIGHT"),
             ]))
-            story.append(t_est)
-            story.append(Spacer(1, 6))
+            story.append(t_er)
+            story.append(Spacer(1, 8))
 
-        if ventas_conc:
-            ape_loc = None
-            if top_ajustado and _num(ventas_conc) > 0:
-                ape_loc = abs(_num(top_ajustado) - _num(ventas_conc)) / _num(ventas_conc)
-            max_dev_loc = max_dev
-            if max_dev_loc is None:
-                pares = []
-                for a, b in [(top_ajustado, bottom_val), (top_ajustado, insumos_val), (bottom_val, insumos_val)]:
-                    d = _desv_pct(a, b)
-                    if d is not None:
-                        pares.append(d)
-                max_dev_loc = max(pares) if pares else None
-
-            story.append(Paragraph(f"Ventas conciliadas: {_fmt_col(ventas_conc)}", p))
-            story.append(Paragraph(f"Precisión de la clienta: {'—' if ape_loc is None else f'{(1-ape_loc):.0%}'}", p))
-            story.append(Paragraph(f"Desviación máx. entre métodos: {'—' if max_dev_loc is None else f'{max_dev_loc:.0%}'}", p))
-            story.append(Spacer(1, 6))
-            story.append(Paragraph(f"Fuente Top-down: {fuente_td or '—'}", p))
-            if pesos:
-                story.append(Paragraph(
-                    f"Ponderaciones conciliación (Top/Bottom/Insumos): "
-                    f"{pesos.get('top_down', 0):.2f} / {pesos.get('bottom_up', 0):.2f} / {pesos.get('insumos', 0):.2f}",
-                    small
-                ))
-
-        if comentarios:
-            story.append(Paragraph("Comentarios específicos de ventas:", h3))
-            for c in comentarios:
-                story.append(Paragraph(c, p))
+        # Balance General
+        bg = st.session_state.get("reporte", {}).get("balance_general", {})
+        if bg:
+            tot = bg.get("totales", {}) or {}
+            comentarios_bg = bg.get("comentarios", "")
+            story.append(PageBreak())
+            story.append(Paragraph("Balance General", h2))
+            t_bg = Table([
+                ["Activo Circulante", _fmt_col(tot.get("activo_circulante"))],
+                ["Activo Fijo Neto", _fmt_col(tot.get("activo_fijo"))],
+                ["Total Activos", _fmt_col(tot.get("total_activos"))],
+                ["Pasivo Circulante", _fmt_col(tot.get("pasivo_circulante"))],
+                ["Pasivo Largo Plazo", _fmt_col(tot.get("pasivo_largo"))],
+                ["Total Pasivos", _fmt_col(tot.get("total_pasivo"))],
+                ["Patrimonio", _fmt_col(tot.get("patrimonio"))],
+                ["Capital de trabajo", _fmt_col(tot.get("capital_trabajo"))],
+            ], colWidths=[250, 150])
+            t_bg.setStyle(TableStyle([
+                ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+                ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+                ("ALIGN", (1,0), (1,-1), "RIGHT"),
+            ]))
+            story.append(t_bg)
+            if comentarios_bg:
+                story.append(Spacer(1, 6))
+                story.append(Paragraph("Comentarios del asesor:", h3))
+                story.append(Paragraph(comentarios_bg, p))
 
         doc.build(story)
         return buf.getvalue()
     except ImportError:
-        # reportlab no disponible: indicación para instalar
         st.warning("Para generar PDF necesitás instalar **reportlab** (agregá `reportlab` a `requirements.txt`).")
         return b""
     except Exception as e:
         st.error(f"Error al generar el PDF: {e}")
         return b""
-
-# Generar bytes del PDF (si reportlab no está, devolverá vacío y ya mostramos aviso)
-pdf_bytes = _build_pdf_bytes()
-file_name = f"Informe_{cliente_nombre.replace(' ', '_')}.pdf"
-
-if pdf_bytes:
-    st.download_button(
-        "💾 Descargar informe en PDF",
-        data=pdf_bytes,
-        file_name=file_name,
-        mime="application/pdf",
-        use_container_width=True,
-        type="primary",
-    )
-else:
-    st.info("No se pudo generar el PDF en este entorno. Verifica que `reportlab` esté instalado.")
-
-st.divider()
-
-# Navegación
-c1, c2, c3 = st.columns([0.33, 0.34, 0.33])
-
-with c1:
-    if st.button("⬅️ Volver a 13 – Balance General", use_container_width=True):
-        for prev in ["pages/13_Balance_general.py", "13_Balance_general.py"]:
-            try:
-                st.switch_page(prev)
-                break
-            except Exception:
-                continue
-
-with c2:
-    if st.button("Guardar y continuar ➡️", use_container_width=True):
-        # Marcar paso completado (opcional)
-        st.session_state["done_14"] = True
-        # Ir al análisis IA (con y sin tilde por compatibilidad de archivos)
-        for nxt in [
-            "pages/15_Análisis_IA.py",
-            "pages/15_Analisis_IA.py",
-            "15_Analisis_IA.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Informe final listo. Abrí **15 – Análisis IA** desde el menú lateral.")
-            st.stop()
-
-with c3:
-    if st.button("Ir al inicio 🏠", use_container_width=True):
-        try:
-            st.switch_page("Home.py")
-        except Exception:
-            st.rerun()
