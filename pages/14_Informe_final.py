@@ -245,29 +245,23 @@ st.info(coment_val or "—")
 # Análisis de ventas
 st.subheader("III-b. Análisis de ventas")
 
-filas = [
-    {
-        "Ángulo": "Top-down (clienta)",
-        "Monto bruto": _fmt_col(top_raw),
-        "Ajuste": txt_ajuste if top_ajustado else "—",
-        "Usado": _fmt_col(top_ajustado) if top_ajustado else "—",
-    },
-    {
-        "Ángulo": "Bottom-up (operativa)",
-        "Monto bruto": _fmt_col(bottom_val),
-        "Ajuste": "—",
-        "Usado": _fmt_col(bottom_val) if bottom_val else "—",
-    },
-    {
-        "Ángulo": modo_insumos,  # ahora usa la etiqueta real guardada en conciliación
-        "Monto bruto": (_fmt_col(insumos_decl) if insumos_decl is not None else "No aplica"),
-        "Ajuste": "—",
-        "Usado": (_fmt_col(insumos_val) if insumos_val is not None else "—"),
-    },
-]
+filas = []
+if estimaciones:
+    for est in estimaciones:
+        filas.append({
+            "Ángulo": est.get("Ángulo", "—"),
+            "Monto bruto": _fmt_col(est.get("Monto declarado")),
+            "Ajuste": est.get("Ajuste tipicidad", "—"),
+            "Usado": _fmt_col(est.get("Usado en conciliación"))
+        })
+else:
+    filas = [
+        {"Ángulo": "Top-down (clienta)", "Monto bruto": _fmt_col(top_raw), "Ajuste": txt_ajuste if top_ajustado else "—", "Usado": _fmt_col(top_ajustado) if top_ajustado else "—"},
+        {"Ángulo": "Bottom-up (operativa)", "Monto bruto": _fmt_col(bottom_val), "Ajuste": "—", "Usado": _fmt_col(bottom_val) if bottom_val else "—"},
+        {"Ángulo": "Insumos/Margen", "Monto bruto": ("No aplica" if vin.get("no_aplica") else _fmt_col(insumos_val)), "Ajuste": "—", "Usado": "—" if vin.get("no_aplica") else (_fmt_col(insumos_val) if insumos_val else "—")},
+    ]
 
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
-
 
 # Cuadro de estimaciones disponibles (siempre visible)
 st.subheader("Estimaciones de ventas disponibles")
