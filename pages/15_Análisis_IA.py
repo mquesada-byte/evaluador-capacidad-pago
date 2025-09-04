@@ -135,7 +135,6 @@ def _pdf_from_md(md_text: str) -> bytes:
             if not line:
                 story.append(Spacer(1, 6))
                 continue
-            # Limpieza mínima para **negritas**
             line = line.replace("**", "").replace("__", "")
             story.append(Paragraph(line, styles["Body"]))
 
@@ -165,38 +164,20 @@ def _get_openai_key():
 
 def _call_openai_chat(model: str, system_prompt: str, user_prompt: str, api_key: str) -> str:
     """
-    Intenta con SDK nuevo (openai>=1.x). Si falla, intenta con SDK legacy (openai<1).
-    Devuelve el contenido en Markdown o lanza excepción.
+    Llama a la API de OpenAI (>=1.0.0) y devuelve el contenido en Markdown.
     """
-    # Intento moderno
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.3,
-        )
-        return resp.choices[0].message.content
-    except Exception:
-        # Intento legacy
-        try:
-            import openai
-            openai.api_key = api_key
-            resp = openai.ChatCompletion.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.3,
-            )
-            return resp["choices"][0]["message"]["content"]
-        except Exception as e2:
-            raise e2
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.3,
+    )
+    return resp.choices[0].message.content
 
 # ====== Carga del reporte consolidado ======
 reporte = st.session_state.get("reporte", {}) or {}
@@ -231,13 +212,10 @@ with col_g:
                 user_prompt=prompt,
                 api_key=api_key,
             )
-        except Exception as e:
-            st.error(f"Error al llamar a OpenAI: {e}")
-            # Fallback local (sin API o error)
+        except Exception:
             md = _fallback_local(reporte)
 
         st.session_state["analisis_ia_md"] = md
-        # Generar PDF ya mismo para que quede disponible
         st.session_state["analisis_ia_pdf_bytes"] = _pdf_from_md(md)
         st.success("Análisis generado.")
 
@@ -270,3 +248,4 @@ with c2:
             st.switch_page("Home.py")
         except Exception:
             st.experimental_rerun()
+
