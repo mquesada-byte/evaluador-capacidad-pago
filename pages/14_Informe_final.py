@@ -390,6 +390,8 @@ else:
 
 
 # ======================== PDF =========================
+import io
+
 def _build_pdf_bytes() -> bytes:
     """Construye un PDF del informe usando reportlab y devuelve bytes."""
     try:
@@ -415,7 +417,7 @@ def _build_pdf_bytes() -> bytes:
 
         story = []
 
-        # Portada
+        # =================== Portada ===================
         story.append(Paragraph("Informe de evaluación – Credimujer", h1))
         story.append(Paragraph(f"Fecha de visita: {fecha_str} ({fuente_hora})", p))
         story.append(Paragraph(f"Asesor: {asesor_nombre}", p))
@@ -423,7 +425,7 @@ def _build_pdf_bytes() -> bytes:
             story.append(Paragraph(f"GPS: {float(lat):.6f}, {float(lon):.6f}", p))
         story.append(Spacer(1, 12))
 
-        # Cliente y negocio
+        # =================== Cliente y negocio ===================
         story.append(Paragraph("Cliente y negocio", h2))
         story.append(Paragraph(f"Cliente: {cliente_nombre}", p))
         story.append(Paragraph(f"Identificación: {cliente_cedula}", p))
@@ -438,7 +440,7 @@ def _build_pdf_bytes() -> bytes:
         story.append(Paragraph(f"Ubicación / señas: {ubicacion}", p))
         story.append(Spacer(1, 8))
 
-        # Valoración
+        # =================== Valoración ===================
         story.append(Paragraph("Valoración del asesor", h2))
         t_val = Table(
             [
@@ -463,7 +465,7 @@ def _build_pdf_bytes() -> bytes:
 
         story.append(PageBreak())
 
-        # Análisis de ventas
+        # =================== Análisis de ventas ===================
         story.append(Paragraph("Análisis de ventas", h2))
         data = [
             ["Ángulo", "Monto bruto", "Ajuste", "Usado"],
@@ -482,64 +484,109 @@ def _build_pdf_bytes() -> bytes:
         story.append(t_sales)
         story.append(Spacer(1, 6))
 
-        # Estado de resultados
-        er = st.session_state.get("reporte", {}).get("estado_resultados", {})
-        if er:
-            story.append(PageBreak())
-            story.append(Paragraph("Estado de Resultados", h2))
-            t_er = Table([
-                ["Ventas", _fmt_col(er.get("ventas_colones"))],
-                ["Compras/Costos", _fmt_col(er.get("compras_costos_colones"))],
-                ["Utilidad Bruta", _fmt_col(er.get("utilidad_bruta_colones"))],
-                ["Gastos Operativos", _fmt_col(er.get("gastos_operativos_colones"))],
-                ["Utilidad Neta Operativa", _fmt_col(er.get("utilidad_neta_operativa_colones"))],
-                ["Otros ingresos", _fmt_col(er.get("otros_ingresos_colones"))],
-                ["Gastos familiares", _fmt_col(er.get("gastos_familiares_colones"))],
-                ["Pago de deudas", _fmt_col(er.get("pago_de_deudas_colones"))],
-                ["Subtotal post-otros", _fmt_col(er.get("subtotal_post_otros_colones"))],
-                ["Disponible para préstamo", _fmt_col(er.get("disponible_para_prestamo_colones"))],
-            ], colWidths=[250, 150])
-            t_er.setStyle(TableStyle([
-                ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-                ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-                ("ALIGN", (1,0), (1,-1), "RIGHT"),
-            ]))
-            story.append(t_er)
-            story.append(Spacer(1, 8))
+        # =================== Estado de resultados ===================
+        story.append(Paragraph("Estado de Resultados", h2))
+        er_data = [
+            ["Ventas", _fmt_col(er_ventas)],
+            ["Compras/Costos", _fmt_col(er_compras)],
+            ["Utilidad Bruta", _fmt_col(er_utilidad_bruta)],
+            ["Gastos Operativos", _fmt_col(er_gastos_ope)],
+            ["Utilidad Neta Operativa", _fmt_col(er_utilidad_ope)],
+            ["Otros Ingresos", _fmt_col(er_otros_ing)],
+            ["Subtotal post-otros", _fmt_col(er_subtotal_post)],
+            ["Gastos familiares", _fmt_col(er_gastos_fam)],
+            ["Pago de deudas", _fmt_col(er_deudas)],
+            ["Disponible para préstamo", _fmt_col(er_disponible)],
+        ]
+        t_er = Table(er_data, colWidths=[220, 180])
+        t_er.setStyle(TableStyle([
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+            ("ALIGN", (1,0), (1,-1), "RIGHT"),
+        ]))
+        story.append(t_er)
+        story.append(PageBreak())
 
-        # Balance General
-        bg = st.session_state.get("reporte", {}).get("balance_general", {})
-        if bg:
-            tot = bg.get("totales", {}) or {}
-            comentarios_bg = bg.get("comentarios", "")
-            story.append(PageBreak())
-            story.append(Paragraph("Balance General", h2))
-            t_bg = Table([
-                ["Activo Circulante", _fmt_col(tot.get("activo_circulante"))],
-                ["Activo Fijo Neto", _fmt_col(tot.get("activo_fijo"))],
-                ["Total Activos", _fmt_col(tot.get("total_activos"))],
-                ["Pasivo Circulante", _fmt_col(tot.get("pasivo_circulante"))],
-                ["Pasivo Largo Plazo", _fmt_col(tot.get("pasivo_largo"))],
-                ["Total Pasivos", _fmt_col(tot.get("total_pasivo"))],
-                ["Patrimonio", _fmt_col(tot.get("patrimonio"))],
-                ["Capital de trabajo", _fmt_col(tot.get("capital_trabajo"))],
-            ], colWidths=[250, 150])
-            t_bg.setStyle(TableStyle([
-                ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-                ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-                ("ALIGN", (1,0), (1,-1), "RIGHT"),
-            ]))
-            story.append(t_bg)
-            if comentarios_bg:
-                story.append(Spacer(1, 6))
-                story.append(Paragraph("Comentarios del asesor:", h3))
-                story.append(Paragraph(comentarios_bg, p))
+        # =================== Balance General ===================
+        story.append(Paragraph("Balance General", h2))
+        bg_data = [
+            ["Activo circulante", _fmt_col(bg_activo_circulante)],
+            ["Activo fijo neto", _fmt_col(bg_activo_fijo)],
+            ["Total Activos", _fmt_col(bg_total_activos)],
+            ["Pasivo circulante", _fmt_col(bg_pasivo_circulante)],
+            ["Pasivo largo plazo", _fmt_col(bg_pasivo_largo)],
+            ["Total Pasivos", _fmt_col(bg_total_pasivo)],
+            ["Patrimonio", _fmt_col(bg_patrimonio)],
+            ["Capital de trabajo", _fmt_col(bg_cap_trabajo)],
+        ]
+        t_bg = Table(bg_data, colWidths=[220, 180])
+        t_bg.setStyle(TableStyle([
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+            ("ALIGN", (1,0), (1,-1), "RIGHT"),
+        ]))
+        story.append(t_bg)
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("Comentarios del asesor:", h3))
+        story.append(Paragraph(bg_comentarios or "—", p))
 
         doc.build(story)
         return buf.getvalue()
+
     except ImportError:
         st.warning("Para generar PDF necesitás instalar **reportlab** (agregá `reportlab` a `requirements.txt`).")
         return b""
     except Exception as e:
         st.error(f"Error al generar el PDF: {e}")
         return b""
+
+
+# ======================== BOTONES UI =========================
+pdf_bytes = _build_pdf_bytes()
+file_name = f"Informe_{cliente_nombre.replace(' ', '_')}.pdf"
+
+if pdf_bytes:
+    st.download_button(
+        "💾 Descargar informe en PDF",
+        data=pdf_bytes,
+        file_name=file_name,
+        mime="application/pdf",
+        use_container_width=True,
+        type="primary",
+    )
+else:
+    st.info("No se pudo generar el PDF en este entorno. Verifica que `reportlab` esté instalado.")
+
+st.divider()
+
+# ======================== Navegación =========================
+c1, c2, c3 = st.columns([0.33, 0.34, 0.33])
+
+with c1:
+    if st.button("⬅️ Volver a 13 – Balance General", use_container_width=True):
+        for prev in ["pages/13_Balance_general.py", "13_Balance_general.py"]:
+            try:
+                st.switch_page(prev)
+                break
+            except Exception:
+                continue
+
+with c2:
+    if st.button("Guardar y continuar ➡️", use_container_width=True):
+        st.session_state["done_14"] = True
+        for nxt in ["pages/15_Análisis_IA.py", "pages/15_Analisis_IA.py", "15_Analisis_IA.py"]:
+            try:
+                st.switch_page(nxt)
+                break
+            except Exception:
+                continue
+        else:
+            st.success("Informe final listo. Abrí **15 – Análisis IA** desde el menú lateral.")
+            st.stop()
+
+with c3:
+    if st.button("Ir al inicio 🏠", use_container_width=True):
+        try:
+            st.switch_page("Home.py")
+        except Exception:
+            st.rerun()
