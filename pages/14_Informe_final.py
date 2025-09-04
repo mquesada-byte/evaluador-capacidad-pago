@@ -354,6 +354,36 @@ else:
     st.info("No se encontraron datos del Estado de Resultados (Paso 12).")
 
 
+# ================= BALANCE GENERAL (resumen) =================
+st.subheader("V. Balance General")
+
+bg = st.session_state.get("reporte", {}).get("balance_general", {})
+
+tot = bg.get("totales", {}) or {}
+comentarios_bg = bg.get("comentarios", "")
+
+if tot:
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("💼 Activo Circulante", _fmt_col(tot.get("activo_circulante")))
+        st.metric("🏭 Activo Fijo Neto", _fmt_col(tot.get("activo_fijo")))
+        st.metric("🧮 Total Activos", _fmt_col(tot.get("total_activos")))
+    with col2:
+        st.metric("💳 Pasivo Circulante", _fmt_col(tot.get("pasivo_circulante")))
+        st.metric("📉 Pasivo Largo Plazo", _fmt_col(tot.get("pasivo_largo")))
+        st.metric("📉 Total Pasivos", _fmt_col(tot.get("total_pasivo")))
+
+    st.markdown("---")
+    col3, col4 = st.columns(2)
+    with col3:
+        st.metric("📈 Patrimonio (Activo - Pasivo)", _fmt_col(tot.get("patrimonio")))
+    with col4:
+        st.metric("🧰 Capital de trabajo (AC - PC)", _fmt_col(tot.get("capital_trabajo")))
+
+    st.markdown("**Comentarios del asesor:**")
+    st.info(comentarios_bg or "—")
+else:
+    st.info("No se encontraron datos del Balance General (Paso 13).")
 
 
 
