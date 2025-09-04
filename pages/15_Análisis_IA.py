@@ -213,6 +213,19 @@ if api_key_test:
 else:
     st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
 
+# ====== Test de conexión con OpenAI ======
+try:
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key_test)
+
+    test_resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hola, ¿me recibes?"}],
+        max_tokens=20,
+    )
+    st.success(f"✅ Conexión exitosa. OpenAI respondió: {test_resp.choices[0].message.content}")
+except Exception as e:
+    st.error(f"❌ Falló la conexión con OpenAI: {e}")
 
 
 
