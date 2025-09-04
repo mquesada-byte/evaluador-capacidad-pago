@@ -14,40 +14,49 @@ st.caption(
 # ========= Helpers =========
 def _as_df(obj, cols=None):
     """Devuelve un DataFrame a partir de obj (DF, lista de filas, dicts, etc.)."""
+    if cols is not None:
+        cols = list(cols)
+
     if isinstance(obj, pd.DataFrame):
         return obj.copy()
     if obj is None:
         return pd.DataFrame(columns=cols or [])
-    if isinstance(obj, list):
+    if isinstance(obj, dict):
+        if "data" in obj and isinstance(obj["data"], list):
+            try:
+                return pd.DataFrame.from_records(obj["data"])
+            except Exception:
+                return pd.DataFrame(columns=cols or [])
         try:
-            return pd.DataFrame(obj)
+            return pd.DataFrame.from_records([obj])
         except Exception:
             return pd.DataFrame(columns=cols or [])
-    if isinstance(obj, dict):
+    if isinstance(obj, (list, tuple)):
         try:
-            return pd.DataFrame.from_records(obj)
+            return pd.DataFrame(obj, columns=cols)
         except Exception:
             return pd.DataFrame(columns=cols or [])
     return pd.DataFrame(columns=cols or [])
+
+# ========= Cargar estado previo =========
+rep = st.session_state.get("reporte", {})
+bg_saved = rep.get("balance_general", {})
 
 # Cargar totales de deudas (si existen; si no, 0)
 tot_corto = 0
 tot_largo = 0
 try:
-    _tot = st.session_state["reporte"]["deudas_activas"]["totales"]
+    _tot = rep.get("deudas_activas", {}).get("totales", {})
     tot_corto = int(_tot.get("total_adeudado_corto_plazo_colones", 0) or 0)
     tot_largo = int(_tot.get("total_adeudado_largo_plazo_colones", 0) or 0)
 except Exception:
     pass
 
-# Catálogo de evidencias
+# Catálogo de evidencia
 evidencias = [
     "Los tiene en caja", "Estado de cuenta", "Movimientos/SINPE", "Factura/Recibo",
     "Contrato", "Inventario físico", "Fotos/Video", "Otro", "No aplica"
 ]
-
-# Cargar datos previos si existen
-bg_saved = st.session_state.get("reporte", {}).get("balance_general", {})
 
 # ===================== ACTIVO CIRCULANTE =====================
 st.subheader("I. Activo Circulante")
@@ -64,8 +73,8 @@ caja_df = st.data_editor(
     column_config={
         "Cuenta/Banco": st.column_config.TextColumn("Cuenta/Banco"),
         "Saldo (₡)": st.column_config.NumberColumn("Saldo (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
@@ -85,8 +94,8 @@ cxc_df = st.data_editor(
     column_config={
         "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
         "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
@@ -96,13 +105,13 @@ st.markdown("---")
 
 # 3) Inventarios
 st.markdown("**Inventarios**")
+inv_cols = ["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
 inv_opts = {
     "Materia prima": "bg_inv_mp",
     "Producto en proceso": "bg_inv_pp",
     "Producto terminado": "bg_inv_pt",
 }
 subtotales_inv = {}
-inv_dict = {}
 for titulo, keyname in inv_opts.items():
     st.markdown(f"*{titulo}*")
     inv_placeholder = pd.DataFrame([{
@@ -110,19 +119,18 @@ for titulo, keyname in inv_opts.items():
         "Tipo de evidencia": "", "Comentario": ""
     } for _ in range(3)])
     df_inv = st.data_editor(
-        _as_df(bg_saved.get("inventarios", {}).get(keyname), inv_placeholder.columns) or inv_placeholder,
+        _as_df(bg_saved.get(keyname), inv_placeholder.columns) or inv_placeholder,
         use_container_width=True, num_rows="dynamic", hide_index=True, key=keyname,
         column_config={
             "Detalle": st.column_config.TextColumn("Detalle"),
             "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
             "Comentario": st.column_config.TextColumn("Comentario"),
         },
     )
     subtotal = int(pd.to_numeric(df_inv.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
     subtotales_inv[titulo] = subtotal
-    inv_dict[keyname] = df_inv.to_dict(orient="records")
     st.caption(f"Subtotal {titulo}: **₡{subtotal:,.0f}**")
     st.markdown("")
 total_inventarios = int(sum(subtotales_inv.values()))
@@ -155,8 +163,8 @@ with st.expander("Agregar/editar activos fijos"):
             "Activo": st.column_config.TextColumn("Activo"),
             "Valor bruto (₡)": st.column_config.NumberColumn("Valor bruto (₡)", min_value=0, step=25000, format="₡ %d"),
             "Depreciación acum. (₡)": st.column_config.NumberColumn("Depreciación acum. (₡)", min_value=0, step=25000, format="₡ %d"),
-            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
             "Comentario": st.column_config.TextColumn("Comentario"),
         },
     )
@@ -190,8 +198,8 @@ cpp_df = st.data_editor(
     column_config={
         "Proveedor": st.column_config.TextColumn("Proveedor"),
         "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
@@ -210,8 +218,8 @@ antic_df = st.data_editor(
     column_config={
         "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
         "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
@@ -226,7 +234,7 @@ pasivo_circulante = int(cpp_total + antic_total + tot_corto)
 st.metric("💳 **Total Pasivo Circulante**", f"₡{pasivo_circulante:,.0f}")
 st.markdown("---")
 
-# B) Pasivo a largo plazo
+# B) Pasivo a largo plazo (de Deudas)
 st.markdown("**Pasivo a largo plazo**")
 st.info(f"Total de largo plazo desde Deudas: **₡{tot_largo:,.0f}**")
 pasivo_largo = int(tot_largo)
@@ -251,7 +259,8 @@ st.divider()
 st.subheader("Comentarios del asesor")
 comentarios = st.text_area(
     "Observaciones, aclaraciones o notas relevantes para el análisis:",
-    key="bg_comentarios", height=140, value=bg_saved.get("comentarios", "")
+    key="bg_comentarios", height=140,
+    value=bg_saved.get("comentarios", "")
 )
 st.divider()
 
@@ -274,12 +283,24 @@ with c2:
     if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["balance_general"] = {
-            "caja_bancos": caja_df.to_dict(orient="records"),
-            "cxc_clientes": cxc_df.to_dict(orient="records"),
-            "inventarios": inv_dict,
-            "activo_fijo": af_df.to_dict(orient="records"),
-            "cpp": cpp_df.to_dict(orient="records"),
-            "anticipos": antic_df.to_dict(orient="records"),
+            "caja_bancos": caja_df.to_dict(orient="list"),
+            "cxc_clientes": cxc_df.to_dict(orient="list"),
+            "inv_mp": st.session_state.get("bg_inv_mp"),
+            "inv_pp": st.session_state.get("bg_inv_pp"),
+            "inv_pt": st.session_state.get("bg_inv_pt"),
+            "activo_fijo": af_df.to_dict(orient="list"),
+            "cpp": cpp_df.to_dict(orient="list"),
+            "anticipos": antic_df.to_dict(orient="list"),
+            "totales": {
+                "activo_circulante": activo_circulante,
+                "activo_fijo": af_neto_total,
+                "total_activos": total_activos,
+                "pasivo_circulante": pasivo_circulante,
+                "pasivo_largo": pasivo_largo,
+                "total_pasivo": total_pasivo,
+                "patrimonio": patrimonio,
+                "capital_trabajo": capital_trabajo,
+            },
             "comentarios": comentarios,
         }
         st.session_state["done_13"] = True
@@ -299,5 +320,6 @@ with c2:
         else:
             st.success("Balance general guardado. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
+
 
 
