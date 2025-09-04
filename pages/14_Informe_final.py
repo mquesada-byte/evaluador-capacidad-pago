@@ -312,6 +312,53 @@ st.markdown("\n".join(comentarios) if comentarios else "—")
 
 st.divider()
 
+
+# ================= ESTADO DE RESULTADOS (resumen) =================
+st.subheader("IV. Estado de Resultados")
+
+er = st.session_state.get("reporte", {}).get("estado_resultados", {})
+
+ventas_total = er.get("ventas_colones")
+compras_total = er.get("compras_costos_colones")
+utilidad_bruta = er.get("utilidad_bruta_colones")
+gastos_ope_total = er.get("gastos_operativos_colones")
+utilidad_neta_ope = er.get("utilidad_neta_operativa_colones")
+otros_ing_total = er.get("otros_ingresos_colones")
+subtotal_post_otros = er.get("subtotal_post_otros_colones")
+gastos_fam_total = er.get("gastos_familiares_colones")
+deudas_total = er.get("pago_de_deudas_colones")
+disponible_final = er.get("disponible_para_prestamo_colones")
+
+if er:
+    col1, col2, col3 = st.columns(3)
+    with col1: st.metric("Ventas", _fmt_col(ventas_total))
+    with col2: st.metric("Compras/Costos", _fmt_col(compras_total))
+    with col3: st.metric("Utilidad Bruta", _fmt_col(utilidad_bruta))
+
+    col4, col5 = st.columns(2)
+    with col4: st.metric("🧾 Gastos Operativos", _fmt_col(gastos_ope_total))
+    with col5: st.metric("📌 Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope))
+
+    st.markdown("---")
+    col6, col7 = st.columns(2)
+    with col6: st.metric("➕ Otros ingresos", _fmt_col(otros_ing_total))
+    with col7: st.metric("Subtotal post-otros", _fmt_col(subtotal_post_otros))
+
+    st.markdown("---")
+    col8, col9 = st.columns(2)
+    with col8: st.metric("👪 Gastos familiares", _fmt_col(gastos_fam_total))
+    with col9: st.metric("💳 Pago de deudas", _fmt_col(deudas_total))
+
+    st.success(f"💰 **Disponible para el préstamo:** {_fmt_col(disponible_final)}")
+else:
+    st.info("No se encontraron datos del Estado de Resultados (Paso 12).")
+
+
+
+
+
+
+
 # ======================== PDF =========================
 def _build_pdf_bytes() -> bytes:
     """Construye un PDF del informe usando reportlab y devuelve bytes."""
