@@ -111,7 +111,11 @@ def _pdf_from_md(md_text: str) -> bytes:
         from reportlab.lib import colors
 
         buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=LETTER, leftMargin=40, rightMargin=40, topMargin=48, bottomMargin=36)
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=LETTER,
+            leftMargin=40, rightMargin=40, topMargin=48, bottomMargin=36
+        )
 
         # Registrar fuente con tildes (si está disponible)
         try:
@@ -121,12 +125,26 @@ def _pdf_from_md(md_text: str) -> bytes:
             font_name = "Helvetica"
 
         styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name="Body", fontName=font_name, fontSize=10.5, leading=14, textColor=colors.black))
-        styles.add(ParagraphStyle(name="Title", fontName=font_name, fontSize=15, leading=19, spaceAfter=12, textColor=colors.black))
+        # ⚠️ Usamos nombres únicos para no chocar con estilos ya existentes
+        styles.add(ParagraphStyle(
+            name="CustomBody",
+            fontName=font_name,
+            fontSize=10.5,
+            leading=14,
+            textColor=colors.black
+        ))
+        styles.add(ParagraphStyle(
+            name="CustomTitle",
+            fontName=font_name,
+            fontSize=15,
+            leading=19,
+            spaceAfter=12,
+            textColor=colors.black
+        ))
 
         story = []
-        story.append(Paragraph("Análisis asistido (IA)", styles["Title"]))
-        story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), styles["Body"]))
+        story.append(Paragraph("Análisis asistido (IA)", styles["CustomTitle"]))
+        story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), styles["CustomBody"]))
         story.append(Spacer(1, 10))
 
         # Render muy simple de MD
@@ -135,8 +153,9 @@ def _pdf_from_md(md_text: str) -> bytes:
             if not line:
                 story.append(Spacer(1, 6))
                 continue
+            # Limpieza mínima para **negritas**
             line = line.replace("**", "").replace("__", "")
-            story.append(Paragraph(line, styles["Body"]))
+            story.append(Paragraph(line, styles["CustomBody"]))
 
         doc.build(story)
         pdf_bytes = buf.getvalue()
@@ -146,6 +165,7 @@ def _pdf_from_md(md_text: str) -> bytes:
         st.warning("No se pudo generar el PDF. Verificá que `reportlab` esté instalado y (opcionalmente) `DejaVuSans.ttf`.")
         st.exception(e)
         return b""
+
 
 def _get_openai_key():
     # Prioriza st.secrets, luego variables de entorno comunes
