@@ -251,28 +251,26 @@ with c3:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
         st.session_state.setdefault("reporte", {})
 
-        # 🔥 Guardamos también la lista de estimaciones para el informe final
+        # Construir lista de estimaciones (igual que las filas mostradas arriba)
         estimaciones_list = [
             {
                 "Ángulo": "Top-down",
-                "Monto declarado": int(top_raw) if top_raw else None,
-                "Ajuste tipicidad": top_ajuste_txt,
-                "Usado en conciliación": int(round(top_adj)) if top_adj else None,
+                "Monto": int(round(top_adj)) if top_adj else None,
+                "Comentarios": "",
             },
             {
                 "Ángulo": "Bottom-up",
-                "Monto declarado": int(bottom_val) if bottom_val else None,
-                "Ajuste tipicidad": "—",
-                "Usado en conciliación": int(round(bottom_val)) if bottom_val else None,
+                "Monto": int(round(bottom_val)) if bottom_val else None,
+                "Comentarios": "",
             },
             {
-                "Ángulo": modo_p5,
-                "Monto declarado": int(insumos_decl) if insumos_decl else None,
-                "Ajuste tipicidad": "—",
-                "Usado en conciliación": int(round(insumos_val)) if insumos_val else None,
+                "Ángulo": modo_p5 or "Insumos/Margen",
+                "Monto": int(round(insumos_val)) if insumos_val else None,
+                "Comentarios": "",
             },
         ]
 
+        # Guardar todo en session_state
         st.session_state["reporte"]["ventas_conciliacion"] = {
             "ventas_conciliadas_colones": int(round(ventas_conc)),
             "rango_min_colones": int(round(rango_min)) if rango_min else None,
@@ -302,8 +300,8 @@ with c3:
                 "factor_asesor": round(factor_asesor, 2),
                 "dudas_declaracion": dudas,
             },
-            # ✅ Guardamos la tabla de estimaciones para usar en el informe final
-            "estimaciones": filas,
+            # ✅ Nueva sección para el Informe Final
+            "estimaciones": estimaciones_list,
         }
         st.session_state["done_07"] = True
 
