@@ -168,6 +168,17 @@ vin = rep.get("ventas_insumos_simple", rep.get("ventas_insumos", {})) or {}
 insumos_val  = None if vin.get("no_aplica") else vin.get("ventas_estimadas_colones")
 coment_ins   = (vin.get("comentario") or "").strip()
 
+# Normalizamos el modo de insumos para mostrar en el informe
+modo_insumos = vin.get("modo") or "Insumos/Margen"
+if modo_insumos == "Bienes (insumos/margen)":
+    insumos_decl = vin.get("compras_mes_colones")
+elif modo_insumos == "Servicio por comisión (%)":
+    insumos_decl = vin.get("facturacion_bruta_mes_colones")
+elif modo_insumos == "Servicio con costo = % de ventas":
+    insumos_decl = vin.get("ventas_reportadas_mes_colones")
+else:
+    insumos_decl = vin.get("ventas_estimadas_colones")
+
 vcon = rep.get("ventas_conciliacion", {}) or {}
 ventas_conc  = vcon.get("ventas_conciliadas_colones")
 max_dev      = vcon.get("desviacion_max_pct")   # fracción 0–1 si existía
