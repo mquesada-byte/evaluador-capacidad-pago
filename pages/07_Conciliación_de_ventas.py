@@ -4,8 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Paso 7: Conciliación de ventas", page_icon="🧮")
 
 # =========================
-# PASO 7 – Conciliación de ventas (Top-down vs Bottom-up vs Insumos)
-# Requiere: que 06 haya guardado reporte["valoracion_asesor"]["factor_asesor_0a1"]
+# Helpers
 # =========================
 def _ajuste_tipicidad(valor: float, tipicidad: str) -> tuple[float, str]:
     """Devuelve (valor_ajustado, texto_ajuste). Regla simple: Alto -10%, Bajo +10%."""
@@ -55,7 +54,9 @@ def _nivel_confiabilidad(max_dev: float | None, num_metodos: int, fuente: str | 
         return "Media"
     return base
 
-# ---------- UI multipágina ----------
+# =========================
+# UI
+# =========================
 st.title("🧮 Paso 7: Conciliación de ventas")
 st.caption("Comparamos las estimaciones (Top-down, Bottom-up e Insumos), ponderamos por calidad/valoración y fijamos un monto mensual defendible.")
 
@@ -90,7 +91,7 @@ if isinstance(top_raw, (int, float)) and top_raw > 0 and tipicidad in ["Típico"
 vbu = rep.get("ventas_bottomup", {})
 bottom_val = vbu.get("ventas_estimadas_colones")
 
-# 05 Insumos (ahora maneja todos los modos de Paso 5)
+# 05 Insumos
 vin = rep.get("ventas_p5", {})
 modo_p5 = vin.get("modo")
 insumos_val = vin.get("ventas_estimadas_colones")
@@ -135,7 +136,7 @@ st.write("**Estimaciones disponibles**")
 st.table(pd.DataFrame(filas))
 
 # ---- Pesos base ----
-w_top_base, w_bottom_base, w_ins_base = 0.40, 0.35, 0.25  # Ajustables por sector
+w_top_base, w_bottom_base, w_ins_base = 0.40, 0.35, 0.25
 
 # Calidad de fuente (Top-down)
 fuente_factor = {
@@ -149,24 +150,23 @@ fuente_factor = {
     "": 0.75,
 }.get(fuente, 0.75)
 
-# Confianza declarada del cliente (Top-down): 0.40–1.00
+# Confianza declarada del cliente (Top-down)
 conf_factor = 0.40 + 0.06 * float(conf_cli or 0)
 conf_factor = max(0.40, min(1.00, conf_factor))
 
 # ---- Valoración del asesor (06) ----
 val = rep.get("valoracion_asesor", {})
-factor_asesor = float(val.get("factor_asesor_0a1") or 1.0)  # 0.40–1.00
+factor_asesor = float(val.get("factor_asesor_0a1") or 1.0)
 dudas = val.get("dudas_declaracion", "Sin dudas")
-# Penalización EXTRA solo al Top-down (suave)
 dudas_extra_top = {"Sin dudas": 1.00, "Dudas leves": 0.90, "Dudas serias": 0.75}.get(dudas, 1.00)
 
-# ---- Pesos crudos antes de outliers ----
+# ---- Pesos crudos ----
 w_top = (w_top_base * fuente_factor * conf_factor * factor_asesor * dudas_extra_top) if top_adj else 0.0
 w_bottom = (w_bottom_base * factor_asesor) if bottom_val else 0.0
-# La ponderación del método de insumos ahora depende de si se usaron registros
-w_ins = (w_ins_base * factor_asesor * (1.0 if (vin.get("tiene_registros_compras") == "Sí" or vin.get("tiene_registros_fact") == "Sí") else 0.80)) if insumos_val is not None else 0.0
+w_ins = (w_ins_base * factor_asesor *
+         (1.0 if (vin.get("tiene_registros_compras") == "Sí" or vin.get("tiene_registros_fact") == "Sí") else 0.80)) if insumos_val is not None else 0.0
 
-# Consistencia (penaliza outliers >40% vs mediana)
+# Penalización por outliers
 vals = [x for x in [top_adj, bottom_val, insumos_val] if x is not None]
 median_ref = None
 if len(vals) >= 2:
@@ -182,10 +182,9 @@ w_top = _penaliza_outlier(top_adj, w_top)
 w_bottom = _penaliza_outlier(bottom_val, w_bottom)
 w_ins = _penaliza_outlier(insumos_val, w_ins)
 
-# Normalizar pesos
+# Normalizar
 w_sum = w_top + w_bottom + w_ins
 if w_sum == 0:
-    # fallback si todo quedó en 0
     w_top = 1.0 if top_adj else 0.0
     w_bottom = 1.0 if bottom_val else 0.0
     w_ins = 1.0 if insumos_val is not None else 0.0
@@ -201,7 +200,7 @@ if bottom_val:
 if insumos_val is not None:
     ventas_conc += insumos_val * w_ins_n
 
-# Desviación máxima entre pares
+# Desviación máxima
 desv_list = []
 for a, b in [(top_adj, bottom_val), (top_adj, insumos_val), (bottom_val, insumos_val)]:
     d = _desv_pct(a, b)
@@ -209,7 +208,7 @@ for a, b in [(top_adj, bottom_val), (top_adj, insumos_val), (bottom_val, insumos
         desv_list.append(d)
 max_dev = max(desv_list) if desv_list else None
 
-# Confiabilidad final
+# Confiabilidad
 num_metodos = len([x for x in [top_adj, bottom_val, insumos_val] if x is not None])
 confiab = _nivel_confiabilidad(max_dev, num_metodos, fuente, conf_cli, factor_asesor, dudas)
 
@@ -263,21 +262,31 @@ with c3:
                 "insumos": round(w_ins_n, 4),
             },
             "detalle": {
-                "top_down_ajuste_tipicidad": (tipicidad or "—"),
+                # Top-down
+                "top_down_raw": int(top_raw) if top_raw else None,
+                "top_down_ajustado": int(round(top_adj)) if top_adj else None,
+                "top_down_ajuste_txt": top_ajuste_txt,
+                "tipicidad": tipicidad,
                 "fuente_top_down": fuente,
                 "confianza_cliente": conf_cli,
+                # Bottom-up
+                "bottom_up_raw": int(bottom_val) if bottom_val else None,
+                # Insumos
+                "insumos_modo": modo_p5,
+                "insumos_declarado": int(insumos_decl) if insumos_decl else None,
+                "insumos_estimado": int(insumos_val) if insumos_val else None,
+                # Asesor
                 "factor_asesor": round(factor_asesor, 2),
                 "dudas_declaracion": dudas,
             }
         }
         st.session_state["done_07"] = True
 
-        # Llevar directo a 08_Otros_ingresos.py
         try:
             st.switch_page("pages/08_Otros_ingresos.py")
         except Exception:
             st.success("Conciliación guardada. Abrí **08 – Otros ingresos** desde el menú lateral.")
             st.stop()
 
-# Evita render adicional
 st.stop()
+
