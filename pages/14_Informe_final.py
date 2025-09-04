@@ -245,21 +245,28 @@ st.info(coment_val or "—")
 # Análisis de ventas
 st.subheader("III-b. Análisis de ventas")
 
-filas = []
-if estimaciones:
-    for est in estimaciones:
-        filas.append({
-            "Ángulo": est.get("Ángulo", "—"),
-            "Monto bruto": _fmt_col(est.get("Monto declarado")),
-            "Ajuste": est.get("Ajuste tipicidad", "—"),
-            "Usado": _fmt_col(est.get("Usado en conciliación"))
-        })
-else:
-    filas = [
-        {"Ángulo": "Top-down (clienta)", "Monto bruto": _fmt_col(top_raw), "Ajuste": txt_ajuste if top_ajustado else "—", "Usado": _fmt_col(top_ajustado) if top_ajustado else "—"},
-        {"Ángulo": "Bottom-up (operativa)", "Monto bruto": _fmt_col(bottom_val), "Ajuste": "—", "Usado": _fmt_col(bottom_val) if bottom_val else "—"},
-        {"Ángulo": "Insumos/Margen", "Monto bruto": ("No aplica" if vin.get("no_aplica") else _fmt_col(insumos_val)), "Ajuste": "—", "Usado": "—" if vin.get("no_aplica") else (_fmt_col(insumos_val) if insumos_val else "—")},
-    ]
+detalle_conc = vcon.get("detalle", {})
+
+filas = [
+    {
+        "Ángulo": "Top-down (clienta)",
+        "Monto bruto": _fmt_col(detalle_conc.get("top_down_raw")),
+        "Ajuste": detalle_conc.get("top_down_ajuste_txt", "—"),
+        "Usado": _fmt_col(detalle_conc.get("top_down_ajustado")),
+    },
+    {
+        "Ángulo": "Bottom-up (operativa)",
+        "Monto bruto": _fmt_col(detalle_conc.get("bottom_up_raw")),
+        "Ajuste": "—",
+        "Usado": _fmt_col(detalle_conc.get("bottom_up_raw")),
+    },
+    {
+        "Ángulo": detalle_conc.get("insumos_modo", "Insumos/Margen"),
+        "Monto bruto": _fmt_col(detalle_conc.get("insumos_declarado")),
+        "Ajuste": "—",
+        "Usado": _fmt_col(detalle_conc.get("insumos_estimado")),
+    },
+]
 
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
