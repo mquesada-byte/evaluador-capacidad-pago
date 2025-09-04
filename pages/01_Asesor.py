@@ -3,7 +3,7 @@
 # =========================
 import datetime as dt
 from zoneinfo import ZoneInfo
-import time, requests
+import requests
 import streamlit as st
 from streamlit_js_eval import get_geolocation
 
@@ -11,8 +11,6 @@ st.set_page_config(page_title="Paso 1: Datos del asesor", page_icon="🧭")
 
 TZ = ZoneInfo("America/Costa_Rica")
 USE_INTERNET_TIME = True
-MAX_RERUNS = 6
-SLEEP_SEC = 0.4
 
 # ---- Helpers de tiempo ----
 def now_in_cr_via_internet():
@@ -42,13 +40,6 @@ def maps_links(lat, lon):
     osm = f"https://www.openstreetmap.org/?mlat={lat_s}&mlon={lon_s}#map=18/{lat_s}/{lon_s}"
     return google, google_at, osm
 
-def swapped_links(lat, lon):
-    lat_s, lon_s = f"{lat:.6f}", f"{lon:.6f}"
-    return (
-        f"https://www.google.com/maps/search/?api=1&query={lon_s},{lat_s}",
-        f"https://www.openstreetmap.org/?mlat={lon_s}&mlon={lat_s}#map=18/{lon_s}/{lat_s}",
-    )
-
 def plausible_cr_area(lat, lon):
     return (8.0 <= lat <= 12.0) and (-90.0 <= lon <= -80.0)
 
@@ -57,7 +48,6 @@ def init_asesor_state():
     st.session_state.setdefault("asesor", {})
     st.session_state.setdefault("geo_request", False)
     st.session_state.setdefault("geo_status", "idle")
-    st.session_state.setdefault("geo_attempts", 0)
 
     a = st.session_state.asesor
     a.setdefault("nombre", "")
@@ -113,49 +103,23 @@ with col1:
     if st.button("📍 Obtener mi ubicación"):
         st.session_state.geo_request = True
         st.session_state.geo_status = "waiting"
-        st.session_state.geo_attempts = 0
         asesor.update({"lat": None, "lon": None, "maps_url": None, "maps_url_alt": None, "osm_url": None})
-        st.rerun()
 
-    if st.session_state.geo_request and st.session_state.geo_status != "ok":
-        loc = None
-        try:
-            loc = get_geolocation()
-        except Exception:
-            pass
-
-        if isinstance(loc, dict):
-            coords = loc.get("coords") or {}
-            lat = coords.get("latitude"); lon = coords.get("longitude")
-            msg = (loc.get("msg") or loc.get("message") or "").lower()
-
-            if lat is not None and lon is not None and _coords_plausibles(lat, lon):
-                asesor["lat"], asesor["lon"] = float(lat), float(lon)
-                g, g_at, osm = maps_links(asesor["lat"], asesor["lon"])
-                asesor["maps_url"], asesor["maps_url_alt"], asesor["osm_url"] = g, g_at, osm
-                st.session_state.geo_status = "ok"; st.session_state.geo_request = False
-            elif "denied" in msg:
-                st.session_state.geo_status = "denied"; st.session_state.geo_request = False
-            elif "timeout" in msg:
-                st.session_state.geo_status = "timeout"; st.session_state.geo_request = False
-            elif "unavailable" in msg:
-                st.session_state.geo_status = "unavailable"; st.session_state.geo_request = False
-            else:
-                st.session_state.geo_attempts += 1
-                if st.session_state.geo_attempts < MAX_RERUNS:
-                    with st.spinner("Solicitando permiso o esperando señal de GPS…"):
-                        time.sleep(SLEEP_SEC)
-                    st.rerun()
-                else:
-                    st.session_state.geo_status = "error"; st.session_state.geo_request = False
-        else:
-            st.session_state.geo_attempts += 1
-            if st.session_state.geo_attempts < MAX_RERUNS:
-                with st.spinner("Solicitando permiso o esperando señal de GPS…"):
-                    time.sleep(SLEEP_SEC)
-                st.rerun()
-            else:
-                st.session_state.geo_status = "error"; st.session_state.geo_request = False
+# Si hay una solicitud activa → pedir geolocalización
+if st.session_state.geo_request and st.session_state.geo_status != "ok":
+    loc = get_geolocation()
+    if isinstance(loc, dict) and "coords" in loc and loc["coords"].get("latitude") is not None:
+        coords = loc["coords"]
+        lat, lon = coords.get("latitude"), coords.get("longitude")
+        if _coords_plausibles(lat, lon):
+            asesor["lat"], asesor["lon"] = float(lat), float(lon)
+            g, g_at, osm = maps_links(asesor["lat"], asesor["lon"])
+            asesor["maps_url"], asesor["maps_url_alt"], asesor["osm_url"] = g, g_at, osm
+            st.session_state.geo_status = "ok"
+            st.session_state.geo_request = False
+    else:
+        st.session_state.geo_status = "waiting"
+        st.caption("Esperando autorización del navegador… por favor permite el acceso a la ubicación.")
 
 with col2:
     status = st.session_state.geo_status
@@ -166,14 +130,11 @@ with col2:
                     f"[Vista @18z]({asesor['maps_url_alt']}) · "
                     f"[OpenStreetMap]({asesor['osm_url']})")
         if not plausible_cr_area(lat, lon):
-            g_sw, osm_sw = swapped_links(lat, lon)
-            st.warning("Las coordenadas no parecen estar en Costa Rica. Prueba el orden invertido si el mapa no coincide:")
-            st.markdown(f"• [Google (invertido)]({g_sw}) · [OSM (invertido)]({osm_sw})")
+            st.warning("Las coordenadas no parecen estar en Costa Rica.")
     else:
         msgs = {
             "waiting": "Solicitando permiso o esperando señal de GPS…",
             "denied": "Permiso de ubicación denegado en el navegador.",
-            "timeout": "Tiempo de espera agotado al obtener la ubicación.",
             "unavailable": "Ubicación no disponible en este dispositivo/red.",
             "error": "No fue posible obtener la ubicación en este momento.",
             "idle": "Aún no hay coordenadas registradas.",
