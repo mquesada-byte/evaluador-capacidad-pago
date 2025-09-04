@@ -392,35 +392,6 @@ else:
 # ======================== PDF =========================
 import io
 
-# =================== Variables para PDF ===================
-rep = st.session_state.get("reporte", {})
-
-# ---- Estado de Resultados ----
-er = rep.get("estado_resultados", {})
-er_ventas         = er.get("ventas_colones", 0)
-er_compras        = er.get("compras_costos_colones", 0)
-er_utilidad_bruta = er.get("utilidad_bruta_colones", 0)
-er_gastos_ope     = er.get("gastos_operativos_colones", 0)
-er_utilidad_ope   = er.get("utilidad_neta_operativa_colones", 0)
-er_otros_ing      = er.get("otros_ingresos_colones", 0)
-er_subtotal_post  = er.get("subtotal_post_otros_colones", 0)
-er_gastos_fam     = er.get("gastos_familiares_colones", 0)
-er_deudas         = er.get("pago_de_deudas_colones", 0)
-er_disponible     = er.get("disponible_para_prestamo_colones", 0)
-
-# ---- Balance General ----
-bg = rep.get("balance_general", {})
-tot = bg.get("totales", {})
-bg_activo_circulante = tot.get("activo_circulante", 0)
-bg_activo_fijo       = tot.get("activo_fijo", 0)
-bg_total_activos     = tot.get("total_activos", 0)
-bg_pasivo_circulante = tot.get("pasivo_circulante", 0)
-bg_pasivo_largo      = tot.get("pasivo_largo", 0)
-bg_total_pasivo      = tot.get("total_pasivo", 0)
-bg_patrimonio        = tot.get("patrimonio", 0)
-bg_cap_trabajo       = tot.get("capital_trabajo", 0)
-bg_comentarios       = bg.get("comentarios", "")
-
 def _build_pdf_bytes() -> bytes:
     """Construye un PDF del informe usando reportlab y devuelve bytes."""
     try:
@@ -497,7 +468,7 @@ def _build_pdf_bytes() -> bytes:
             ["Ángulo", "Monto bruto", "Ajuste", "Usado"],
             ["Top-down (clienta)", _fmt_col(top_raw), (txt_ajuste if top_ajustado else "—"), (_fmt_col(top_ajustado) if top_ajustado else "—")],
             ["Bottom-up (operativa)", _fmt_col(bottom_val), "—", (_fmt_col(bottom_val) if bottom_val else "—")],
-            ["Insumos/Margen", _fmt_col(insumos_val), "—", (_fmt_col(insumos_val) if insumos_val else "—")],
+            [modo_insumos, _fmt_col(insumos_decl), "—", _fmt_col(insumos_val)],
         ]
         t_sales = Table(data, colWidths=[150, 110, 120, 110])
         t_sales.setStyle(TableStyle([
@@ -560,9 +531,62 @@ def _build_pdf_bytes() -> bytes:
         doc.build(story)
         return buf.getvalue()
 
-    except ImportError:
-        st.warning("Para generar PDF necesitás instalar **reportlab** (agregá `reportlab` a `requirements.txt`).")
-        return b""
     except Exception as e:
-        st.error(f"Error al generar el PDF: {e}")
+        # Si hay error, devolvemos vacío sin cortar la app
+        print(f"Error al generar PDF: {e}")
         return b""
+
+
+# =============== Generar PDF y botones ===============
+pdf_bytes = _build_pdf_bytes()
+file_name = f"Informe_{cliente_nombre.replace(' ', '_')}.pdf"
+
+if pdf_bytes:
+    st.download_button(
+        "💾 Descargar informe en PDF",
+        data=pdf_bytes,
+        file_name=file_name,
+        mime="application/pdf",
+        use_container_width=True,
+        type="primary",
+    )
+else:
+    st.info("No se pudo generar el PDF en este entorno. Verifica que `reportlab` esté instalado.")
+
+st.divider()
+
+# ================= Navegación =================
+c1, c2, c3 = st.columns([0.33, 0.34, 0.33])
+
+with c1:
+    if st.button("⬅️ Volver a 13 – Balance General", use_container_width=True):
+        for prev in ["pages/13_Balance_general.py", "13_Balance_general.py"]:
+            try:
+                st.switch_page(prev)
+                break
+            except Exception:
+                continue
+
+with c2:
+    if st.button("Guardar y continuar ➡️", use_container_width=True):
+        st.session_state["done_14"] = True
+        for nxt in [
+            "pages/15_Análisis_IA.py",
+            "pages/15_Analisis_IA.py",
+            "15_Analisis_IA.py",
+        ]:
+            try:
+                st.switch_page(nxt)
+                break
+            except Exception:
+                continue
+        else:
+            st.success("Informe final listo. Abrí **15 – Análisis IA** desde el menú lateral.")
+            st.stop()
+
+with c3:
+    if st.button("Ir al inicio 🏠", use_container_width=True):
+        try:
+            st.switch_page("Home.py")
+        except Exception:
+            st.rerun()
