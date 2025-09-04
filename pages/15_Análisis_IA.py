@@ -231,7 +231,8 @@ with col_g:
                 user_prompt=prompt,
                 api_key=api_key,
             )
-        except Exception:
+        except Exception as e:
+            st.error(f"Error al llamar a OpenAI: {e}")
             # Fallback local (sin API o error)
             md = _fallback_local(reporte)
 
