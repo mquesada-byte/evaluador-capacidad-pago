@@ -244,8 +244,6 @@ st.info(coment_val or "—")
 
 # Análisis de ventas
 st.subheader("III-b. Análisis de ventas")
-# Análisis de ventas
-st.subheader("III-b. Análisis de ventas")
 
 filas = [
     {
