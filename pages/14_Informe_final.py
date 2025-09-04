@@ -270,13 +270,6 @@ filas = [
 
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
-st.subheader("Estimaciones de ventas disponibles")
-if estimaciones:
-    df_est = pd.DataFrame(estimaciones)
-    st.dataframe(df_est, use_container_width=True, hide_index=True)
-else:
-    st.caption("— No se registraron estimaciones en el paso 7 —")
-
 ape = None
 if ventas_conc:
     ventas_conc = _num(ventas_conc)
