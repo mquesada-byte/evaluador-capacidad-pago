@@ -185,14 +185,6 @@ def _get_openai_key():
 def _call_openai_chat(model: str, system_prompt: str, user_prompt: str, api_key: str) -> str:
     """
 
-# ====== Test de API Key ======
-api_key_test = _get_openai_key()
-if api_key_test:
-    st.info(f"✅ API Key detectada. Empieza con: {api_key_test[:6]}... y tiene {len(api_key_test)} caracteres.")
-else:
-    st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
-
-    
     Llama a la API de OpenAI (>=1.0.0) y devuelve el contenido en Markdown.
     """
     from openai import OpenAI
@@ -213,6 +205,16 @@ reporte = st.session_state.get("reporte", {}) or {}
 if not reporte:
     st.warning("No se encontró información previa en memoria (`st.session_state['reporte']`). Volvé al Paso 14 y generá el informe.")
     st.stop()
+
+# ====== Test de API Key ======
+api_key_test = _get_openai_key()
+if api_key_test:
+    st.info(f"✅ API Key detectada. Empieza con: {api_key_test[:6]}... y tiene {len(api_key_test)} caracteres.")
+else:
+    st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
+
+
+
 
 # ====== Opciones de la IA ======
 with st.expander("Opciones de análisis IA"):
