@@ -302,8 +302,8 @@ with c3:
                 "factor_asesor": round(factor_asesor, 2),
                 "dudas_declaracion": dudas,
             },
-            # ✅ Nueva sección para que el informe final pueda mostrar las estimaciones
-            "estimaciones": estimaciones_list,
+            # ✅ Guardamos la tabla de estimaciones para usar en el informe final
+            "estimaciones": filas,
         }
         st.session_state["done_07"] = True
 
