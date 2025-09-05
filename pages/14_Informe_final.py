@@ -482,16 +482,16 @@ def _build_pdf_bytes() -> bytes:
         # ----------------- Estado de Resultados -----------------
         story.append(Paragraph("Estado de Resultados", h2))
         er_data = [
-            ["Ventas", _fmt_col(er_ventas)],
-            ["Compras / Costos", _fmt_col(er_compras)],
-            ["Utilidad Bruta", _fmt_col(er_utilidad_bruta)],
-            ["Gastos Operativos", _fmt_col(er_gastos_ope)],
-            ["Utilidad Neta Operativa", _fmt_col(er_utilidad_ope)],
-            ["Otros Ingresos", _fmt_col(er_otros_ing)],
-            ["Subtotal post-otros", _fmt_col(er_subtotal_post)],
-            ["Gastos familiares", _fmt_col(er_gastos_fam)],
-            ["Pago de deudas", _fmt_col(er_deudas)],
-            ["Disponible para préstamo", _fmt_col(er_disponible)],
+            ["Ventas", _fmt_col(ventas_total)],
+            ["Compras / Costos", _fmt_col(compras_total)],
+            ["Utilidad Bruta", _fmt_col(utilidad_bruta)],
+            ["Gastos Operativos", _fmt_col(gastos_ope_total)],
+            ["Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope)],
+            ["Otros Ingresos", _fmt_col(otros_ing_total)],
+            ["Subtotal post-otros", _fmt_col(subtotal_post_otros)],
+            ["Gastos familiares", _fmt_col(gastos_fam_total)],
+            ["Pago de deudas", _fmt_col(deudas_total)],
+            ["Disponible para préstamo", _fmt_col(disponible_final)],
         ]
         t_er = Table(er_data, colWidths=[200, 200])
         t_er.setStyle(TableStyle([
@@ -506,14 +506,14 @@ def _build_pdf_bytes() -> bytes:
         # ----------------- Balance General -----------------
         story.append(Paragraph("Balance General", h2))
         bg_data = [
-            ["Activo Circulante", _fmt_col(bg_activo_circulante)],
-            ["Activo Fijo Neto", _fmt_col(bg_activo_fijo)],
-            ["Total Activos", _fmt_col(bg_total_activos)],
-            ["Pasivo Circulante", _fmt_col(bg_pasivo_circulante)],
-            ["Pasivo Largo Plazo", _fmt_col(bg_pasivo_largo)],
-            ["Total Pasivos", _fmt_col(bg_total_pasivo)],
-            ["Patrimonio", _fmt_col(bg_patrimonio)],
-            ["Capital de trabajo", _fmt_col(bg_cap_trabajo)],
+            ["Activo Circulante", _fmt_col(tot.get("activo_circulante"))],
+            ["Activo Fijo Neto", _fmt_col(tot.get("activo_fijo"))],
+            ["Total Activos", _fmt_col(tot.get("total_activos"))],
+            ["Pasivo Circulante", _fmt_col(tot.get("pasivo_circulante"))],
+            ["Pasivo Largo Plazo", _fmt_col(tot.get("pasivo_largo"))],
+            ["Total Pasivos", _fmt_col(tot.get("total_pasivo"))],
+            ["Patrimonio", _fmt_col(tot.get("patrimonio"))],
+            ["Capital de trabajo", _fmt_col(tot.get("capital_trabajo"))],
         ]
         t_bg = Table(bg_data, colWidths=[200, 200])
         t_bg.setStyle(TableStyle([
@@ -523,10 +523,10 @@ def _build_pdf_bytes() -> bytes:
         ]))
         story.append(t_bg)
 
-        if bg_comentarios:
+        if comentarios_bg:
             story.append(Spacer(1, 6))
             story.append(Paragraph("Comentarios del Balance:", h3))
-            story.append(Paragraph(bg_comentarios, p))
+            story.append(Paragraph(comentarios_bg, p))
 
         doc.build(story)
         return buf.getvalue()
