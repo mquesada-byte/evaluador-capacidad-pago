@@ -268,6 +268,7 @@ filas = [
     },
 ]
 
+
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
 ape = None
