@@ -465,12 +465,27 @@ def _build_pdf_bytes() -> bytes:
 
         # ----------------- Análisis de Ventas -----------------
         story.append(Paragraph("Análisis de ventas", h2))
+
+        detalle_conc = vcon.get("detalle", {})
+
         data = [
             ["Ángulo", "Monto bruto", "Ajuste", "Usado"],
-            ["Top-down (clienta)", _fmt_col(top_raw), (txt_ajuste if top_ajustado else "—"), (_fmt_col(top_ajustado) if top_ajustado else "—")],
-            ["Bottom-up (operativa)", _fmt_col(bottom_val), "—", (_fmt_col(bottom_val) if bottom_val else "—")],
-            [modo_insumos, _fmt_col(insumos_decl), "—", _fmt_col(insumos_val)],
+            ["Top-down (clienta)",
+             _fmt_col(detalle_conc.get("top_down_raw")),
+             detalle_conc.get("top_down_ajuste_txt", "—"),
+             _fmt_col(detalle_conc.get("top_down_ajustado"))],
+            ["Bottom-up (operativa)",
+             _fmt_col(detalle_conc.get("bottom_up_raw")),
+             "—",
+             _fmt_col(detalle_conc.get("bottom_up_raw"))],
+            [detalle_conc.get("insumos_modo", "Insumos/Margen"),
+             _fmt_col(detalle_conc.get("insumos_declarado")),
+             "—",
+             _fmt_col(detalle_conc.get("insumos_estimado"))],
         ]
+
+
+        
         t_sales = Table(data, colWidths=[150, 110, 120, 110])
         t_sales.setStyle(TableStyle([
             ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
