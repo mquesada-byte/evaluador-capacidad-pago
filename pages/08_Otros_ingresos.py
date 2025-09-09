@@ -201,6 +201,11 @@ st.write({
 st.divider()
 
 # Navegación / Guardar
+st.divider()
+
+# ✅ Nueva opción: marcar si no hay otros ingresos
+sin_otros = st.checkbox("No hay otros ingresos en el hogar")
+
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
     if st.button("⬅️ Volver a 07 – Conciliación", key="otros_back_res", use_container_width=True):
@@ -211,21 +216,39 @@ with c1:
             except Exception:
                 continue
 with c2:
-    if st.button("Guardar y continuar ➡️", key="otros_save_next", use_container_width=True, disabled=(valid_mask.sum() == 0)):
+    if st.button(
+        "Guardar y continuar ➡️",
+        key="otros_save_next",
+        use_container_width=True,
+        disabled=(not sin_otros and valid_mask.sum() == 0)
+    ):
         st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["otros_ingresos"] = {
-            "tabla": df.fillna("").to_dict(orient="records"),
-            "totales": {
-                "total_mensualizado_colones": total_mensual,
-                "total_verificado_mensualizado_colones": total_verif_mensual,
-                "total_ponderado_colones": total_ponderado,
-                "registros_validos": int(valid_mask.sum()),
+        if sin_otros:
+            # Guardamos totales en cero explícitamente
+            st.session_state["reporte"]["otros_ingresos"] = {
+                "tabla": [],
+                "totales": {
+                    "total_mensualizado_colones": 0,
+                    "total_verificado_mensualizado_colones": 0,
+                    "total_ponderado_colones": 0,
+                    "registros_validos": 0,
+                }
             }
-        }
+        else:
+            st.session_state["reporte"]["otros_ingresos"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_mensualizado_colones": total_mensual,
+                    "total_verificado_mensualizado_colones": total_verif_mensual,
+                    "total_ponderado_colones": total_ponderado,
+                    "registros_validos": int(valid_mask.sum()),
+                }
+            }
         st.session_state["done_08"] = True
         try:
             st.switch_page("pages/09_Deudas.py")
         except Exception:
             st.success("Otros ingresos guardados. Abrí **Paso 9 – Deudas** desde el menú lateral.")
             st.stop()
+
 
