@@ -24,7 +24,27 @@ def _fmt_col(x):
     except Exception:
         return "₡ 0"
 
-def _mk_prompt(rep: dict, tono: str) -> str:
+# ====== Leer reglamento (solo una vez) ======
+def _load_reglamento() -> str:
+    """Carga el reglamento de crédito desde assets/reglamento_de_crédito.pdf y devuelve texto plano."""
+    import os
+    try:
+        from PyPDF2 import PdfReader
+        ruta = os.path.join("assets", "reglamento_de_crédito.pdf")
+        if not os.path.exists(ruta):
+            return ""
+        reader = PdfReader(ruta)
+        texto = ""
+        for page in reader.pages:
+            texto += page.extract_text() + "\n"
+        return texto.strip()
+    except Exception as e:
+        return f"[No se pudo cargar el reglamento: {e}]"
+
+if "reglamento_texto" not in st.session_state:
+    st.session_state["reglamento_texto"] = _load_reglamento()
+
+def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     er = rep.get("estado_resultados", {}) or {}
     bg = rep.get("balance_general", {}) or {}
     deudas = rep.get("deudas_activas", {}).get("totales", {}) or {}
@@ -42,7 +62,14 @@ def _mk_prompt(rep: dict, tono: str) -> str:
     capital_trabajo = bg.get("capital_trabajo")
 
     return f"""
-Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago** y **riesgos** con estos datos (valores mensuales y totales):
+Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago**, **riesgos** y **recomendación**. 
+Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en este reglamento interno:
+
+---
+{reglamento[:3000]}  # solo primeros 3000 caracteres para no saturar el prompt
+---
+
+Datos del cliente (valores mensuales y totales):
 
 - Ventas: {ventas}
 - Utilidad neta operativa: {utilidad_neta_ope}
@@ -117,7 +144,6 @@ def _pdf_from_md(md_text: str) -> bytes:
             leftMargin=40, rightMargin=40, topMargin=48, bottomMargin=36
         )
 
-        # Registrar fuente con tildes (si está disponible)
         try:
             pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
             font_name = "DejaVu"
@@ -125,7 +151,6 @@ def _pdf_from_md(md_text: str) -> bytes:
             font_name = "Helvetica"
 
         styles = getSampleStyleSheet()
-        # ⚠️ Usamos nombres únicos para no chocar con estilos ya existentes
         styles.add(ParagraphStyle(
             name="CustomBody",
             fontName=font_name,
@@ -147,13 +172,11 @@ def _pdf_from_md(md_text: str) -> bytes:
         story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), styles["CustomBody"]))
         story.append(Spacer(1, 10))
 
-        # Render muy simple de MD
         for raw in md_text.split("\n"):
             line = raw.strip()
             if not line:
                 story.append(Spacer(1, 6))
                 continue
-            # Limpieza mínima para **negritas**
             line = line.replace("**", "").replace("__", "")
             story.append(Paragraph(line, styles["CustomBody"]))
 
@@ -162,13 +185,11 @@ def _pdf_from_md(md_text: str) -> bytes:
         buf.close()
         return pdf_bytes
     except Exception as e:
-        st.warning("No se pudo generar el PDF. Verificá que `reportlab` esté instalado y (opcionalmente) `DejaVuSans.ttf`.")
+        st.warning("No se pudo generar el PDF. Verificá que `reportlab` esté instalado.")
         st.exception(e)
         return b""
 
-
 def _get_openai_key():
-    # Prioriza st.secrets, luego variables de entorno comunes
     candidates = []
     try:
         if hasattr(st, "secrets"):
@@ -183,10 +204,6 @@ def _get_openai_key():
     return next((c for c in candidates if c), None)
 
 def _call_openai_chat(model: str, system_prompt: str, user_prompt: str, api_key: str) -> str:
-    """
-
-    Llama a la API de OpenAI (>=1.0.0) y devuelve el contenido en Markdown.
-    """
     from openai import OpenAI
     client = OpenAI(api_key=api_key)
 
@@ -213,22 +230,6 @@ if api_key_test:
 else:
     st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
 
-# ====== Test de conexión con OpenAI ======
-try:
-    from openai import OpenAI
-    client = OpenAI(api_key=api_key_test)
-
-    test_resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": "Hola, ¿me recibes?"}],
-        max_tokens=20,
-    )
-    st.success(f"✅ Conexión exitosa. OpenAI respondió: {test_resp.choices[0].message.content}")
-except Exception as e:
-    st.error(f"❌ Falló la conexión con OpenAI: {e}")
-
-
-
 # ====== Opciones de la IA ======
 with st.expander("Opciones de análisis IA"):
     modelo = st.selectbox("Modelo", ["gpt-4o-mini", "gpt-4o", "gpt-4.1"], index=0)
@@ -240,7 +241,8 @@ col_g, col_d = st.columns([0.6, 0.4])
 
 with col_g:
     if st.button("Generar análisis", type="primary", use_container_width=True):
-        prompt = _mk_prompt(reporte, tono)
+        reglamento = st.session_state.get("reglamento_texto", "")
+        prompt = _mk_prompt(reporte, tono, reglamento)
         if ver_prompt:
             with st.expander("Prompt utilizado"):
                 st.code(prompt)
@@ -292,4 +294,3 @@ with c2:
             st.switch_page("Home.py")
         except Exception:
             st.experimental_rerun()
-
