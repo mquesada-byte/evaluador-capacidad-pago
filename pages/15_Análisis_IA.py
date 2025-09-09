@@ -24,25 +24,25 @@ def _fmt_col(x):
     except Exception:
         return "₡ 0"
 
-# ====== Leer reglamento (solo una vez) ======
-def _load_reglamento() -> str:
-    """Carga el reglamento de crédito desde assets/reglamento_de_crédito.pdf y devuelve texto plano."""
-    import os
+# ====== Leer reglamentos (solo una vez) ======
+def _load_pdf_text(path: str) -> str:
+    """Carga un PDF desde ruta y devuelve texto plano."""
     try:
         from PyPDF2 import PdfReader
-        ruta = os.path.join("assets", "reglamento_de_crédito.pdf")
-        if not os.path.exists(ruta):
+        if not os.path.exists(path):
             return ""
-        reader = PdfReader(ruta)
+        reader = PdfReader(path)
         texto = ""
         for page in reader.pages:
             texto += page.extract_text() + "\n"
         return texto.strip()
     except Exception as e:
-        return f"[No se pudo cargar el reglamento: {e}]"
+        return f"[No se pudo cargar {path}: {e}]"
 
-if "reglamento_texto" not in st.session_state:
-    st.session_state["reglamento_texto"] = _load_reglamento()
+if "reglamentos_texto" not in st.session_state:
+    texto_credito = _load_pdf_text(os.path.join("assets", "reglamento_de_crédito.pdf"))
+    texto_fondo   = _load_pdf_text(os.path.join("assets", "reglamento_del_fondo_de_utilidad_pública.pdf"))
+    st.session_state["reglamentos_texto"] = f"{texto_credito}\n\n{texto_fondo}".strip()
 
 def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     er = rep.get("estado_resultados", {}) or {}
@@ -63,7 +63,7 @@ def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
 
     return f"""
 Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago**, **riesgos** y **recomendación**. 
-Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en este reglamento interno:
+Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en los siguientes reglamentos internos:
 
 ---
 {reglamento[:3000]}  # solo primeros 3000 caracteres para no saturar el prompt
@@ -128,7 +128,6 @@ Como referencia, una cuota objetivo del 30–35% del disponible sería {_fmt_col
 """.strip()
 
 def _pdf_from_md(md_text: str) -> bytes:
-    """Convierte un markdown simple en PDF (texto plano estilizado) y devuelve bytes."""
     try:
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib.pagesizes import LETTER
@@ -241,8 +240,8 @@ col_g, col_d = st.columns([0.6, 0.4])
 
 with col_g:
     if st.button("Generar análisis", type="primary", use_container_width=True):
-        reglamento = st.session_state.get("reglamento_texto", "")
-        prompt = _mk_prompt(reporte, tono, reglamento)
+        reglamentos = st.session_state.get("reglamentos_texto", "")
+        prompt = _mk_prompt(reporte, tono, reglamentos)
         if ver_prompt:
             with st.expander("Prompt utilizado"):
                 st.code(prompt)
@@ -294,3 +293,4 @@ with c2:
             st.switch_page("Home.py")
         except Exception:
             st.experimental_rerun()
+
