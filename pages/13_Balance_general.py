@@ -32,7 +32,6 @@ def _as_df(obj, cols=None, placeholder=None):
     except Exception:
         df = pd.DataFrame(columns=cols or [])
 
-    # ✅ si el DF está vacío y hay placeholder, usamos el placeholder
     if df.empty and placeholder is not None:
         return placeholder.copy()
     return df
@@ -105,33 +104,58 @@ st.markdown("---")
 # 3) Inventarios
 st.markdown("**Inventarios**")
 inv_cols = ["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
-inv_opts = {
-    "Materia prima": "bg_inv_mp",
-    "Producto en proceso": "bg_inv_pp",
-    "Producto terminado": "bg_inv_pt",
-}
-subtotales_inv = {}
-for titulo, keyname in inv_opts.items():
-    st.markdown(f"*{titulo}*")
-    inv_placeholder = pd.DataFrame([{
-        "Detalle": "", "Valor (₡)": 0, "Verificado por asesor": False,
-        "Tipo de evidencia": "", "Comentario": ""
-    } for _ in range(3)])
-    df_inv = st.data_editor(
-        _as_df(bg_saved.get(keyname), cols=inv_placeholder.columns, placeholder=inv_placeholder),
-        use_container_width=True, num_rows="dynamic", hide_index=True, key=keyname,
-        column_config={
-            "Detalle": st.column_config.TextColumn("Detalle"),
-            "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-            "Comentario": st.column_config.TextColumn("Comentario"),
-        },
-    )
-    subtotal = int(pd.to_numeric(df_inv.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
-    subtotales_inv[titulo] = subtotal
-    st.caption(f"Subtotal {titulo}: **₡{subtotal:,.0f}**")
-total_inventarios = int(sum(subtotales_inv.values()))
+
+inv_placeholder = pd.DataFrame([{
+    "Detalle": "", "Valor (₡)": 0, "Verificado por asesor": False,
+    "Tipo de evidencia": "", "Comentario": ""
+} for _ in range(3)])
+
+st.markdown("*Materia prima*")
+df_inv_mp = st.data_editor(
+    _as_df(bg_saved.get("inv_mp"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
+    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_mp",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_mp = int(pd.to_numeric(df_inv_mp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+st.caption(f"Subtotal Materia Prima: **₡{subtotal_mp:,.0f}**")
+
+st.markdown("*Producto en proceso*")
+df_inv_pp = st.data_editor(
+    _as_df(bg_saved.get("inv_pp"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
+    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pp",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_pp = int(pd.to_numeric(df_inv_pp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+st.caption(f"Subtotal Producto en Proceso: **₡{subtotal_pp:,.0f}**")
+
+st.markdown("*Producto terminado*")
+df_inv_pt = st.data_editor(
+    _as_df(bg_saved.get("inv_pt"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
+    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pt",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_pt = int(pd.to_numeric(df_inv_pt.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+st.caption(f"Subtotal Producto Terminado: **₡{subtotal_pt:,.0f}**")
+
+total_inventarios = subtotal_mp + subtotal_pp + subtotal_pt
 st.metric("**Total Inventarios**", f"₡{total_inventarios:,.0f}")
 st.markdown("---")
 
@@ -267,14 +291,12 @@ with c1:
 with c2:
     if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
         st.session_state.setdefault("reporte", {})
-
-        # ✅ Guardamos todas las tablas tal como están en memoria
         st.session_state["reporte"]["balance_general"] = {
             "caja_bancos": caja_df.to_dict(orient="records"),
             "cxc_clientes": cxc_df.to_dict(orient="records"),
-            "inv_mp": pd.DataFrame(st.session_state.get("bg_inv_mp", [])).to_dict(orient="records"),
-            "inv_pp": pd.DataFrame(st.session_state.get("bg_inv_pp", [])).to_dict(orient="records"),
-            "inv_pt": pd.DataFrame(st.session_state.get("bg_inv_pt", [])).to_dict(orient="records"),
+            "inv_mp": df_inv_mp.to_dict(orient="records"),
+            "inv_pp": df_inv_pp.to_dict(orient="records"),
+            "inv_pt": df_inv_pt.to_dict(orient="records"),
             "activo_fijo": af_df.to_dict(orient="records"),
             "cpp": cpp_df.to_dict(orient="records"),
             "anticipos": antic_df.to_dict(orient="records"),
