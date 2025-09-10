@@ -20,13 +20,13 @@ def _as_df(obj, cols=None, placeholder=None):
     try:
         if isinstance(obj, pd.DataFrame):
             df = obj.copy()
+        elif isinstance(obj, list):
+            df = pd.DataFrame(obj, columns=cols)
         elif isinstance(obj, dict):
             if "data" in obj and isinstance(obj["data"], list):
                 df = pd.DataFrame.from_records(obj["data"])
             else:
                 df = pd.DataFrame.from_records([obj])
-        elif isinstance(obj, (list, tuple)):
-            df = pd.DataFrame(obj, columns=cols)
         else:
             df = pd.DataFrame(columns=cols or [])
     except Exception:
@@ -76,6 +76,7 @@ caja_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
+st.session_state.setdefault("reporte", {}).setdefault("balance_general", {})["caja_bancos"] = caja_df.to_dict(orient="records")
 caja_total = int(pd.to_numeric(caja_df.get("Saldo (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
@@ -97,14 +98,13 @@ cxc_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
+st.session_state["reporte"]["balance_general"]["cxc_clientes"] = cxc_df.to_dict(orient="records")
 cxc_total = int(pd.to_numeric(cxc_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.metric("Subtotal Cuentas por Cobrar", f"₡{cxc_total:,.0f}")
 st.markdown("---")
 
 # 3) Inventarios
 st.markdown("**Inventarios**")
-inv_cols = ["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
-
 inv_placeholder = pd.DataFrame([{
     "Detalle": "", "Valor (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
@@ -114,14 +114,8 @@ st.markdown("*Materia prima*")
 df_inv_mp = st.data_editor(
     _as_df(bg_saved.get("inv_mp"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_mp",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
 )
+st.session_state["reporte"]["balance_general"]["inv_mp"] = df_inv_mp.to_dict(orient="records")
 subtotal_mp = int(pd.to_numeric(df_inv_mp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Materia Prima: **₡{subtotal_mp:,.0f}**")
 
@@ -129,14 +123,8 @@ st.markdown("*Producto en proceso*")
 df_inv_pp = st.data_editor(
     _as_df(bg_saved.get("inv_pp"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pp",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
 )
+st.session_state["reporte"]["balance_general"]["inv_pp"] = df_inv_pp.to_dict(orient="records")
 subtotal_pp = int(pd.to_numeric(df_inv_pp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Producto en Proceso: **₡{subtotal_pp:,.0f}**")
 
@@ -144,20 +132,19 @@ st.markdown("*Producto terminado*")
 df_inv_pt = st.data_editor(
     _as_df(bg_saved.get("inv_pt"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pt",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
 )
+st.session_state["reporte"]["balance_general"]["inv_pt"] = df_inv_pt.to_dict(orient="records")
 subtotal_pt = int(pd.to_numeric(df_inv_pt.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Producto Terminado: **₡{subtotal_pt:,.0f}**")
 
 total_inventarios = subtotal_mp + subtotal_pp + subtotal_pt
 st.metric("**Total Inventarios**", f"₡{total_inventarios:,.0f}")
 st.markdown("---")
+
+# ===================== CONTINÚA CON ACTIVO FIJO, PASIVO, PATRIMONIO =====================
+# (→ aplicar la misma lógica: guardar en session_state inmediatamente después de cada data_editor)
+
+
 
 # Total Activo Circulante
 activo_circulante = int(caja_total + cxc_total + total_inventarios)
