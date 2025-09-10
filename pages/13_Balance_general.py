@@ -267,12 +267,14 @@ with c1:
 with c2:
     if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
         st.session_state.setdefault("reporte", {})
+
+        # ✅ Guardamos todas las tablas tal como están en memoria
         st.session_state["reporte"]["balance_general"] = {
             "caja_bancos": caja_df.to_dict(orient="records"),
             "cxc_clientes": cxc_df.to_dict(orient="records"),
-            "inv_mp": st.session_state.get("bg_inv_mp", []),
-            "inv_pp": st.session_state.get("bg_inv_pp", []),
-            "inv_pt": st.session_state.get("bg_inv_pt", []),
+            "inv_mp": pd.DataFrame(st.session_state.get("bg_inv_mp", [])).to_dict(orient="records"),
+            "inv_pp": pd.DataFrame(st.session_state.get("bg_inv_pp", [])).to_dict(orient="records"),
+            "inv_pt": pd.DataFrame(st.session_state.get("bg_inv_pt", [])).to_dict(orient="records"),
             "activo_fijo": af_df.to_dict(orient="records"),
             "cpp": cpp_df.to_dict(orient="records"),
             "anticipos": antic_df.to_dict(orient="records"),
@@ -305,6 +307,7 @@ with c2:
         else:
             st.success("Balance general guardado. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
+
 
 
 
