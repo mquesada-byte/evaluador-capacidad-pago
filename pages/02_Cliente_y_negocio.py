@@ -1,4 +1,3 @@
-# pages/02_Cliente_y_negocio.py
 import streamlit as st
 from utils.db import get_connection, load_visita   # 👈 usamos helpers de conexión
 
@@ -241,18 +240,21 @@ with colNav2:
                 ))
                 mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+            conn.close()
 
-        st.success(mensaje)
-        st.session_state["done_02"] = True
+            st.success(mensaje)
+            st.session_state["done_02"] = True
 
-        # 🔀 Navegar automáticamente al Paso 3
-        try:
-            st.switch_page("pages/03_Ventas_top_down.py")
-            st.stop()
-        except Exception:
-            st.info("✅ Datos guardados. Continúa con el Paso 3A desde el menú lateral.")
-            st.stop()
+            # 🔀 Navegar automáticamente al Paso 3
+            try:
+                st.switch_page("pages/03_Ventas_top_down.py")
+                st.stop()
+            except Exception:
+                st.info("✅ Datos guardados. Continúa con el Paso 3A desde el menú lateral.")
+                st.stop()
+
+        except Exception as e:
+            st.error(f"❌ Error al guardar en la base de datos: {e}")
 
 
