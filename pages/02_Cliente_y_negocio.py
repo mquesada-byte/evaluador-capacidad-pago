@@ -88,10 +88,15 @@ with st.container():
                     vtd["monto"] = vt["monto_colones"]
                     vtd["tipicidad"] = vt["tipicidad"]
                     vtd["fuente"] = vt["fuente"]
-                    vtd["fuente_otro"] = ""  # opcional: vt["fuente"] si quieres guardar descripción
                     vtd["confianza_cliente"] = vt["confianza_cliente_0a10"]
                     vtd["comentario"] = vt["comentario"]
-
+                
+                    # Si la fuente fue "Otro"
+                    if vt["fuente"] == "Otro":
+                        vtd["fuente_otro"] = vt.get("fuente_otro", "")
+                    else:
+                        vtd["fuente_otro"] = ""
+                  
 
 
 
