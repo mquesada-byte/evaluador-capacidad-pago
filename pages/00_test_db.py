@@ -1,5 +1,6 @@
 import streamlit as st
 import pyodbc
+import time
 
 st.title("🔌 Prueba de conexión a Azure SQL Database")
 
@@ -12,30 +13,47 @@ driver = st.secrets["azure_sql"]["driver"]
 
 st.write("Intentando conectar a la base de datos...")
 
-try:
-    # Conectar
-    conn = pyodbc.connect(
-        f"DRIVER={{{driver}}};"
-        f"SERVER={server};"
-        f"DATABASE={database};"
-        f"UID={username};"
-        f"PWD={password}"
-    )
+# Intentos con reintento automático
+max_retries = 3
+connected = False
+conn = None
 
-    st.success("✅ Conexión exitosa a Azure SQL Database")
+for intento in range(1, max_retries + 1):
+    try:
+        conn = pyodbc.connect(
+            f"DRIVER={{{driver}}};"
+            f"SERVER={server};"
+            f"DATABASE={database};"
+            f"UID={username};"
+            f"PWD={password}",
+            timeout=60  # ⏳ esperar hasta 60 segundos
+        )
 
-    # Ejecutar consulta de prueba: listar tablas
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sys.tables")
-    tablas = [row[0] for row in cursor.fetchall()]
+        st.success(f"✅ Conexión exitosa a Azure SQL Database (intento {intento})")
+        connected = True
+        break
 
-    if tablas:
-        st.write("Tablas encontradas en la base de datos:")
-        st.table(tablas)
-    else:
-        st.info("No se encontraron tablas en la base de datos.")
+    except Exception as e:
+        st.warning(f"⚠️ Intento {intento} fallido: {e}")
+        time.sleep(10)  # esperar 10 segundos antes del siguiente intento
 
-    conn.close()
+if connected and conn:
+    try:
+        # Ejecutar consulta de prueba: listar tablas
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sys.tables")
+        tablas = [row[0] for row in cursor.fetchall()]
 
-except Exception as e:
-    st.error(f"❌ Error de conexión: {e}")
+        if tablas:
+            st.write("📂 Tablas encontradas en la base de datos:")
+            st.table(tablas)
+        else:
+            st.info("No se encontraron tablas en la base de datos.")
+
+        conn.close()
+
+    except Exception as e:
+        st.error(f"❌ Error al ejecutar consulta: {e}")
+else:
+    st.error("❌ No se pudo establecer conexión después de varios intentos.")
+
