@@ -1,5 +1,6 @@
 # pages/02_Cliente_y_negocio.py
 import streamlit as st
+from utils.db import get_connection, load_visita   # 👈 usamos helpers de conexión
 
 # =========================
 # PASO 2 – Datos del cliente y del negocio
@@ -41,19 +42,48 @@ st.caption("Complete los campos. Los marcados con * son obligatorios.")
 
 with st.container():
     st.subheader("Datos del cliente")
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([0.7, 0.3])
     with col1:
         c["nombre_completo"] = st.text_input(
             "Nombre completo *",
             value=c["nombre_completo"],
             placeholder="Ej.: Juan Carlos Rodríguez"
         )
-    with col2:
         c["identificacion"] = st.text_input(
             "Número de identificación (cédula, DIMEX, pasaporte) *",
             value=c["identificacion"],
             placeholder="Ej.: 1-2345-0678"
         )
+    with col2:
+        if st.button("📂 Cargar datos", use_container_width=True) and c["identificacion"].strip():
+            datos = load_visita(c["identificacion"].strip())
+            if datos:
+                st.success("✅ Datos cargados desde la base de datos")
+
+                # Cliente
+                c["nombre_completo"] = datos["cliente_nombre"]
+                n["nombre_comercial"] = datos["nombre_comercial"]
+                n["persona_juridica"] = bool(datos["persona_juridica"])
+                n["ubicacion"] = datos["ubicacion"]
+                n["sector_economico"] = datos["sector_economico"]
+                n["actividad_principal"] = datos["actividad_principal"]
+                n["patente_municipal"] = bool(datos["patente_municipal"])
+                n["registros_contables"] = bool(datos["registros_contables"])
+                n["tipo_local"] = datos["tipo_local"]
+                n["antiguedad_anios"] = datos["antiguedad_anios"]
+                n["antiguedad_meses"] = datos["antiguedad_meses"]
+
+                # Asesor
+                asesor = st.session_state.get("asesor", {})
+                asesor["nombre"] = datos["asesor_nombre"]
+                asesor["fecha_hora"] = datos["fecha_hora"]
+                asesor["timestamp_source"] = datos["hora_fuente"]
+                asesor["lat"] = datos["lat"]
+                asesor["lon"] = datos["lon"]
+                asesor["maps_url"] = datos["maps_url"]
+
+            else:
+                st.warning("⚠️ No se encontraron datos para esta cédula")
 
 st.divider()
 
@@ -137,30 +167,92 @@ with colNav1:
         st.switch_page("pages/01_Asesor.py")
 
 with colNav2:
-    # Guardar y avanzar
     if st.button("Siguiente ➡️", key="next_step_2", disabled=not obligatorios_ok, use_container_width=True):
-        # preparar bloque de reporte
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["cliente_negocio"] = {
-            "cliente_nombre": c["nombre_completo"].strip(),
-            "cliente_identificacion": c["identificacion"].strip(),
-            "nombre_comercial": n["nombre_comercial"].strip(),
-            "persona_juridica": "Sí" if n["persona_juridica"] else "No",
-            "ubicacion": n["ubicacion"].strip(),
-            "sector_economico": n["sector_economico"],
-            "actividad_principal": n["actividad_principal"].strip(),
-            "patente_municipal": "Sí" if n["patente_municipal"] else "No",
-            "registros_contables": "Sí" if n["registros_contables"] else "No",
-            "tipo_local": n["tipo_local"],
-            "antiguedad": antiguedad_str(n["antiguedad_anios"], n["antiguedad_meses"]),
-        }
-        st.session_state["done_02"] = True
+        asesor = st.session_state.get("asesor", {})
 
-        # Ir directo al Paso 3A – Ventas Top-down
         try:
-            st.switch_page("pages/03_Ventas_top_down.py")
-        except Exception:
-            st.success("Datos guardados. Abre el **Paso 3A – Ventas Top-down** desde el menú lateral.")
-            st.stop()
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            # Verificar si ya existe registro
+            cursor.execute("SELECT COUNT(*) FROM visitas_credito WHERE cliente_identificacion = ?", (c["identificacion"].strip(),))
+            existe = cursor.fetchone()[0]
+
+            if existe:
+                # UPDATE
+                cursor.execute("""
+                    UPDATE visitas_credito SET
+                        cliente_nombre=?, nombre_comercial=?, persona_juridica=?,
+                        ubicacion=?, sector_economico=?, actividad_principal=?,
+                        patente_municipal=?, registros_contables=?, tipo_local=?,
+                        antiguedad_anios=?, antiguedad_meses=?,
+                        asesor_nombre=?, fecha_hora=?, hora_fuente=?, lat=?, lon=?, maps_url=?
+                    WHERE cliente_identificacion=?
+                """, (
+                    c["nombre_completo"].strip(),
+                    n["nombre_comercial"].strip(),
+                    1 if n["persona_juridica"] else 0,
+                    n["ubicacion"].strip(),
+                    n["sector_economico"],
+                    n["actividad_principal"].strip(),
+                    1 if n["patente_municipal"] else 0,
+                    1 if n["registros_contables"] else 0,
+                    n["tipo_local"],
+                    int(n["antiguedad_anios"]),
+                    int(n["antiguedad_meses"]),
+                    asesor.get("nombre", "N/A"),
+                    asesor.get("fecha_hora"),
+                    asesor.get("timestamp_source", "N/A"),
+                    asesor.get("lat"),
+                    asesor.get("lon"),
+                    asesor.get("maps_url", "N/A"),
+                    c["identificacion"].strip()
+                ))
+            else:
+                # INSERT
+                cursor.execute("""
+                    INSERT INTO visitas_credito (
+                        cliente_identificacion, cliente_nombre, nombre_comercial,
+                        persona_juridica, ubicacion, sector_economico, actividad_principal,
+                        patente_municipal, registros_contables, tipo_local,
+                        antiguedad_anios, antiguedad_meses,
+                        asesor_nombre, fecha_hora, hora_fuente, lat, lon, maps_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    c["identificacion"].strip(),
+                    c["nombre_completo"].strip(),
+                    n["nombre_comercial"].strip(),
+                    1 if n["persona_juridica"] else 0,
+                    n["ubicacion"].strip(),
+                    n["sector_economico"],
+                    n["actividad_principal"].strip(),
+                    1 if n["patente_municipal"] else 0,
+                    1 if n["registros_contables"] else 0,
+                    n["tipo_local"],
+                    int(n["antiguedad_anios"]),
+                    int(n["antiguedad_meses"]),
+                    asesor.get("nombre", "N/A"),
+                    asesor.get("fecha_hora"),
+                    asesor.get("timestamp_source", "N/A"),
+                    asesor.get("lat"),
+                    asesor.get("lon"),
+                    asesor.get("maps_url", "N/A")
+                ))
+
+            conn.commit()
+            conn.close()
+
+            st.success("✅ Datos guardados en Azure SQL")
+            st.session_state["done_02"] = True
+
+            try:
+                st.switch_page("pages/03_Ventas_top_down.py")
+            except Exception:
+                st.info("Datos guardados. Continúa con el Paso 3A desde el menú lateral.")
+                st.stop()
+
+        except Exception as e:
+            st.error(f"❌ Error al guardar en la base de datos: {e}")
+
 
 
