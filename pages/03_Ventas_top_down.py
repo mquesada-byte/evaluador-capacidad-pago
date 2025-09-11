@@ -2,6 +2,7 @@
 import datetime as dt
 from zoneinfo import ZoneInfo
 import streamlit as st
+from utils.db import get_connection   # 👈 conexión a Azure
 
 st.set_page_config(page_title="Paso 3A: Ventas Top-down", page_icon="📈")
 
@@ -34,7 +35,7 @@ def init_paso3A_state():
     vtd.setdefault("confianza_cliente", 5)  # 0–10
     vtd.setdefault("comentario", "")
 
-# ---------- UI (multipágina; sin 'step') ----------
+# ---------- UI ----------
 init_paso3A_state()
 vtd = st.session_state.ventas_topdown
 mes_etiqueta, mes_iso = _mes_anterior_label()
@@ -102,25 +103,76 @@ with colNav1:
 
 with colNav2:
     if st.button("Siguiente ➡️ (4)", key="next_step_3A", disabled=not obligatorios_ok, use_container_width=True):
-        # Guardar bloque de reporte Top-down
-        st.session_state.setdefault("reporte", {})
-        fuente_final = vtd["fuente_otro"].strip() if vtd["fuente"] == "Otro" else vtd["fuente"]
-        st.session_state["reporte"]["ventas_topdown"] = {
-            "mes_referencia": mes_etiqueta,
-            "mes_iso": mes_iso,  # YYYY-MM para cálculos
-            "monto_colones": int(vtd["monto"]),
-            "tipicidad": vtd["tipicidad"],
-            "fuente": fuente_final,
-            "confianza_cliente_0a10": int(vtd["confianza_cliente"]),
-            "comentario": vtd["comentario"].strip(),
-        }
-        st.session_state["done_03A"] = True
-
-        # Ir al Paso 4 – Ventas Bottom-up (según tu nombre de archivo)
-        try:
-            st.switch_page("pages/04_Ventas_botton_up.py")
-        except Exception:
-            st.success("Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+        if not cliente_id:
+            st.error("⚠️ No se encontró la cédula del cliente en memoria. Vuelva al Paso 2.")
             st.stop()
 
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            fuente_final = vtd["fuente_otro"].strip() if vtd["fuente"] == "Otro" else vtd["fuente"]
+
+            # Verificar si ya existe registro para este cliente y mes
+            cursor.execute(
+                "SELECT COUNT(*) FROM ventas_topdown WHERE cliente_identificacion=? AND mes_iso=?",
+                (cliente_id, mes_iso)
+            )
+            existe = cursor.fetchone()[0]
+
+            if existe:
+                # UPDATE
+                cursor.execute("""
+                    UPDATE ventas_topdown
+                    SET mes_referencia=?, monto_colones=?, tipicidad=?,
+                        fuente=?, confianza_cliente_0a10=?, comentario=?
+                    WHERE cliente_identificacion=? AND mes_iso=?
+                """, (
+                    mes_etiqueta,
+                    int(vtd["monto"]),
+                    vtd["tipicidad"],
+                    fuente_final,
+                    int(vtd["confianza_cliente"]),
+                    vtd["comentario"].strip(),
+                    cliente_id,
+                    mes_iso
+                ))
+                mensaje = "♻️ Ventas Top-down ACTUALIZADAS en Azure SQL"
+            else:
+                # INSERT
+                cursor.execute("""
+                    INSERT INTO ventas_topdown (
+                        cliente_identificacion, mes_referencia, mes_iso,
+                        monto_colones, tipicidad, fuente,
+                        confianza_cliente_0a10, comentario
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    cliente_id,
+                    mes_etiqueta,
+                    mes_iso,
+                    int(vtd["monto"]),
+                    vtd["tipicidad"],
+                    fuente_final,
+                    int(vtd["confianza_cliente"]),
+                    vtd["comentario"].strip()
+                ))
+                mensaje = "🆕 Ventas Top-down INSERTADAS en Azure SQL"
+
+            conn.commit()
+            conn.close()
+
+            st.success(mensaje)
+            st.session_state["done_03A"] = True
+
+            # Ir al Paso 4 – Ventas Bottom-up (ajusta nombre si cambia)
+            try:
+                st.switch_page("pages/04_Ventas_botton_up.py")
+                st.stop()
+            except Exception:
+                st.info("✅ Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
+                st.stop()
+
+        except Exception as e:
+            st.error(f"❌ Error al guardar en la base de datos: {e}")
 
