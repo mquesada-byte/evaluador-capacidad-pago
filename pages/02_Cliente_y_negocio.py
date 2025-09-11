@@ -46,9 +46,11 @@ if c["identificacion"].strip():
     if loaded:
         st.info(f"📂 Datos cargados desde archivo de {c['identificacion']}")
         st.session_state["reporte"] = loaded
-        # restaurar cliente y negocio al state
         st.session_state["cliente"] = loaded.get("cliente", c)
         st.session_state["negocio"] = loaded.get("negocio", n)
+    else:
+        st.warning(f"No se encontró archivo en data_clientes para {c['identificacion']}")
+
 
 with st.container():
     st.subheader("Datos del cliente")
