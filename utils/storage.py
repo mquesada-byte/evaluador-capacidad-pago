@@ -1,20 +1,21 @@
 # utils/storage.py
-import os, json
+import os
+import json
 
-BASE_DIR = "data_clientes"   # 👈 nombre corregido
+DATA_DIR = "data_clientes"
 
-def ensure_base_dir():
-    os.makedirs(BASE_DIR, exist_ok=True)
+def save_reporte(identificacion: str, data: dict):
+    """Guarda el reporte de un cliente en data_clientes/<identificacion>.json"""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    ruta = os.path.join(DATA_DIR, f"{identificacion}.json")
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    return ruta
 
-def save_reporte(cedula: str, data: dict):
-    ensure_base_dir()
-    file_path = os.path.join(BASE_DIR, f"{cedula}.json")
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def load_reporte(cedula: str) -> dict | None:
-    file_path = os.path.join(BASE_DIR, f"{cedula}.json")
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
+def load_reporte(identificacion: str) -> dict | None:
+    """Carga el reporte desde data_clientes/<identificacion>.json si existe"""
+    ruta = os.path.join(DATA_DIR, f"{identificacion}.json")
+    if os.path.exists(ruta):
+        with open(ruta, "r", encoding="utf-8") as f:
             return json.load(f)
     return None
