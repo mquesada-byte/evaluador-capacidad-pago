@@ -1,5 +1,6 @@
 # pages/02_Cliente_y_negocio.py
 import streamlit as st
+from utils.storage import save_reporte, load_reporte   # 👈 importa las funciones de storage
 
 # =========================
 # PASO 2 – Datos del cliente y del negocio
@@ -38,6 +39,16 @@ n = st.session_state.negocio
 
 st.title("👤 Paso 2: Datos del cliente y del negocio")
 st.caption("Complete los campos. Los marcados con * son obligatorios.")
+
+# ================= CARGA AUTOMÁTICA DESDE ARCHIVO =================
+if c["identificacion"].strip():
+    loaded = load_reporte(c["identificacion"].strip())
+    if loaded:
+        st.info(f"📂 Datos cargados desde archivo de {c['identificacion']}")
+        st.session_state["reporte"] = loaded
+        # restaurar cliente y negocio al state
+        st.session_state["cliente"] = loaded.get("cliente", c)
+        st.session_state["negocio"] = loaded.get("negocio", n)
 
 with st.container():
     st.subheader("Datos del cliente")
@@ -154,6 +165,12 @@ with colNav2:
             "tipo_local": n["tipo_local"],
             "antiguedad": antiguedad_str(n["antiguedad_anios"], n["antiguedad_meses"]),
         }
+
+        # GUARDA TAMBIÉN PASO 1 + 2 en disco usando la cédula
+        cedula = c["identificacion"].strip()
+        if cedula:
+            save_reporte(cedula, st.session_state["reporte"])
+
         st.session_state["done_02"] = True
 
         # Ir directo al Paso 3A – Ventas Top-down
@@ -162,4 +179,5 @@ with colNav2:
         except Exception:
             st.success("Datos guardados. Abre el **Paso 3A – Ventas Top-down** desde el menú lateral.")
             st.stop()
+
 
