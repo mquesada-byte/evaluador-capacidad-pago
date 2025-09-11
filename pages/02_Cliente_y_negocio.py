@@ -81,6 +81,21 @@ with st.container():
                 asesor["lon"] = datos["lon"]
                 asesor["maps_url"] = datos["maps_url"]
 
+                # Ventas Top-down (si existen en la DB)
+                if "ventas_topdown" in datos:
+                    vtd = st.session_state.setdefault("ventas_topdown", {})
+                    vt = datos["ventas_topdown"]
+                    vtd["monto"] = vt["monto_colones"]
+                    vtd["tipicidad"] = vt["tipicidad"]
+                    vtd["fuente"] = vt["fuente"]
+                    vtd["fuente_otro"] = ""  # opcional: vt["fuente"] si quieres guardar descripción
+                    vtd["confianza_cliente"] = vt["confianza_cliente_0a10"]
+                    vtd["comentario"] = vt["comentario"]
+
+
+
+
+            
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
 
