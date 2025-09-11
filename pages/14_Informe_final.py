@@ -12,6 +12,33 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 import pandas as pd
 
+# ---------- Sincronizar Balance General ----------
+def _sync_balance_general():
+    if "reporte" not in st.session_state:
+        return
+    rep = st.session_state["reporte"].setdefault("balance_general", {})
+
+    # Mapear claves de session_state a balance_general
+    mapping = {
+        "bg_inv_mp": "inv_mp",
+        "bg_inv_pp": "inv_pp",
+        "bg_inv_pt": "inv_pt",
+        "bg_cxc_clientes": "cxc_clientes",
+        "bg_caja_bancos": "caja_bancos",
+        "bg_cpp": "cpp",
+        "bg_anticipos": "anticipos",
+        "bg_activo_fijo": "activo_fijo",
+        "bg_comentarios": "comentarios",
+    }
+
+    for state_key, rep_key in mapping.items():
+        if state_key in st.session_state and st.session_state[state_key]:
+            rep[rep_key] = st.session_state[state_key]
+
+# Llamar la sincronización apenas carga el informe
+_sync_balance_general()
+
+
 # ---------- Config ----------
 st.set_page_config(page_title="Paso 14: Informe final", page_icon="📑", layout="centered")
 TZ = ZoneInfo("America/Costa_Rica")
