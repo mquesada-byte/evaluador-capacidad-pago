@@ -6,3 +6,4 @@ streamlit-js-eval>=0.1.7
 requests
 PyPDF2
 pyodbc
+pymssql
