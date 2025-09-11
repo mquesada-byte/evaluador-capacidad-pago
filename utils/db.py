@@ -12,3 +12,20 @@ def get_connection():
         timeout=30
     )
     return conn
+
+
+def load_visita(cliente_identificacion: str):
+    """Carga un registro de visitas_credito por cédula. 
+       Devuelve un dict con las columnas, o None si no existe."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM visitas_credito WHERE cliente_identificacion = ?", (cliente_identificacion,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return None
+
+    columns = [col[0] for col in cursor.description]
+    data = dict(zip(columns, row))
+    conn.close()
+    return data
