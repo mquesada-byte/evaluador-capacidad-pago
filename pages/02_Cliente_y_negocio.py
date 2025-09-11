@@ -166,7 +166,7 @@ with colNav2:
             "antiguedad": antiguedad_str(n["antiguedad_anios"], n["antiguedad_meses"]),
         }
 
-        # GUARDA TAMBIÉN PASO 1 + 2 en disco usando la cédula
+        # 🚀 GUARDA TAMBIÉN PASO 1 + 2 en disco usando la cédula
         cedula = c["identificacion"].strip()
         if cedula:
             save_reporte(cedula, st.session_state["reporte"])
