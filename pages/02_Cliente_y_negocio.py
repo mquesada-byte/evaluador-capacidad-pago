@@ -208,6 +208,7 @@ with colNav2:
                     asesor.get("maps_url", "N/A"),
                     c["identificacion"].strip()
                 ))
+                mensaje = "♻️ Datos ACTUALIZADOS en Azure SQL"
             else:
                 # INSERT
                 cursor.execute("""
@@ -238,21 +239,16 @@ with colNav2:
                     asesor.get("lon"),
                     asesor.get("maps_url", "N/A")
                 ))
+                mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
             conn.commit()
             conn.close()
 
-            st.success("✅ Datos guardados en Azure SQL")
-            st.session_state["done_02"] = True
-
-            try:
-                st.switch_page("pages/03_Ventas_top_down.py")
-            except Exception:
-                st.info("Datos guardados. Continúa con el Paso 3A desde el menú lateral.")
-                st.stop()
+            st.success(mensaje)
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
+
 
 
 
