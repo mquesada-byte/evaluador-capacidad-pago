@@ -245,10 +245,14 @@ with colNav2:
             conn.close()
 
             st.success(mensaje)
+            st.session_state["done_02"] = True
 
-        except Exception as e:
-            st.error(f"❌ Error al guardar en la base de datos: {e}")
-
-
+# 🔀 Navegar automáticamente al Paso 3
+        try:
+            st.switch_page("pages/03_Ventas_top_down.py")
+            st.stop()
+        except Exception:
+            st.info("✅ Datos guardados. Continúa con el Paso 3A desde el menú lateral.")
+            st.stop()
 
 
