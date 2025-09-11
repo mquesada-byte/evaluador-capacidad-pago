@@ -241,13 +241,13 @@ with colNav2:
                 ))
                 mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
-            conn.commit()
-            conn.close()
+        conn.commit()
+        conn.close()
 
-            st.success(mensaje)
-            st.session_state["done_02"] = True
+        st.success(mensaje)
+        st.session_state["done_02"] = True
 
-# 🔀 Navegar automáticamente al Paso 3
+        # 🔀 Navegar automáticamente al Paso 3
         try:
             st.switch_page("pages/03_Ventas_top_down.py")
             st.stop()
