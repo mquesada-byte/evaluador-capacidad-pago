@@ -163,24 +163,50 @@ with colNav1:
     if st.button("⬅️ Volver a 3A (Top-down)", key="back_to_3A", use_container_width=True):
         st.switch_page("pages/03_Ventas_top_down.py")
 
+import pyodbc
+from utils.db import get_connection  # 👈 asumiendo que ya tienes esta función
+
 with colNav2:
     if st.button("Siguiente ➡️ (5)", key="next_step_4", disabled=not obligatorios_ok, use_container_width=True):
-        # Guardar bloque de reporte Bottom-up
         st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["ventas_bottomup"] = {
+        reporte = {
             "mes_referencia": mes_etiqueta,
             "mes_iso": mes_iso,
-            "unidad_clientes": vbu["unidad_clientes"],
-            "clientes_valor": int(vbu["clientes"]),
-            "dias_abiertos": int(vbu["dias_abiertos"]) if vbu["unidad_clientes"] == "Día" else None,
-            "semanas_abiertas": int(vbu["semanas_abiertas"]) if vbu["unidad_clientes"] == "Semana" else None,
-            "ticket_promedio_colones": int(vbu["ticket_promedio"]),
-            "ventas_estimadas_colones": int(total_estimado),
-            "comentario": vbu["comentario"].strip(),
+            "unidad_clientes": vbu.get("unidad_clientes"),
+            "clientes_valor": int(vbu["clientes"]) if not st.session_state.no_data else None,
+            "dias_abiertos": int(vbu["dias_abiertos"]) if vbu["unidad_clientes"] == "Día" and not st.session_state.no_data else None,
+            "semanas_abiertas": int(vbu["semanas_abiertas"]) if vbu["unidad_clientes"] == "Semana" and not st.session_state.no_data else None,
+            "ticket_promedio_colones": int(vbu["ticket_promedio"]) if not st.session_state.no_data else None,
+            "ventas_estimadas_colones": int(total_estimado) if not st.session_state.no_data else None,
+            "comentario": vbu["comentario"].strip() if vbu["comentario"] else None,
+            "no_data": 1 if st.session_state.no_data else 0
         }
+        st.session_state["reporte"]["ventas_bottomup"] = reporte
         st.session_state["done_04"] = True
 
-        # Ir al Paso 5 – Insumos/Margen
+        # ---------- INSERT en Azure ----------
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO VentasBottomUp (
+                    mes_referencia, mes_iso, unidad_clientes,
+                    clientes_valor, dias_abiertos, semanas_abiertas,
+                    ticket_promedio_colones, ventas_estimadas_colones,
+                    comentario, no_data
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                reporte["mes_referencia"], reporte["mes_iso"], reporte["unidad_clientes"],
+                reporte["clientes_valor"], reporte["dias_abiertos"], reporte["semanas_abiertas"],
+                reporte["ticket_promedio_colones"], reporte["ventas_estimadas_colones"],
+                reporte["comentario"], reporte["no_data"]
+            ))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            st.error(f"Error al guardar en Azure: {e}")
+
+        # Navegación al paso siguiente
         try:
             st.switch_page("pages/05_Ventas_insumos_margen.py")
         except Exception:
