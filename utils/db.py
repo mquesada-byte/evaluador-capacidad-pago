@@ -62,7 +62,8 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
     """
     Inserta o actualiza un registro en la tabla ventas_bottomup
     según cliente_id + mes_iso.
-    Si no_data=1, se limpian los valores anteriores.
+    - Si no_data=1 -> se limpian todos los valores y se guarda el flag.
+    - Nunca borra registros.
     """
     try:
         conn = get_connection()
@@ -77,16 +78,16 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         existe = cursor.fetchone()[0] > 0
 
         if data.get("no_data") == 1:
-            # Si no hay datos → limpiar campos
+            # Sobrescribir a "sin datos"
             unidad_clientes = None
-            clientes_valor = 0
-            dias_abiertos = 0
-            semanas_abiertas = 0
-            ticket_promedio_colones = 0
-            ventas_estimadas_colones = 0
+            clientes_valor = None
+            dias_abiertos = None
+            semanas_abiertas = None
+            ticket_promedio_colones = None
+            ventas_estimadas_colones = None
             comentario = data.get("comentario")
         else:
-            # Si hay datos → guardar lo que venga
+            # Guardar valores reales
             unidad_clientes = data.get("unidad_clientes")
             clientes_valor = data.get("clientes_valor")
             dias_abiertos = data.get("dias_abiertos")
@@ -96,7 +97,7 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
             comentario = data.get("comentario")
 
         if existe:
-            # UPDATE si ya existe
+            # UPDATE
             cursor.execute("""
                 UPDATE ventas_bottomup
                 SET mes_referencia=?,
@@ -124,7 +125,7 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
                 data.get("mes_iso"),
             ))
         else:
-            # INSERT si no existe
+            # INSERT
             cursor.execute("""
                 INSERT INTO ventas_bottomup (
                     cliente_identificacion, mes_referencia, mes_iso, unidad_clientes,
