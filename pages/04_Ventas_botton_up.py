@@ -164,7 +164,7 @@ with colNav1:
         st.switch_page("pages/03_Ventas_top_down.py")
 
 import pyodbc
-from utils.db import get_connection  # 👈 asumiendo que ya tienes esta función
+from utils.db import save_ventas_bottomup
 
 with colNav2:
     if st.button("Siguiente ➡️ (5)", key="next_step_4", disabled=not obligatorios_ok, use_container_width=True):
@@ -184,29 +184,16 @@ with colNav2:
         st.session_state["reporte"]["ventas_bottomup"] = reporte
         st.session_state["done_04"] = True
 
-        # ---------- INSERT en Azure ----------
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO VentasBottomUp (
-                    mes_referencia, mes_iso, unidad_clientes,
-                    clientes_valor, dias_abiertos, semanas_abiertas,
-                    ticket_promedio_colones, ventas_estimadas_colones,
-                    comentario, no_data
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                reporte["mes_referencia"], reporte["mes_iso"], reporte["unidad_clientes"],
-                reporte["clientes_valor"], reporte["dias_abiertos"], reporte["semanas_abiertas"],
-                reporte["ticket_promedio_colones"], reporte["ventas_estimadas_colones"],
-                reporte["comentario"], reporte["no_data"]
-            ))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            st.error(f"Error al guardar en Azure: {e}")
+        # ---------- Guardar en BD ----------
+        cliente_id = st.session_state.cliente.get("identificacion")  # 👈 asegúrate que esto tenga el valor correcto
+        if cliente_id:
+            ok = save_ventas_bottomup(cliente_id, reporte)
+            if ok:
+                st.success("Datos guardados en la base de datos.")
+            else:
+                st.error("No se pudieron guardar los datos en la base de datos.")
 
-        # Navegación al paso siguiente
+        # Navegación
         try:
             st.switch_page("pages/05_Ventas_insumos_margen.py")
         except Exception:
