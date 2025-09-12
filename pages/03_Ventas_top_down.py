@@ -2,7 +2,7 @@
 import datetime as dt
 from zoneinfo import ZoneInfo
 import streamlit as st
-from utils.db import get_connection   # 👈 conexión a Azure
+from utils.db import save_ventas_topdown   # 👈 usamos helper en vez de meter SQL directo
 
 st.set_page_config(page_title="Paso 3A: Ventas Top-down", page_icon="📈")
 
@@ -75,7 +75,7 @@ with st.container():
             )
         vtd["confianza_cliente"] = st.slider(
             "Confianza declarada por el cliente (0–10)",
-            min_value=0, max_value=10, step=1, value=int(vtd["confianza_cliente"]),
+            min_value=0, max_value=10, step=1, value=int(vtd["confianza_cliente"] or 0),
             help="En una escala de 0 a 10, ¿qué tan seguro está del monto del último mes?"
         )
 
@@ -96,6 +96,7 @@ obligatorios_ok = all([
     fuente_valida
 ])
 
+# -------- Navegación --------
 colNav1, colNav2 = st.columns([0.5, 0.5])
 with colNav1:
     if st.button("⬅️ Volver al Paso 2", key="back_to_step_2", use_container_width=True):
@@ -108,71 +109,34 @@ with colNav2:
             st.error("⚠️ No se encontró la cédula del cliente en memoria. Vuelva al Paso 2.")
             st.stop()
 
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
+        # Construir el reporte
+        fuente_final = vtd["fuente_otro"].strip() if vtd["fuente"] == "Otro" else vtd["fuente"]
+        reporte = {
+            "mes_referencia": mes_etiqueta,
+            "mes_iso": mes_iso,
+            "monto_colones": int(vtd["monto"]),
+            "tipicidad": vtd["tipicidad"],
+            "fuente": fuente_final,
+            "confianza_cliente_0a10": int(vtd["confianza_cliente"]),
+            "comentario": vtd["comentario"].strip(),
+        }
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["ventas_topdown"] = reporte
 
-            fuente_final = vtd["fuente_otro"].strip() if vtd["fuente"] == "Otro" else vtd["fuente"]
-
-            # Verificar si ya existe registro para este cliente y mes
-            cursor.execute(
-                "SELECT COUNT(*) FROM ventas_topdown WHERE cliente_identificacion=? AND mes_iso=?",
-                (cliente_id, mes_iso)
-            )
-            existe = cursor.fetchone()[0]
-
-            if existe:
-                # UPDATE
-                cursor.execute("""
-                    UPDATE ventas_topdown
-                    SET mes_referencia=?, monto_colones=?, tipicidad=?,
-                        fuente=?, confianza_cliente_0a10=?, comentario=?
-                    WHERE cliente_identificacion=? AND mes_iso=?
-                """, (
-                    mes_etiqueta,
-                    int(vtd["monto"]),
-                    vtd["tipicidad"],
-                    fuente_final,
-                    int(vtd["confianza_cliente"]),
-                    vtd["comentario"].strip(),
-                    cliente_id,
-                    mes_iso
-                ))
-                mensaje = "♻️ Ventas Top-down ACTUALIZADAS en Azure SQL"
-            else:
-                # INSERT
-                cursor.execute("""
-                    INSERT INTO ventas_topdown (
-                        cliente_identificacion, mes_referencia, mes_iso,
-                        monto_colones, tipicidad, fuente,
-                        confianza_cliente_0a10, comentario
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    cliente_id,
-                    mes_etiqueta,
-                    mes_iso,
-                    int(vtd["monto"]),
-                    vtd["tipicidad"],
-                    fuente_final,
-                    int(vtd["confianza_cliente"]),
-                    vtd["comentario"].strip()
-                ))
-                mensaje = "🆕 Ventas Top-down INSERTADAS en Azure SQL"
-
-            conn.commit()
-            conn.close()
-
-            st.success(mensaje)
+        # Guardar en BD
+        ok = save_ventas_topdown(cliente_id, reporte)
+        if ok:
+            st.success("✅ Ventas Top-down guardadas en Azure SQL")
             st.session_state["done_03A"] = True
+        else:
+            st.error("❌ Error al guardar Ventas Top-down")
 
-            # Ir al Paso 4 – Ventas Bottom-up (ajusta nombre si cambia)
-            try:
-                st.switch_page("pages/04_Ventas_botton_up.py")
-                st.stop()
-            except Exception:
-                st.info("✅ Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
-                st.stop()
+        # Ir al Paso 4 – Ventas Bottom-up (ajusta nombre si cambia)
+        try:
+            st.switch_page("pages/04_Ventas_botton_up.py")
+            st.stop()
+        except Exception:
+            st.info("✅ Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
+            st.stop()
 
-        except Exception as e:
-            st.error(f"❌ Error al guardar en la base de datos: {e}")
 
