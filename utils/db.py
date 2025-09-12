@@ -77,16 +77,16 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         existe = cursor.fetchone()[0] > 0
 
         if data.get("no_data") == 1:
-            # Si no hay datos, limpiar los campos
+            # Si no hay datos → limpiar campos
             unidad_clientes = None
-            clientes_valor = None
-            dias_abiertos = None
-            semanas_abiertas = None
-            ticket_promedio_colones = None
-            ventas_estimadas_colones = None
+            clientes_valor = 0
+            dias_abiertos = 0
+            semanas_abiertas = 0
+            ticket_promedio_colones = 0
+            ventas_estimadas_colones = 0
             comentario = data.get("comentario")
         else:
-            # Si hay datos, usar lo recibido
+            # Si hay datos → guardar lo que venga
             unidad_clientes = data.get("unidad_clientes")
             clientes_valor = data.get("clientes_valor")
             dias_abiertos = data.get("dias_abiertos")
