@@ -60,25 +60,17 @@ def load_visita(cliente_id: str) -> dict | None:
 
 def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
     """
-    Inserta o actualiza un registro en la tabla ventas_bottomup
-    según cliente_id + mes_iso.
-    - Si no_data=1 -> se limpian todos los valores y se guarda el flag.
-    - Nunca borra registros.
+    UPSERT en la tabla ventas_bottomup:
+    - Si ya existe cliente+mes_iso -> UPDATE.
+    - Si no existe -> INSERT.
+    - Si no_data=1 -> limpia todos los valores.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Verificar si ya existe un registro para este cliente y mes
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM ventas_bottomup
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, data.get("mes_iso")))
-        existe = cursor.fetchone()[0] > 0
-
+        # Preparar valores según no_data
         if data.get("no_data") == 1:
-            # Sobrescribir a "sin datos"
             unidad_clientes = None
             clientes_valor = None
             dias_abiertos = None
@@ -87,7 +79,6 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
             ventas_estimadas_colones = None
             comentario = data.get("comentario")
         else:
-            # Guardar valores reales
             unidad_clientes = data.get("unidad_clientes")
             clientes_valor = data.get("clientes_valor")
             dias_abiertos = data.get("dias_abiertos")
@@ -96,36 +87,36 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
             ventas_estimadas_colones = data.get("ventas_estimadas_colones")
             comentario = data.get("comentario")
 
-        if existe:
-            # UPDATE
-            cursor.execute("""
-                UPDATE ventas_bottomup
-                SET mes_referencia=?,
-                    unidad_clientes=?,
-                    clientes_valor=?,
-                    dias_abiertos=?,
-                    semanas_abiertas=?,
-                    ticket_promedio_colones=?,
-                    ventas_estimadas_colones=?,
-                    comentario=?,
-                    no_data=?,
-                    fecha_registro=GETDATE()
-                WHERE cliente_identificacion=? AND mes_iso=?
-            """, (
-                data.get("mes_referencia"),
-                unidad_clientes,
-                clientes_valor,
-                dias_abiertos,
-                semanas_abiertas,
-                ticket_promedio_colones,
-                ventas_estimadas_colones,
-                comentario,
-                data.get("no_data"),
-                cliente_id,
-                data.get("mes_iso"),
-            ))
-        else:
-            # INSERT
+        # Intentar UPDATE primero
+        cursor.execute("""
+            UPDATE ventas_bottomup
+            SET mes_referencia=?,
+                unidad_clientes=?,
+                clientes_valor=?,
+                dias_abiertos=?,
+                semanas_abiertas=?,
+                ticket_promedio_colones=?,
+                ventas_estimadas_colones=?,
+                comentario=?,
+                no_data=?,
+                fecha_registro=GETDATE()
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (
+            data.get("mes_referencia"),
+            unidad_clientes,
+            clientes_valor,
+            dias_abiertos,
+            semanas_abiertas,
+            ticket_promedio_colones,
+            ventas_estimadas_colones,
+            comentario,
+            data.get("no_data"),
+            cliente_id,
+            data.get("mes_iso"),
+        ))
+
+        if cursor.rowcount == 0:
+            # Si no existía, hacer INSERT
             cursor.execute("""
                 INSERT INTO ventas_bottomup (
                     cliente_identificacion, mes_referencia, mes_iso, unidad_clientes,
@@ -153,7 +144,7 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         return True
 
     except Exception as e:
-        st.error(f"Error guardando VentasBottomUp: {e}")
+        st.error(f"Error guardando ventas_bottomup: {e}")
         return False
 
 
