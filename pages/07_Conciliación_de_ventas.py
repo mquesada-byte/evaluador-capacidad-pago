@@ -61,7 +61,9 @@ def _nivel_confiabilidad(max_dev: float | None, num_metodos: int, fuente: str | 
 st.title("🧮 Paso 7: Conciliación de ventas")
 st.caption("Comparamos las estimaciones (Top-down, Bottom-up e Insumos), ponderamos por calidad/valoración y fijamos un monto mensual defendible.")
 
+# =========================
 # Recuperar datos del cliente
+# =========================
 cliente_id = st.session_state.cliente.get("identificacion")
 rep = st.session_state.get("reporte", {})
 
@@ -75,7 +77,9 @@ if cliente_id and not rep:
         if "valoracion_asesor" in datos: rep["valoracion_asesor"] = datos["valoracion_asesor"]
     st.session_state["reporte"] = rep
 
-# Asegurar que haya valoración del asesor
+# =========================
+# Validación de valoración
+# =========================
 if "valoracion_asesor" not in rep:
     st.info("Antes de conciliar, registra tu **valoración del asesor**.")
     col_go, col_sep = st.columns([0.4, 0.6])
@@ -119,6 +123,9 @@ else:
     insumos_decl = None
     insumos_val = None
 
+# =========================
+# Validar si hay algo disponible
+# =========================
 disponibles = [x for x in [top_adj, bottom_val, insumos_val] if isinstance(x, (int, float)) and x > 0]
 if len(disponibles) == 0:
     st.warning("Aún no hay estimaciones suficientes para conciliar. Completá al menos una de Top-down (03), Bottom-up (04) o Insumos (05).")
