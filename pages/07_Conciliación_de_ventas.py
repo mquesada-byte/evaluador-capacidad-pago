@@ -96,13 +96,19 @@ if "valoracion_asesor" not in rep:
 # ---- Tomar valores disponibles de 03/04/05 ----
 # 03 Top-down
 vtd = rep.get("ventas_topdown", {})
-top_raw = vtd.get("monto_colones")
+
+def _to_num(val):
+    try:
+        if val is None:
+            return None
+        return float(val)
+    except:
+        return None
+
+top_raw = _to_num(vtd.get("monto_colones"))
 tipicidad = vtd.get("tipicidad")
 fuente = vtd.get("fuente")
 conf_cli = vtd.get("confianza_cliente_0a10")
-top_adj, top_ajuste_txt = (None, "—")
-if isinstance(top_raw, (int, float)) and top_raw > 0 and tipicidad in ["Típico", "Alto", "Bajo"]:
-    top_adj, top_ajuste_txt = _ajuste_tipicidad(float(top_raw), tipicidad)
 
 # 04 Bottom-up
 vbu = rep.get("ventas_bottomup", {})
