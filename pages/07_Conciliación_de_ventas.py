@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from utils.db import load_visita
 
 st.set_page_config(page_title="Paso 7: Conciliación de ventas", page_icon="🧮")
 
@@ -60,7 +61,19 @@ def _nivel_confiabilidad(max_dev: float | None, num_metodos: int, fuente: str | 
 st.title("🧮 Paso 7: Conciliación de ventas")
 st.caption("Comparamos las estimaciones (Top-down, Bottom-up e Insumos), ponderamos por calidad/valoración y fijamos un monto mensual defendible.")
 
+# Recuperar datos del cliente
+cliente_id = st.session_state.cliente.get("identificacion")
 rep = st.session_state.get("reporte", {})
+
+# 👉 Si el session_state no tiene reporte, cargar desde SQL
+if cliente_id and not rep:
+    datos = load_visita(cliente_id)
+    if datos:
+        if "ventas_topdown" in datos: rep["ventas_topdown"] = datos["ventas_topdown"]
+        if "ventas_bottomup" in datos: rep["ventas_bottomup"] = datos["ventas_bottomup"]
+        if "ventas_p5" in datos: rep["ventas_p5"] = datos["ventas_p5"]
+        if "valoracion_asesor" in datos: rep["valoracion_asesor"] = datos["valoracion_asesor"]
+    st.session_state["reporte"] = rep
 
 # Asegurar que haya valoración del asesor
 if "valoracion_asesor" not in rep:
@@ -310,5 +323,6 @@ with c3:
         except Exception:
             st.success("Conciliación guardada. Abrí **08 – Otros ingresos** desde el menú lateral.")
             st.stop()
+
 
 
