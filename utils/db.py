@@ -21,14 +21,12 @@ def load_visita(cliente_id: str) -> dict | None:
     # Cliente/negocio/asesor
     cursor.execute("SELECT * FROM visitas_credito WHERE cliente_identificacion=?", (cliente_id,))
     row1 = cursor.fetchone()
-
     if not row1:
         conn.close()
         return None
-
     datos = dict(zip([col[0] for col in cursor.description], row1))
 
-    # Ventas Top-down (último registro)
+    # Ventas Top-down
     cursor.execute("""
         SELECT TOP 1 *
         FROM ventas_topdown
@@ -40,7 +38,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols2 = [col[0] for col in cursor.description]
         datos["ventas_topdown"] = dict(zip(cols2, row2))
 
-    # Ventas Bottom-up (último registro)
+    # Ventas Bottom-up
     cursor.execute("""
         SELECT TOP 1 *
         FROM ventas_bottomup
@@ -52,7 +50,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols3 = [col[0] for col in cursor.description]
         datos["ventas_bottomup"] = dict(zip(cols3, row3))
 
-    # Ventas Paso 5 (último registro)
+    # Ventas Paso 5
     cursor.execute("""
         SELECT TOP 1 *
         FROM ventas_p5
@@ -64,7 +62,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols4 = [col[0] for col in cursor.description]
         datos["ventas_p5"] = dict(zip(cols4, row4))
 
-    # Valoración asesor (último registro)
+    # Valoración asesor
     cursor.execute("""
         SELECT TOP 1 *
         FROM valoracion_asesor
@@ -80,6 +78,53 @@ def load_visita(cliente_id: str) -> dict | None:
     return datos
 
 
+# ==========================================================
+# GUARDAR PASO 3 – TOP-DOWN
+# ==========================================================
+def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
+    """UPSERT en la tabla ventas_topdown."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE ventas_topdown
+            SET mes_referencia=?, monto_colones=?, tipicidad=?, fuente=?,
+                confianza_cliente_0a10=?, comentario=?, fecha_registro=GETDATE()
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (
+            data.get("mes_referencia"), data.get("monto_colones"),
+            data.get("tipicidad"), data.get("fuente"),
+            data.get("confianza_cliente_0a10"), data.get("comentario"),
+            cliente_id, data.get("mes_iso")
+        ))
+
+        if cursor.rowcount == 0:
+            cursor.execute("""
+                INSERT INTO ventas_topdown (
+                    cliente_identificacion, mes_referencia, mes_iso,
+                    monto_colones, tipicidad, fuente,
+                    confianza_cliente_0a10, comentario
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
+                data.get("monto_colones"), data.get("tipicidad"),
+                data.get("fuente"), data.get("confianza_cliente_0a10"),
+                data.get("comentario")
+            ))
+
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error guardando ventas_topdown: {e}")
+        return False
+
+
+# ==========================================================
+# GUARDAR PASO 4 – BOTTOM-UP
+# ==========================================================
 def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
     """UPSERT en la tabla ventas_bottomup."""
     try:
@@ -109,9 +154,10 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
                 ticket_promedio_colones=?, ventas_estimadas_colones=?, comentario=?, no_data=?, fecha_registro=GETDATE()
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (
-            data.get("mes_referencia"), unidad_clientes, clientes_valor, dias_abiertos, semanas_abiertas,
-            ticket_promedio_colones, ventas_estimadas_colones, comentario, data.get("no_data"),
-            cliente_id, data.get("mes_iso"),
+            data.get("mes_referencia"), unidad_clientes, clientes_valor,
+            dias_abiertos, semanas_abiertas, ticket_promedio_colones,
+            ventas_estimadas_colones, comentario, data.get("no_data"),
+            cliente_id, data.get("mes_iso")
         ))
 
         if cursor.rowcount == 0:
@@ -124,21 +170,23 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"), unidad_clientes,
-                clientes_valor, dias_abiertos, semanas_abiertas,
-                ticket_promedio_colones, ventas_estimadas_colones,
-                comentario, data.get("no_data"),
+                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
+                unidad_clientes, clientes_valor, dias_abiertos,
+                semanas_abiertas, ticket_promedio_colones,
+                ventas_estimadas_colones, comentario, data.get("no_data")
             ))
 
         conn.commit()
         conn.close()
         return True
-
     except Exception as e:
         st.error(f"Error guardando ventas_bottomup: {e}")
         return False
 
 
+# ==========================================================
+# GUARDAR PASO 5 – INSUMOS
+# ==========================================================
 def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     """UPSERT en la tabla ventas_p5."""
     try:
@@ -179,10 +227,11 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
                 costo_estimado_colones=?, ventas_estimadas_colones=?, comentario=?, no_data=?, fecha_registro=GETDATE()
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (
-            data.get("mes_referencia"), modo, tiene_registros, compras_mes_colones, tipo_margen, margen_pct,
-            facturacion_bruta_mes_colones, comision_pct, ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
-            costo_estimado_colones, ventas_estimadas_colones, comentario, data.get("no_data"),
-            cliente_id, data.get("mes_iso"),
+            data.get("mes_referencia"), modo, tiene_registros, compras_mes_colones,
+            tipo_margen, margen_pct, facturacion_bruta_mes_colones, comision_pct,
+            ventas_reportadas_mes_colones, costo_pct_sobre_ventas, costo_estimado_colones,
+            ventas_estimadas_colones, comentario, data.get("no_data"),
+            cliente_id, data.get("mes_iso")
         ))
 
         if cursor.rowcount == 0:
@@ -197,23 +246,25 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"), modo,
-                tiene_registros, compras_mes_colones, tipo_margen, margen_pct,
-                facturacion_bruta_mes_colones, comision_pct,
+                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
+                modo, tiene_registros, compras_mes_colones, tipo_margen,
+                margen_pct, facturacion_bruta_mes_colones, comision_pct,
                 ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
                 costo_estimado_colones, ventas_estimadas_colones,
-                comentario, data.get("no_data"),
+                comentario, data.get("no_data")
             ))
 
         conn.commit()
         conn.close()
         return True
-
     except Exception as e:
         st.error(f"Error guardando ventas_p5: {e}")
         return False
 
 
+# ==========================================================
+# GUARDAR PASO 6 – VALORACIÓN ASESOR
+# ==========================================================
 def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
     """UPSERT en la tabla valoracion_asesor."""
     try:
@@ -244,17 +295,17 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
                 cliente_id, data.get("mes_iso"),
                 data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
                 data.get("dudas_declaracion"), data.get("clasificacion"),
-                ",".join(data.get("evidencia", [])),
-                data.get("comentario"), data.get("factor_asesor_0a1")
+                ",".join(data.get("evidencia", [])), data.get("comentario"),
+                data.get("factor_asesor_0a1")
             ))
 
         conn.commit()
         conn.close()
         return True
-
     except Exception as e:
         st.error(f"Error guardando valoracion_asesor: {e}")
         return False
+
 
 
 
