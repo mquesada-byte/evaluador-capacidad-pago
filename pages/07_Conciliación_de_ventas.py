@@ -110,6 +110,12 @@ tipicidad = vtd.get("tipicidad")
 fuente = vtd.get("fuente")
 conf_cli = vtd.get("confianza_cliente_0a10")
 
+# 👇 inicialización correcta
+top_adj, top_ajuste_txt = (None, "—")
+if top_raw and top_raw > 0 and tipicidad in ["Típico", "Alto", "Bajo"]:
+    top_adj, top_ajuste_txt = _ajuste_tipicidad(top_raw, tipicidad)
+
+
 # 04 Bottom-up
 vbu = rep.get("ventas_bottomup", {})
 bottom_val = vbu.get("ventas_estimadas_colones")
