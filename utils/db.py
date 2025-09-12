@@ -36,7 +36,6 @@ def load_visita(cliente_id: str) -> dict | None:
         ORDER BY mes_iso DESC
     """, (cliente_id,))
     row2 = cursor.fetchone()
-
     if row2:
         cols2 = [col[0] for col in cursor.description]
         datos["ventas_topdown"] = dict(zip(cols2, row2))
@@ -49,7 +48,6 @@ def load_visita(cliente_id: str) -> dict | None:
         ORDER BY mes_iso DESC
     """, (cliente_id,))
     row3 = cursor.fetchone()
-
     if row3:
         cols3 = [col[0] for col in cursor.description]
         datos["ventas_bottomup"] = dict(zip(cols3, row3))
@@ -62,10 +60,21 @@ def load_visita(cliente_id: str) -> dict | None:
         ORDER BY mes_iso DESC
     """, (cliente_id,))
     row4 = cursor.fetchone()
-
     if row4:
         cols4 = [col[0] for col in cursor.description]
         datos["ventas_p5"] = dict(zip(cols4, row4))
+
+    # Valoración asesor (último registro)
+    cursor.execute("""
+        SELECT TOP 1 *
+        FROM valoracion_asesor
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
+    row5 = cursor.fetchone()
+    if row5:
+        cols5 = [col[0] for col in cursor.description]
+        datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
     conn.close()
     return datos
@@ -203,6 +212,50 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     except Exception as e:
         st.error(f"Error guardando ventas_p5: {e}")
         return False
+
+
+def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
+    """UPSERT en la tabla valoracion_asesor."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE valoracion_asesor
+            SET conocimiento_0a10=?, credibilidad_0a10=?, dudas_declaracion=?, clasificacion=?,
+                evidencia=?, comentario=?, factor_asesor_0a1=?, fecha_registro=GETDATE()
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (
+            data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
+            data.get("dudas_declaracion"), data.get("clasificacion"),
+            ",".join(data.get("evidencia", [])),
+            data.get("comentario"), data.get("factor_asesor_0a1"),
+            cliente_id, data.get("mes_iso")
+        ))
+
+        if cursor.rowcount == 0:
+            cursor.execute("""
+                INSERT INTO valoracion_asesor (
+                    cliente_identificacion, mes_iso, conocimiento_0a10, credibilidad_0a10,
+                    dudas_declaracion, clasificacion, evidencia, comentario, factor_asesor_0a1
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cliente_id, data.get("mes_iso"),
+                data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
+                data.get("dudas_declaracion"), data.get("clasificacion"),
+                ",".join(data.get("evidencia", [])),
+                data.get("comentario"), data.get("factor_asesor_0a1")
+            ))
+
+        conn.commit()
+        conn.close()
+        return True
+
+    except Exception as e:
+        st.error(f"Error guardando valoracion_asesor: {e}")
+        return False
+
 
 
 
