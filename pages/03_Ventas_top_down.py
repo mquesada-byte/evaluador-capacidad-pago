@@ -1,8 +1,7 @@
-# pages/03_Ventas_top_down.py
 import datetime as dt
 from zoneinfo import ZoneInfo
 import streamlit as st
-from utils.db import save_ventas_topdown   # 👈 usamos helper en vez de meter SQL directo
+from utils.db import save_ventas_topdown, load_visita   # 👈 añadimos load_visita
 
 st.set_page_config(page_title="Paso 3A: Ventas Top-down", page_icon="📈")
 
@@ -39,6 +38,18 @@ def init_paso3A_state():
 init_paso3A_state()
 vtd = st.session_state.ventas_topdown
 mes_etiqueta, mes_iso = _mes_anterior_label()
+
+# 👇 Nuevo: precargar si hay datos guardados en BD (desde Paso 2 con load_visita)
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+if cliente_id and not st.session_state.get("done_03A"):
+    datos = load_visita(cliente_id)
+    if datos and "ventas_topdown" in datos:
+        db_vtd = datos["ventas_topdown"]
+        vtd["monto"] = int(db_vtd.get("monto_colones", 0) or 0)
+        vtd["tipicidad"] = db_vtd.get("tipicidad", "")
+        vtd["fuente"] = db_vtd.get("fuente", "")
+        vtd["confianza_cliente"] = int(db_vtd.get("confianza_cliente_0a10", 5) or 5)
+        vtd["comentario"] = db_vtd.get("comentario", "")
 
 st.title("📈 Paso 3A: Ventas – Top-down (declaración directa)")
 st.caption(f"Ingrese las ventas del último mes calendario: **{mes_etiqueta}**.")
@@ -131,12 +142,10 @@ with colNav2:
         else:
             st.error("❌ Error al guardar Ventas Top-down")
 
-        # Ir al Paso 4 – Ventas Bottom-up (ajusta nombre si cambia)
+        # Ir al Paso 4 – Ventas Bottom-up
         try:
             st.switch_page("pages/04_Ventas_botton_up.py")
             st.stop()
         except Exception:
             st.info("✅ Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
             st.stop()
-
-
