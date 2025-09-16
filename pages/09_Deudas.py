@@ -1,6 +1,6 @@
-# pages/09_Deudas.py
 import streamlit as st
 import pandas as pd
+from utils.bd import save_deudas_activas   # 👈 nuevo import
 
 st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="💳")
 
@@ -59,7 +59,6 @@ guardado = (st.session_state.get("reporte", {})
             .get("tabla", []))
 if guardado:
     df_base_inicial = pd.DataFrame(guardado).copy()
-    # Asegurar columnas base y defaults
     for c in base_cols:
         if c not in df_base_inicial.columns:
             if c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
@@ -224,10 +223,29 @@ with c2:
                 "total_adeudado_corto_plazo_colones": total_adeudado_corto if not sin_deudas else 0,
                 "total_adeudado_largo_plazo_colones": total_adeudado_largo if not sin_deudas else 0,
                 "registros_validos": int(valid_mask.sum()) if not sin_deudas else 0,
+                "sin_deudas": bool(sin_deudas)
             }
         }
         st.session_state["done_09"] = True
-        
+
+        # 👇 NUEVO: Guardar en SQL
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+        mes_iso = st.session_state.get("mes_iso", "")
+        try:
+            save_ok = save_deudas_activas(
+                cliente_id=cliente_id,
+                mes_iso=mes_iso,
+                df=df if not sin_deudas else pd.DataFrame(),
+                totales=st.session_state["reporte"]["deudas_activas"]["totales"],
+                sin_deudas=sin_deudas
+            )
+            if save_ok:
+                st.success("✅ Deudas activas guardadas en la base de datos.")
+            else:
+                st.warning("⚠️ No se pudieron guardar las deudas en la base de datos.")
+        except Exception as e:
+            st.error(f"Error guardando en SQL: {e}")
+
         # Ir directamente al paso 10: Gastos operativos
         try:
             st.switch_page("pages/10_Gastos_operativos.py")
