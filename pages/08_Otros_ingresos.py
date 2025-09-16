@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 from zoneinfo import ZoneInfo
-from utils.db import save_otros_ingresos, load_visita   # 👈 añadimos load_visita
+from utils.bd import save_otros_ingresos, load_visita   # ✅ corregido
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
