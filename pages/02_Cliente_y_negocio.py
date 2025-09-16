@@ -1,4 +1,3 @@
-# pages/02_Cliente_y_negocio.py
 import streamlit as st
 from utils.db import get_connection, load_visita   # 👈 usamos helpers de conexión
 import datetime as dt
@@ -93,13 +92,10 @@ with st.container():
                 asesor["maps_url"] = datos["maps_url"]
 
                 st.session_state["asesor"] = asesor
-
-                # Otros ingresos 👇
-                if "otros_ingresos" in datos:
-                    st.session_state["otros_ingresos"] = datos["otros_ingresos"]
-
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
+
+
 
 st.divider()
 
@@ -281,5 +277,4 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
-
 
