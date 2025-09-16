@@ -91,21 +91,7 @@ with st.container():
                 asesor["lon"] = datos["lon"]
                 asesor["maps_url"] = datos["maps_url"]
 
-                # Ventas Top-down (si existen en la DB)
-                if "ventas_topdown" in datos:
-                    vtd = st.session_state.setdefault("ventas_topdown", {})
-                    vt = datos["ventas_topdown"]
-                    vtd["monto"] = vt["monto_colones"]
-                    vtd["tipicidad"] = vt["tipicidad"]
-                    vtd["fuente"] = vt["fuente"]
-                    vtd["confianza_cliente"] = vt["confianza_cliente_0a10"]
-                    vtd["comentario"] = vt["comentario"]
-                
-                    # Si la fuente fue "Otro"
-                    if vt["fuente"] == "Otro":
-                        vtd["fuente_otro"] = vt.get("fuente_otro", "")
-                    else:
-                        vtd["fuente_otro"] = ""
+                st.session_state["asesor"] = asesor
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
 
@@ -194,6 +180,10 @@ with colNav2:
     if st.button("Siguiente ➡️", key="next_step_2", disabled=not obligatorios_ok, use_container_width=True):
         asesor = st.session_state.get("asesor", {})
 
+        # 👇 Asegurar que fecha_hora siempre tenga valor
+        if not asesor.get("fecha_hora"):
+            asesor["fecha_hora"] = dt.datetime.now(TZ)
+
         try:
             conn = get_connection()
             cursor = conn.cursor()
@@ -281,5 +271,4 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
-
 
