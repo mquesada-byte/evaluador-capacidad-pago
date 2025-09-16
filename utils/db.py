@@ -1,413 +1,254 @@
-import pyodbc
 import streamlit as st
 import pandas as pd
+from utils.db import save_deudas_activas   # 👈 nuevo import
 
+st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="💳")
 
-def get_connection():
-    """Devuelve una conexión a Azure SQL Database usando los secrets."""
-    conn = pyodbc.connect(
-        f"DRIVER={{{st.secrets['azure_sql']['driver']}}};"
-        f"SERVER={st.secrets['azure_sql']['server']};"
-        f"DATABASE={st.secrets['azure_sql']['database']};"
-        f"UID={st.secrets['azure_sql']['username']};"
-        f"PWD={st.secrets['azure_sql']['password']}",
-        timeout=30
+# =========================
+# PASO 9 – Deudas activas del hogar (multipágina)
+# =========================
+def _mensualizar_pago(monto: float, periodicidad: str) -> float:
+    per = (periodicidad or "").lower()
+    if per == "diario":        return monto * 30.0
+    if per == "semanal":       return monto * (52.0 / 12.0)
+    if per == "quincenal":     return monto * 2.0
+    if per == "mensual":       return monto
+    if per == "bimestral":     return monto / 2.0
+    if per == "trimestral":    return monto / 3.0
+    if per == "semestral":     return monto / 6.0
+    if per == "anual":         return monto / 12.0
+    return 0.0
+
+st.title("💳 Paso 9: Deudas activas del hogar")
+st.caption(
+    "Registre los préstamos/obligaciones vigentes del cliente o su núcleo. "
+    "Se calculará la **cuota mensual total** (para resultados) y el **saldo total adeudado** (para balance). "
+    "Incluye **clasificación por plazo** para separar **pasivo circulante** y **pasivo a largo plazo**."
+)
+
+# Catálogos
+relaciones = ["Cliente", "Pareja", "Hogar (compartida)", "Otro"]
+tipos_deuda = ["Préstamo personal", "Préstamo de negocio", "Hipotecario", "Vehículo",
+               "Tarjeta de crédito", "Comercio/Tienda", "Microcrédito", "Otro"]
+periodicidades_pago = ["Mensual", "Quincenal", "Semanal", "Diario", "Bimestral", "Trimestral", "Semestral", "Anual"]
+evidencias = ["Estado de cuenta", "Contrato", "Tabla de amortización", "Recibo de pago",
+              "SINPE/Extracto", "Credid", "Equifax", "Foto/Chat", "No aplica", "Otro"]
+estados = ["Al día", "Atraso"]
+plazos = ["Corto plazo (≤12 meses)", "Largo plazo (>12 meses)"]
+
+# Columnas base (entrada)
+base_cols = [
+    "Titular",
+    "Acreedor/Entidad",
+    "Tipo de deuda",
+    "Saldo adeudado (₡)",
+    "Cuota por período (₡)",
+    "Periodicidad de pago",
+    "Verificado por asesor",
+    "Tipo de evidencia",
+    "Estado",
+    "Días de atraso",
+    "Comentario",
+    "Meses restantes (opcional)",
+    "Plazo (clasificación)",
+]
+
+# ========= CARGA INICIAL DESDE LO GUARDADO (si existe) =========
+guardado = (st.session_state.get("reporte", {})
+            .get("deudas_activas", {})
+            .get("tabla", []))
+if guardado:
+    df_base_inicial = pd.DataFrame(guardado).copy()
+    for c in base_cols:
+        if c not in df_base_inicial.columns:
+            if c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+                df_base_inicial[c] = 0
+            elif c == "Verificado por asesor":
+                df_base_inicial[c] = False
+            else:
+                df_base_inicial[c] = ""
+    df_base_inicial = df_base_inicial[base_cols]
+else:
+    df_base_inicial = pd.DataFrame([{c: "" for c in base_cols}] * 4)
+    for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+        df_base_inicial[c] = 0
+    df_base_inicial["Verificado por asesor"] = False
+# ================================================================
+
+# Editor de captura
+df_in = st.data_editor(
+    df_base_inicial,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="de_deudas_activas",
+    column_config={
+        "Titular": st.column_config.SelectboxColumn("Titular", options=relaciones, required=False),
+        "Acreedor/Entidad": st.column_config.TextColumn("Acreedor/Entidad"),
+        "Tipo de deuda": st.column_config.SelectboxColumn("Tipo de deuda", options=tipos_deuda, required=False),
+        "Saldo adeudado (₡)": st.column_config.NumberColumn("Saldo adeudado (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Cuota por período (₡)": st.column_config.NumberColumn("Cuota por período (₡)", min_value=0, step=1000, format="₡ %d"),
+        "Periodicidad de pago": st.column_config.SelectboxColumn("Periodicidad de pago", options=periodicidades_pago, required=False),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Estado": st.column_config.SelectboxColumn("Estado", options=estados, required=False),
+        "Días de atraso": st.column_config.NumberColumn("Días de atraso", min_value=0, max_value=3650, step=1, format="%d"),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+        "Meses restantes (opcional)": st.column_config.NumberColumn("Meses restantes (opcional)", min_value=0, max_value=600, step=1, format="%d"),
+        "Plazo (clasificación)": st.column_config.SelectboxColumn("Plazo (clasificación)", options=plazos, required=False),
+    },
+)
+
+# --- Derivados ---
+df = df_in.copy()
+for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+    if c not in df.columns:
+        df[c] = 0
+    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+if "Verificado por asesor" not in df.columns:
+    df["Verificado por asesor"] = False
+df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
+
+if "Plazo (clasificación)" not in df.columns:
+    df["Plazo (clasificación)"] = ""
+df["Plazo (clasificación)"] = df["Plazo (clasificación)"].astype(str)
+
+auto_mask = df["Plazo (clasificación)"].isin(["", "nan", "None"])
+df.loc[auto_mask & (df["Meses restantes (opcional)"] > 0) & (df["Meses restantes (opcional)"] <= 12),
+       "Plazo (clasificación)"] = "Corto plazo (≤12 meses)"
+df.loc[auto_mask & (df["Meses restantes (opcional)"] > 12),
+       "Plazo (clasificación)"] = "Largo plazo (>12 meses)"
+
+cuotas_mens = []
+for _, r in df.iterrows():
+    cuota = float(r.get("Cuota por período (₡)") or 0)
+    per = r.get("Periodicidad de pago") or ""
+    cuotas_mens.append(_mensualizar_pago(cuota, per))
+df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
+
+# Editor con cálculos bloqueados
+with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
+    df_edit = st.data_editor(
+        df,
+        use_container_width=True,
+        num_rows="dynamic",
+        hide_index=True,
+        key="de_deudas_activas_calc",
+        column_config={
+            "Titular": st.column_config.SelectboxColumn("Titular", options=relaciones),
+            "Acreedor/Entidad": st.column_config.TextColumn("Acreedor/Entidad"),
+            "Tipo de deuda": st.column_config.SelectboxColumn("Tipo de deuda", options=tipos_deuda),
+            "Saldo adeudado (₡)": st.column_config.NumberColumn("Saldo adeudado (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Cuota por período (₡)": st.column_config.NumberColumn("Cuota por período (₡)", min_value=0, step=1000, format="₡ %d"),
+            "Periodicidad de pago": st.column_config.SelectboxColumn("Periodicidad de pago", options=periodicidades_pago),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+            "Estado": st.column_config.SelectboxColumn("Estado", options=estados),
+            "Días de atraso": st.column_config.NumberColumn("Días de atraso", min_value=0, max_value=3650, step=1, format="%d"),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+            "Meses restantes (opcional)": st.column_config.NumberColumn("Meses restantes (opcional)", min_value=0, max_value=600, step=1, format="%d"),
+            "Plazo (clasificación)": st.column_config.SelectboxColumn("Plazo (clasificación)", options=plazos),
+            "Cuota mensualizada (₡)": st.column_config.NumberColumn("Cuota mensualizada (₡)", format="₡ %d", disabled=True),
+        },
     )
-    return conn
 
+# Reaplicar numéricos y cuota mensualizada por si se editó en el expander
+for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+    if c not in df_edit.columns:
+        df_edit[c] = 0
+    df_edit[c] = pd.to_numeric(df_edit[c], errors="coerce").fillna(0)
+if "Verificado por asesor" not in df_edit.columns:
+    df_edit["Verificado por asesor"] = False
+df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
 
-def load_visita(cliente_id: str) -> dict | None:
-    conn = get_connection()
-    cursor = conn.cursor()
+cuotas_mens = []
+for _, r in df_edit.iterrows():
+    cuota = float(r.get("Cuota por período (₡)") or 0)
+    per = r.get("Periodicidad de pago") or ""
+    cuotas_mens.append(_mensualizar_pago(cuota, per))
+df = df_edit.copy()
+df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
 
-    # Cliente/negocio/asesor
-    cursor.execute("SELECT * FROM visitas_credito WHERE cliente_identificacion=?", (cliente_id,))
-    row1 = cursor.fetchone()
-    if not row1:
-        conn.close()
-        return None
-    datos = dict(zip([col[0] for col in cursor.description], row1))
+# --- Resumen ---
+valid_mask = (df["Periodicidad de pago"].isin(periodicidades_pago)) & \
+             ((df["Cuota por período (₡)"] > 0) | (df["Saldo adeudado (₡)"] > 0))
+df_valid = df[valid_mask].copy()
 
-    # Ventas Top-down
-    cursor.execute("""
-        SELECT TOP 1 *
-        FROM ventas_topdown
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    row2 = cursor.fetchone()
-    if row2:
-        cols2 = [col[0] for col in cursor.description]
-        datos["ventas_topdown"] = dict(zip(cols2, row2))
+total_pago_mensual = int(df_valid["Cuota mensualizada (₡)"].sum()) if not df_valid.empty else 0
+total_adeudado = int(df_valid["Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+total_pago_verificado = int(df_valid.loc[df_valid["Verificado por asesor"], "Cuota mensualizada (₡)"].sum()) if not df_valid.empty else 0
 
-    # Ventas Bottom-up
-    cursor.execute("""
-        SELECT TOP 1 *
-        FROM ventas_bottomup
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    row3 = cursor.fetchone()
-    if row3:
-        cols3 = [col[0] for col in cursor.description]
-        datos["ventas_bottomup"] = dict(zip(cols3, row3))
+corto_mask = df_valid["Plazo (clasificación)"].eq("Corto plazo (≤12 meses)")
+largo_mask = df_valid["Plazo (clasificación)"].eq("Largo plazo (>12 meses)")
+total_adeudado_corto = int(df_valid.loc[corto_mask, "Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
+total_adeudado_largo = int(df_valid.loc[largo_mask, "Saldo adeudado (₡)"].sum()) if not df_valid.empty else 0
 
-    # Ventas Paso 5
-    cursor.execute("""
-        SELECT TOP 1 *
-        FROM ventas_p5
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    row4 = cursor.fetchone()
-    if row4:
-        cols4 = [col[0] for col in cursor.description]
-        datos["ventas_p5"] = dict(zip(cols4, row4))
+st.markdown("**Resumen**")
+st.write({
+    "Total pago mensual (a Resultados)": f"₡ {total_pago_mensual:,}".replace(",", "."),
+    "Total pago mensual verificado": f"₡ {total_pago_verificado:,}".replace(",", "."),
+    "Total adeudado (a Balance general)": f"₡ {total_adeudado:,}".replace(",", "."),
+    "→ Pasivo circulante (corto plazo)": f"₡ {total_adeudado_corto:,}".replace(",", "."),
+    "→ Pasivo a largo plazo": f"₡ {total_adeudado_largo:,}".replace(",", "."),
+    "Registros válidos": int(valid_mask.sum()),
+})
 
-    # Valoración asesor
-    cursor.execute("""
-        SELECT TOP 1 *
-        FROM valoracion_asesor
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    row5 = cursor.fetchone()
-    if row5:
-        cols5 = [col[0] for col in cursor.description]
-        datos["valoracion_asesor"] = dict(zip(cols5, row5))
+st.divider()
 
-    conn.close()
-    return datos
+# --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
+st.subheader("Finalizar este paso")
+sin_deudas = st.checkbox("El hogar no tiene deudas activas que reportar.", key="sin_deudas")
+puede_continuar = (valid_mask.sum() > 0) or sin_deudas
 
-    # Otros ingresos 👇
-    cursor.execute("""
-        SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario
-        FROM OtrosIngresos
-        WHERE cliente_identificacion=? AND mes_iso=?
-    """, (cliente_id, datos.get("mes_iso", "")))
-    rows = cursor.fetchall()
-    if rows:
-        cols = [col[0] for col in cursor.description]
-        df_oi = pd.DataFrame.from_records(rows, columns=cols)
+# Navegación / Guardar
+c1, c2 = st.columns([0.5, 0.5])
+with c1:
+    if st.button("⬅️ Volver a 08 – Otros ingresos", key="deudas_back_08", use_container_width=True):
+        for p in ["pages/08_Otros_ingresos.py"]:
+            try:
+                st.switch_page(p)
+                break
+            except Exception:
+                continue
 
-        df_oi = df_oi.rename(columns={
-            "titular": "Titular (nombre)",
-            "relacion": "Relación",
-            "fuente": "Fuente de ingreso",
-            "periodicidad": "Periodicidad",
-            "monto_periodo": "Monto por período (₡)",
-            "verificado": "Verificado por asesor",
-            "evidencia": "Tipo de evidencia",
-            "meses_cont": "Meses de continuidad",
-            "prob_cont": "Prob. continuidad (0–10)",
-            "comentario": "Comentario"
-        })
+with c2:
+    if st.button("Guardar y continuar ➡️", key="deudas_save_next", use_container_width=True, disabled=not puede_continuar):
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["deudas_activas"] = {
+            "tabla": df.fillna("").to_dict(orient="records") if valid_mask.sum() > 0 else [],
+            "totales": {
+                "total_pago_mensual_colones": total_pago_mensual if not sin_deudas else 0,
+                "total_pago_mensual_verificado_colones": total_pago_verificado if not sin_deudas else 0,
+                "total_adeudado_colones": total_adeudado if not sin_deudas else 0,
+                "total_adeudado_corto_plazo_colones": total_adeudado_corto if not sin_deudas else 0,
+                "total_adeudado_largo_plazo_colones": total_adeudado_largo if not sin_deudas else 0,
+                "registros_validos": int(valid_mask.sum()) if not sin_deudas else 0,
+                "sin_deudas": bool(sin_deudas)
+            }
+        }
+        st.session_state["done_09"] = True
 
-        datos["otros_ingresos"] = df_oi.to_dict(orient="records")
-
-
-
-
-
-# ==========================================================
-# GUARDAR PASO 3 – TOP-DOWN
-# ==========================================================
-def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE ventas_topdown
-            SET mes_referencia=?, monto_colones=?, tipicidad=?, fuente=?,
-                confianza_cliente_0a10=?, comentario=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (
-            data.get("mes_referencia"), data.get("monto_colones"),
-            data.get("tipicidad"), data.get("fuente"),
-            data.get("confianza_cliente_0a10"), data.get("comentario"),
-            cliente_id, data.get("mes_iso")
-        ))
-
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO ventas_topdown (
-                    cliente_identificacion, mes_referencia, mes_iso,
-                    monto_colones, tipicidad, fuente,
-                    confianza_cliente_0a10, comentario
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
-                data.get("monto_colones"), data.get("tipicidad"),
-                data.get("fuente"), data.get("confianza_cliente_0a10"),
-                data.get("comentario")
-            ))
-
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error guardando ventas_topdown: {e}")
-        return False
-
-
-# ==========================================================
-# GUARDAR PASO 4 – BOTTOM-UP
-# ==========================================================
-def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        if data.get("no_data") == 1:
-            unidad_clientes = None
-            clientes_valor = None
-            dias_abiertos = None
-            semanas_abiertas = None
-            ticket_promedio_colones = None
-            ventas_estimadas_colones = None
-            comentario = data.get("comentario")
-        else:
-            unidad_clientes = data.get("unidad_clientes")
-            clientes_valor = data.get("clientes_valor")
-            dias_abiertos = data.get("dias_abiertos")
-            semanas_abiertas = data.get("semanas_abiertas")
-            ticket_promedio_colones = data.get("ticket_promedio_colones")
-            ventas_estimadas_colones = data.get("ventas_estimadas_colones")
-            comentario = data.get("comentario")
-
-        cursor.execute("""
-            UPDATE ventas_bottomup
-            SET mes_referencia=?, unidad_clientes=?, clientes_valor=?, dias_abiertos=?, semanas_abiertas=?,
-                ticket_promedio_colones=?, ventas_estimadas_colones=?, comentario=?, no_data=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (
-            data.get("mes_referencia"), unidad_clientes, clientes_valor,
-            dias_abiertos, semanas_abiertas, ticket_promedio_colones,
-            ventas_estimadas_colones, comentario, data.get("no_data"),
-            cliente_id, data.get("mes_iso")
-        ))
-
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO ventas_bottomup (
-                    cliente_identificacion, mes_referencia, mes_iso, unidad_clientes,
-                    clientes_valor, dias_abiertos, semanas_abiertas,
-                    ticket_promedio_colones, ventas_estimadas_colones,
-                    comentario, no_data
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
-                unidad_clientes, clientes_valor, dias_abiertos,
-                semanas_abiertas, ticket_promedio_colones,
-                ventas_estimadas_colones, comentario, data.get("no_data")
-            ))
-
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error guardando ventas_bottomup: {e}")
-        return False
-
-
-# ==========================================================
-# GUARDAR PASO 5 – INSUMOS
-# ==========================================================
-def save_ventas_p5(cliente_id: str, data: dict) -> bool:
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        if data.get("no_data") == 1:
-            modo = None
-            tiene_registros = None
-            compras_mes_colones = None
-            tipo_margen = None
-            margen_pct = None
-            facturacion_bruta_mes_colones = None
-            comision_pct = None
-            ventas_reportadas_mes_colones = None
-            costo_pct_sobre_ventas = None
-            costo_estimado_colones = None
-            ventas_estimadas_colones = None
-            comentario = data.get("comentario")
-        else:
-            modo = data.get("modo")
-            tiene_registros = data.get("tiene_registros")
-            compras_mes_colones = data.get("compras_mes_colones")
-            tipo_margen = data.get("tipo_margen")
-            margen_pct = data.get("margen_pct")
-            facturacion_bruta_mes_colones = data.get("facturacion_bruta_mes_colones")
-            comision_pct = data.get("comision_pct")
-            ventas_reportadas_mes_colones = data.get("ventas_reportadas_mes_colones")
-            costo_pct_sobre_ventas = data.get("costo_pct_sobre_ventas")
-            costo_estimado_colones = data.get("costo_estimado_colones")
-            ventas_estimadas_colones = data.get("ventas_estimadas_colones")
-            comentario = data.get("comentario")
-
-        cursor.execute("""
-            UPDATE ventas_p5
-            SET mes_referencia=?, modo=?, tiene_registros=?, compras_mes_colones=?, tipo_margen=?, margen_pct=?,
-                facturacion_bruta_mes_colones=?, comision_pct=?, ventas_reportadas_mes_colones=?, costo_pct_sobre_ventas=?,
-                costo_estimado_colones=?, ventas_estimadas_colones=?, comentario=?, no_data=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (
-            data.get("mes_referencia"), modo, tiene_registros, compras_mes_colones,
-            tipo_margen, margen_pct, facturacion_bruta_mes_colones, comision_pct,
-            ventas_reportadas_mes_colones, costo_pct_sobre_ventas, costo_estimado_colones,
-            ventas_estimadas_colones, comentario, data.get("no_data"),
-            cliente_id, data.get("mes_iso")
-        ))
-
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO ventas_p5 (
-                    cliente_identificacion, mes_referencia, mes_iso, modo,
-                    tiene_registros, compras_mes_colones, tipo_margen, margen_pct,
-                    facturacion_bruta_mes_colones, comision_pct,
-                    ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
-                    costo_estimado_colones, ventas_estimadas_colones,
-                    comentario, no_data
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
-                modo, tiene_registros, compras_mes_colones, tipo_margen,
-                margen_pct, facturacion_bruta_mes_colones, comision_pct,
-                ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
-                costo_estimado_colones, ventas_estimadas_colones,
-                comentario, data.get("no_data")
-            ))
-
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error guardando ventas_p5: {e}")
-        return False
-
-
-# ==========================================================
-# GUARDAR PASO 6 – VALORACIÓN ASESOR
-# ==========================================================
-def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE valoracion_asesor
-            SET conocimiento_0a10=?, credibilidad_0a10=?, dudas_declaracion=?, clasificacion=?,
-                evidencia=?, comentario=?, factor_asesor_0a1=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (
-            data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
-            data.get("dudas_declaracion"), data.get("clasificacion"),
-            ",".join(data.get("evidencia", [])),
-            data.get("comentario"), data.get("factor_asesor_0a1"),
-            cliente_id, data.get("mes_iso")
-        ))
-
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO valoracion_asesor (
-                    cliente_identificacion, mes_iso, conocimiento_0a10, credibilidad_0a10,
-                    dudas_declaracion, clasificacion, evidencia, comentario, factor_asesor_0a1
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_iso"),
-                data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
-                data.get("dudas_declaracion"), data.get("clasificacion"),
-                ",".join(data.get("evidencia", [])), data.get("comentario"),
-                data.get("factor_asesor_0a1")
-            ))
-
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error guardando valoracion_asesor: {e}")
-        return False
-
-
-# ==========================================================
-# GUARDAR PASO 8 – OTROS INGRESOS
-# ==========================================================
-def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
-    """
-    Inserta los registros de otros ingresos en la tabla OtrosIngresos.
-    Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
-    """
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # 🔄 Borrar registros previos del cliente y mes
-        cursor.execute("""
-            DELETE FROM OtrosIngresos
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
-
-        if df.empty:
-            conn.commit()
-            conn.close()
-            return True  # nada más que guardar
-
-        insert_sql = """
-            INSERT INTO OtrosIngresos (
-                cliente_identificacion, mes_iso,
-                titular, relacion, fuente, periodicidad,
-                monto_periodo, verificado, evidencia, meses_cont, prob_cont,
-                ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
-                comentario, fecha_registro
+        # 👇 NUEVO: Guardar en SQL
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+        mes_iso = st.session_state.get("mes_iso", "")
+        try:
+            save_ok = save_deudas_activas(
+                cliente_id=cliente_id,
+                mes_iso=mes_iso,
+                df=df if not sin_deudas else pd.DataFrame(),
+                totales=st.session_state["reporte"]["deudas_activas"]["totales"],
+                sin_deudas=sin_deudas
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-        """
+            if save_ok:
+                st.success("✅ Deudas activas guardadas en la base de datos.")
+            else:
+                st.warning("⚠️ No se pudieron guardar las deudas en la base de datos.")
+        except Exception as e:
+            st.error(f"Error guardando en SQL: {e}")
 
-        for _, row in df.iterrows():
-            cursor.execute(
-                insert_sql,
-                cliente_id,
-                mes_iso,
-                row.get("Titular (nombre)", ""),
-                row.get("Relación", ""),
-                row.get("Fuente de ingreso", ""),
-                row.get("Periodicidad", ""),
-                float(row.get("Monto por período (₡)", 0) or 0),
-                1 if row.get("Verificado por asesor", False) else 0,
-                row.get("Tipo de evidencia", ""),
-                int(row.get("Meses de continuidad", 0) or 0),
-                int(row.get("Prob. continuidad (0–10)", 0) or 0),
-                float(row.get("Ingreso mensualizado (₡)", 0) or 0),
-                float(row.get("Factor confiabilidad (0.2–1.0)", 0) or 0),
-                float(row.get("Ingreso ponderado (₡)", 0) or 0),
-                row.get("Comentario", "")
-            )
-
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error guardando otros_ingresos: {e}")
-        return False
-
-
-# ==========================================================
-# TEST DE CONEXIÓN
-# ==========================================================
-if __name__ == "__main__":
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT GETDATE()")
-        fecha = cursor.fetchone()[0]
-        print("🔎 Conexión exitosa. Fecha/hora en SQL Server:", fecha)
-        conn.close()
-    except Exception as e:
-        print("❌ No se pudo conectar:", e)
-
+        # Ir directamente al paso 10: Gastos operativos
+        try:
+            st.switch_page("pages/10_Gastos_operativos.py")
+        except Exception:
+            st.success("Deudas activas guardadas. Abrí **10 – Gastos operativos** desde el menú lateral.")
+            st.stop()
