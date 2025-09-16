@@ -200,6 +200,8 @@ st.write({
 
 st.divider()
 
+from utils.db import save_otros_ingresos
+
 # Navegación / Guardar
 st.divider()
 
@@ -223,6 +225,7 @@ with c2:
         disabled=(not sin_otros and valid_mask.sum() == 0)
     ):
         st.session_state.setdefault("reporte", {})
+
         if sin_otros:
             # Guardamos totales en cero explícitamente
             st.session_state["reporte"]["otros_ingresos"] = {
@@ -234,7 +237,14 @@ with c2:
                     "registros_validos": 0,
                 }
             }
+            # Persistimos en BD un registro vacío (opcional, según diseño)
+            save_otros_ingresos(
+                cliente_id=st.session_state["cliente"]["identificacion"],
+                mes_iso=st.session_state["mes_iso"],
+                df=pd.DataFrame([])  # DataFrame vacío
+            )
         else:
+            # Guardamos en sesión
             st.session_state["reporte"]["otros_ingresos"] = {
                 "tabla": df.fillna("").to_dict(orient="records"),
                 "totales": {
@@ -244,6 +254,17 @@ with c2:
                     "registros_validos": int(valid_mask.sum()),
                 }
             }
+            # Persistimos en BD
+            ok = save_otros_ingresos(
+                cliente_id=st.session_state["cliente"]["identificacion"],
+                mes_iso=st.session_state["mes_iso"],
+                df=df_valid
+            )
+            if ok:
+                st.success("Otros ingresos guardados en la base de datos")
+            else:
+                st.error("No se pudieron guardar los otros ingresos en la base de datos")
+
         st.session_state["done_08"] = True
         try:
             st.switch_page("pages/09_Deudas.py")
