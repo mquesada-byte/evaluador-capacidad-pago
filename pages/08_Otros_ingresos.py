@@ -6,13 +6,16 @@ from zoneinfo import ZoneInfo   # 👈 import agregado
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
+
 # =========================
 # Asegurar mes_iso
 # =========================
 TZ = ZoneInfo("America/Costa_Rica")
 if "mes_iso" not in st.session_state:
     now = dt.datetime.now(TZ)
-    st.session_state["mes_iso"] = now.strftime("%Y-%m")
+    st.session_state["mes_iso"] = f"{now.year}-{now.month:02d}"
+
+
 
 
 # =========================
