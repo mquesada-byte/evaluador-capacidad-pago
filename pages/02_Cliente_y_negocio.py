@@ -17,7 +17,6 @@ def init_paso2_state():
     # Cliente
     c.setdefault("nombre_completo", "")
     c.setdefault("identificacion", "")
-    c.setdefault("id_visita", None)   # 👈 usamos id_visita real
 
     # Negocio
     n.setdefault("nombre_comercial", "")
@@ -72,7 +71,6 @@ with st.container():
 
                 # Cliente
                 c["nombre_completo"] = datos["cliente_nombre"]
-                c["id_visita"] = datos.get("id_visita")  # 👈 ahora correcto
                 n["nombre_comercial"] = datos["nombre_comercial"]
                 n["persona_juridica"] = bool(datos["persona_juridica"])
                 n["ubicacion"] = datos["ubicacion"]
@@ -93,6 +91,21 @@ with st.container():
                 asesor["lon"] = datos["lon"]
                 asesor["maps_url"] = datos["maps_url"]
 
+                # Ventas Top-down (si existen en la DB)
+                if "ventas_topdown" in datos:
+                    vtd = st.session_state.setdefault("ventas_topdown", {})
+                    vt = datos["ventas_topdown"]
+                    vtd["monto"] = vt["monto_colones"]
+                    vtd["tipicidad"] = vt["tipicidad"]
+                    vtd["fuente"] = vt["fuente"]
+                    vtd["confianza_cliente"] = vt["confianza_cliente_0a10"]
+                    vtd["comentario"] = vt["comentario"]
+                
+                    # Si la fuente fue "Otro"
+                    if vt["fuente"] == "Otro":
+                        vtd["fuente_otro"] = vt.get("fuente_otro", "")
+                    else:
+                        vtd["fuente_otro"] = ""
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
 
@@ -186,10 +199,10 @@ with colNav2:
             cursor = conn.cursor()
 
             # Verificar si ya existe registro
-            cursor.execute("SELECT id_visita FROM visitas_credito WHERE cliente_identificacion = ?", (c["identificacion"].strip(),))
-            row = cursor.fetchone()
+            cursor.execute("SELECT COUNT(*) FROM visitas_credito WHERE cliente_identificacion = ?", (c["identificacion"].strip(),))
+            existe = cursor.fetchone()[0]
 
-            if row:
+            if existe:
                 # UPDATE
                 cursor.execute("""
                     UPDATE visitas_credito SET
@@ -219,7 +232,6 @@ with colNav2:
                     asesor.get("maps_url", "N/A"),
                     c["identificacion"].strip()
                 ))
-                st.session_state["cliente"]["id_visita"] = int(row[0])  # 👈 guardamos id_visita real
                 mensaje = "♻️ Datos ACTUALIZADOS en Azure SQL"
             else:
                 # INSERT
@@ -230,8 +242,7 @@ with colNav2:
                         patente_municipal, registros_contables, tipo_local,
                         antiguedad_anios, antiguedad_meses,
                         asesor_nombre, fecha_hora, hora_fuente, lat, lon, maps_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                    SELECT SCOPE_IDENTITY();
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     c["identificacion"].strip(),
                     c["nombre_completo"].strip(),
@@ -252,8 +263,6 @@ with colNav2:
                     asesor.get("lon"),
                     asesor.get("maps_url", "N/A")
                 ))
-                id_visita = int(cursor.fetchone()[0])
-                st.session_state["cliente"]["id_visita"] = id_visita  # 👈 guardamos id_visita
                 mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
             conn.commit()
@@ -272,4 +281,5 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
+
 
