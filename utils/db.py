@@ -76,10 +76,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    conn.close()
-    return datos
-
-    # Otros ingresos 👇
+    # Otros ingresos 👇 (movido aquí, antes del return)
     cursor.execute("""
         SELECT titular, relacion, fuente, periodicidad, monto_periodo,
                verificado, evidencia, meses_cont, prob_cont, comentario
@@ -106,8 +103,8 @@ def load_visita(cliente_id: str) -> dict | None:
 
         datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
-
-
+    conn.close()
+    return datos
 
 
 # ==========================================================
