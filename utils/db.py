@@ -2,6 +2,25 @@ def load_visita(cliente_id: str) -> dict | None:
     conn = get_connection()
     cursor = conn.cursor()
 
+# ==========================================================
+# TEST DE CONEXIÓN (se ejecuta solo si corres este archivo directamente)
+# ==========================================================
+if __name__ == "__main__":
+    import streamlit as st
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT GETDATE()")
+        fecha = cursor.fetchone()[0]
+        st.title("🔎 Prueba de lectura en Azure SQL Database")
+        st.success(f"Conexión exitosa. Fecha/hora en SQL Server: {fecha}")
+        conn.close()
+    except Exception as e:
+        st.title("🔎 Prueba de lectura en Azure SQL Database")
+        st.error(f"No se pudo conectar: {e}")
+
+
+    
     # Cliente/negocio/asesor
     cursor.execute("SELECT * FROM visitas_credito WHERE cliente_identificacion=?", (cliente_id,))
     row1 = cursor.fetchone()
