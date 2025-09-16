@@ -1,13 +1,19 @@
 # pages/08_Otros_ingresos.py
 import streamlit as st
 import pandas as pd
+import datetime as dt
+from zoneinfo import ZoneInfo   # 👈 import agregado
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
+# =========================
+# Asegurar mes_iso
+# =========================
 TZ = ZoneInfo("America/Costa_Rica")
 if "mes_iso" not in st.session_state:
     now = dt.datetime.now(TZ)
     st.session_state["mes_iso"] = now.strftime("%Y-%m")
+
 
 # =========================
 # PASO 8 – Otros ingresos del hogar (multipágina)
