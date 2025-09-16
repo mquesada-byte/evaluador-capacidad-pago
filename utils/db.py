@@ -1,6 +1,4 @@
 def load_visita(cliente_id: str) -> dict | None:
-    import pandas as pd
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -59,35 +57,6 @@ def load_visita(cliente_id: str) -> dict | None:
     if row5:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
-
-    # Otros ingresos 👇
-    cursor.execute("""
-        SELECT TOP 50 titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario
-        FROM OtrosIngresos
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    rows = cursor.fetchall()
-    if rows:
-        cols = [col[0] for col in cursor.description]
-        df_oi = pd.DataFrame.from_records(rows, columns=cols)
-
-        # Mapear columnas de SQL -> columnas de UI (Paso 8)
-        df_oi = df_oi.rename(columns={
-            "titular": "Titular (nombre)",
-            "relacion": "Relación",
-            "fuente": "Fuente de ingreso",
-            "periodicidad": "Periodicidad",
-            "monto_periodo": "Monto por período (₡)",
-            "verificado": "Verificado por asesor",
-            "evidencia": "Tipo de evidencia",
-            "meses_cont": "Meses de continuidad",
-            "prob_cont": "Prob. continuidad (0–10)",
-            "comentario": "Comentario"
-        })
-
-        datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
     conn.close()
     return datos
