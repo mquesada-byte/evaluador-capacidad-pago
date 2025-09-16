@@ -8,6 +8,14 @@ st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="ðŸ’
 
 
 # =========================
+# Asegurar existencia de cliente.id_visita
+# =========================
+st.session_state.setdefault("cliente", {})
+st.session_state["cliente"].setdefault("id_visita", None)
+
+
+
+# =========================
 # Asegurar mes_iso
 # =========================
 TZ = ZoneInfo("America/Costa_Rica")
