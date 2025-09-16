@@ -63,7 +63,7 @@ def load_visita(cliente_id: str) -> dict | None:
     # Otros ingresos 👇
     cursor.execute("""
         SELECT TOP 50 titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario, mes_iso
+               verificado, evidencia, meses_cont, prob_cont, comentario
         FROM OtrosIngresos
         WHERE cliente_identificacion=?
         ORDER BY mes_iso DESC
@@ -91,5 +91,6 @@ def load_visita(cliente_id: str) -> dict | None:
 
     conn.close()
     return datos
+
 
 
