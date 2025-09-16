@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 from zoneinfo import ZoneInfo
-from utils.db import save_otros_ingresos   # 👈 usamos la versión corregida
+from utils.db import save_otros_ingresos   # 👈 usa versión sin id_visita
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
@@ -16,7 +16,7 @@ if "mes_iso" not in st.session_state:
     st.session_state["mes_iso"] = f"{now.year}-{now.month:02d}"
 
 # =========================
-# PASO 8 – Otros ingresos del hogar
+# Funciones auxiliares
 # =========================
 def _mensualizar(monto: float, periodicidad: str) -> float:
     per = (periodicidad or "").lower()
@@ -31,10 +31,8 @@ def _mensualizar(monto: float, periodicidad: str) -> float:
     return 0.0
 
 def _factor_confiabilidad(verificado: bool, evidencia: str, meses: int, prob: int) -> float:
-    # simplificación: confiabilidad = combinación de factores
     base = 0.5
-    if verificado:
-        base += 0.2
+    if verificado: base += 0.2
     if meses >= 12: base += 0.2
     elif meses >= 6: base += 0.1
     base += (prob / 10) * 0.1
@@ -62,18 +60,31 @@ deriv_cols = ["Ingreso mensualizado (₡)", "Factor confiabilidad (0.2–1.0)", 
 st.title("💸 Paso 8: Otros ingresos del hogar")
 st.caption("Registre otros ingresos del cliente y su núcleo familiar.")
 
-# tabla editable inicial
+# tabla inicial
 df_in = pd.DataFrame([{c: "" for c in base_cols}] * 3)
 df_in["Monto por período (₡)"] = 0
 df_in["Meses de continuidad"] = 0
 df_in["Prob. continuidad (0–10)"] = 0
 df_in["Verificado por asesor"] = False
 
+# Editor con menús desplegables
 df = st.data_editor(
     df_in,
     use_container_width=True,
     num_rows="dynamic",
     hide_index=True,
+    column_config={
+        "Titular (nombre)": st.column_config.TextColumn("Titular (nombre)"),
+        "Relación": st.column_config.SelectboxColumn("Relación", options=relaciones),
+        "Fuente de ingreso": st.column_config.SelectboxColumn("Fuente de ingreso", options=fuentes),
+        "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades),
+        "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
+        "Meses de continuidad": st.column_config.NumberColumn("Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"),
+        "Prob. continuidad (0–10)": st.column_config.NumberColumn("Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    }
 )
 
 # =========================
