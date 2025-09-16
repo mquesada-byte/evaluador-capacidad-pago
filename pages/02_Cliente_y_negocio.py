@@ -92,10 +92,13 @@ with st.container():
                 asesor["maps_url"] = datos["maps_url"]
 
                 st.session_state["asesor"] = asesor
+
+                # Otros ingresos
+                if "otros_ingresos" in datos:
+                    st.session_state["otros_ingresos"] = datos["otros_ingresos"]
+
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
-
-
 
 st.divider()
 
@@ -262,40 +265,6 @@ with colNav2:
                 mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
             conn.commit()
-
-                # Otros ingresos 👇
-    cursor.execute("""
-        SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario, mes_iso
-        FROM OtrosIngresos
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    rows = cursor.fetchall()
-    if rows:
-        cols = [col[0] for col in cursor.description]
-        df_oi = pd.DataFrame.from_records(rows, columns=cols)
-
-        # Mapear columnas SQL -> columnas UI (Paso 8)
-        df_oi = df_oi.rename(columns={
-            "titular": "Titular (nombre)",
-            "relacion": "Relación",
-            "fuente": "Fuente de ingreso",
-            "periodicidad": "Periodicidad",
-            "monto_periodo": "Monto por período (₡)",
-            "verificado": "Verificado por asesor",
-            "evidencia": "Tipo de evidencia",
-            "meses_cont": "Meses de continuidad",
-            "prob_cont": "Prob. continuidad (0–10)",
-            "comentario": "Comentario"
-        })
-
-        # Guardar todos los ingresos en session_state
-        datos["otros_ingresos"] = df_oi.to_dict(orient="records")
-
-
-
-            
             conn.close()
 
             st.success(mensaje)
@@ -311,5 +280,6 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
+
 
 
