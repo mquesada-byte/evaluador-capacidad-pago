@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils.db import save_deudas_activas   # ✅ corregido
+from utils.db import save_deudas_activas   # 👈 nuevo import
 
 st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="💳")
 
@@ -152,7 +152,7 @@ with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
         },
     )
 
-# Reaplicar numéricos y cuota mensualizada
+# Reaplicar numéricos y cuota mensualizada por si se editó en el expander
 for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
     if c not in df_edit.columns:
         df_edit[c] = 0
@@ -228,7 +228,7 @@ with c2:
         }
         st.session_state["done_09"] = True
 
-        # 👇 Guardar en SQL
+        # 👇 NUEVO: Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
         mes_iso = st.session_state.get("mes_iso", "")
         try:
@@ -246,10 +246,9 @@ with c2:
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
 
-        # Ir directamente al paso 10
+        # Ir directamente al paso 10: Gastos operativos
         try:
             st.switch_page("pages/10_Gastos_operativos.py")
         except Exception:
             st.success("Deudas activas guardadas. Abrí **10 – Gastos operativos** desde el menú lateral.")
             st.stop()
-
