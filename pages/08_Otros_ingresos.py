@@ -32,10 +32,24 @@ def _mensualizar(monto: float, periodicidad: str) -> float:
 
 def _factor_confiabilidad(verificado: bool, evidencia: str, meses: int, prob: int) -> float:
     base = 0.5
-    if verificado: base += 0.2
-    if meses >= 12: base += 0.2
-    elif meses >= 6: base += 0.1
+    if verificado:
+        base += 0.2
+    if meses >= 12:
+        base += 0.2
+    elif meses >= 6:
+        base += 0.1
     base += (prob / 10) * 0.1
+
+    # 🔎 Ajuste: peso según tipo de evidencia
+    evidencia_lower = (evidencia or "").lower()
+    evidencias_fuertes = ["facturación electrónica", "extractos bancarios/sinpe", "pos/datáfono", "contrato"]
+    evidencias_medias = ["recibos", "certificación", "equifax", "credid"]
+    if any(e in evidencia_lower for e in evidencias_fuertes):
+        base += 0.2
+    elif any(e in evidencia_lower for e in evidencias_medias):
+        base += 0.1
+    # “Foto/Chat”, “No aplica” u “Otro” → sin incremento
+
     return min(1.0, max(0.2, base))
 
 # =========================
@@ -160,6 +174,5 @@ with c2:
                 st.info("Continúa con el Paso 9 desde el menú lateral.")
         else:
             st.error("❌ No se pudieron guardar los otros ingresos en la base de datos")
-
 
 
