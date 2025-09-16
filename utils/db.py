@@ -76,32 +76,42 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # Otros ingresos 👇 (movido aquí, antes del return)
+    # Otros ingresos 👇 (ajustado: tomar último mes_iso de la tabla OtrosIngresos)
     cursor.execute("""
-        SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario
+        SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
-        WHERE cliente_identificacion=? AND mes_iso=?
-    """, (cliente_id, datos.get("mes_iso", "")))
-    rows = cursor.fetchall()
-    if rows:
-        cols = [col[0] for col in cursor.description]
-        df_oi = pd.DataFrame.from_records(rows, columns=cols)
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
+    mes_row = cursor.fetchone()
+    mes_iso = mes_row[0] if mes_row else None
 
-        df_oi = df_oi.rename(columns={
-            "titular": "Titular (nombre)",
-            "relacion": "Relación",
-            "fuente": "Fuente de ingreso",
-            "periodicidad": "Periodicidad",
-            "monto_periodo": "Monto por período (₡)",
-            "verificado": "Verificado por asesor",
-            "evidencia": "Tipo de evidencia",
-            "meses_cont": "Meses de continuidad",
-            "prob_cont": "Prob. continuidad (0–10)",
-            "comentario": "Comentario"
-        })
+    if mes_iso:
+        cursor.execute("""
+            SELECT titular, relacion, fuente, periodicidad, monto_periodo,
+                   verificado, evidencia, meses_cont, prob_cont, comentario
+            FROM OtrosIngresos
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        if rows:
+            cols = [col[0] for col in cursor.description]
+            df_oi = pd.DataFrame.from_records(rows, columns=cols)
 
-        datos["otros_ingresos"] = df_oi.to_dict(orient="records")
+            df_oi = df_oi.rename(columns={
+                "titular": "Titular (nombre)",
+                "relacion": "Relación",
+                "fuente": "Fuente de ingreso",
+                "periodicidad": "Periodicidad",
+                "monto_periodo": "Monto por período (₡)",
+                "verificado": "Verificado por asesor",
+                "evidencia": "Tipo de evidencia",
+                "meses_cont": "Meses de continuidad",
+                "prob_cont": "Prob. continuidad (0–10)",
+                "comentario": "Comentario"
+            })
+
+            datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
     conn.close()
     return datos
