@@ -328,7 +328,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         if df.empty:
             conn.commit()
             conn.close()
-            return True  # nada más que guardar
+            return True  # nada que guardar
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
