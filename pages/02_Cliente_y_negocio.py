@@ -64,41 +64,41 @@ with st.container():
             placeholder="Ej.: 1-2345-0678"
         )
     with col2:
-        if st.button("📂 Cargar datos", use_container_width=True) and c["identificacion"].strip():
-            datos = load_visita(c["identificacion"].strip())
-            if datos:
-                st.success("✅ Datos cargados desde la base de datos")
+if st.button("📂 Cargar datos", use_container_width=True) and c["identificacion"].strip():
+    datos = load_visita(c["identificacion"].strip())
+    if datos:
+        st.success("✅ Datos cargados desde la base de datos")
 
-                # Cliente
-                c["nombre_completo"] = datos["cliente_nombre"]
-                n["nombre_comercial"] = datos["nombre_comercial"]
-                n["persona_juridica"] = bool(datos["persona_juridica"])
-                n["ubicacion"] = datos["ubicacion"]
-                n["sector_economico"] = datos["sector_economico"]
-                n["actividad_principal"] = datos["actividad_principal"]
-                n["patente_municipal"] = bool(datos["patente_municipal"])
-                n["registros_contables"] = bool(datos["registros_contables"])
-                n["tipo_local"] = datos["tipo_local"]
-                n["antiguedad_anios"] = datos["antiguedad_anios"]
-                n["antiguedad_meses"] = datos["antiguedad_meses"]
+        # Cliente
+        c["nombre_completo"] = datos["cliente_nombre"]
+        n["nombre_comercial"] = datos["nombre_comercial"]
+        n["persona_juridica"] = bool(datos["persona_juridica"])
+        n["ubicacion"] = datos["ubicacion"]
+        n["sector_economico"] = datos["sector_economico"]
+        n["actividad_principal"] = datos["actividad_principal"]
+        n["patente_municipal"] = bool(datos["patente_municipal"])
+        n["registros_contables"] = bool(datos["registros_contables"])
+        n["tipo_local"] = datos["tipo_local"]
+        n["antiguedad_anios"] = datos["antiguedad_anios"]
+        n["antiguedad_meses"] = datos["antiguedad_meses"]
 
-                # Asesor
-                asesor = st.session_state.get("asesor", {})
-                asesor["nombre"] = datos["asesor_nombre"]
-                asesor["fecha_hora"] = datos["fecha_hora"]
-                asesor["timestamp_source"] = datos["hora_fuente"]
-                asesor["lat"] = datos["lat"]
-                asesor["lon"] = datos["lon"]
-                asesor["maps_url"] = datos["maps_url"]
+        # Asesor
+        asesor = st.session_state.get("asesor", {})
+        asesor["nombre"] = datos["asesor_nombre"]
+        asesor["fecha_hora"] = datos["fecha_hora"]
+        asesor["timestamp_source"] = datos["hora_fuente"]
+        asesor["lat"] = datos["lat"]
+        asesor["lon"] = datos["lon"]
+        asesor["maps_url"] = datos["maps_url"]
+        st.session_state["asesor"] = asesor
 
-                st.session_state["asesor"] = asesor
-                
-                # Otros ingresos
-                if "otros_ingresos" in datos:
-                    st.session_state["otros_ingresos"] = datos["otros_ingresos"]
+        # Otros ingresos (igual que valoración del asesor)
+        if "otros_ingresos" in datos:
+            st.session_state["otros_ingresos"] = datos["otros_ingresos"]
 
-            else:
-                st.warning("⚠️ No se encontraron datos para esta cédula")
+    else:
+        st.warning("⚠️ No se encontraron datos para esta cédula")
+
 
 st.divider()
 
