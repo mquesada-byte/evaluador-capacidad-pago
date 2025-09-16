@@ -4,6 +4,11 @@ import pandas as pd
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
+TZ = ZoneInfo("America/Costa_Rica")
+if "mes_iso" not in st.session_state:
+    now = dt.datetime.now(TZ)
+    st.session_state["mes_iso"] = now.strftime("%Y-%m")
+
 # =========================
 # PASO 8 – Otros ingresos del hogar (multipágina)
 # =========================
