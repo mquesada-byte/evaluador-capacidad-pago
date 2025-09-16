@@ -82,7 +82,6 @@ def load_visita(cliente_id: str) -> dict | None:
 # GUARDAR PASO 3 – TOP-DOWN
 # ==========================================================
 def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
-    """UPSERT en la tabla ventas_topdown."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -126,7 +125,6 @@ def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
 # GUARDAR PASO 4 – BOTTOM-UP
 # ==========================================================
 def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
-    """UPSERT en la tabla ventas_bottomup."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -188,7 +186,6 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
 # GUARDAR PASO 5 – INSUMOS
 # ==========================================================
 def save_ventas_p5(cliente_id: str, data: dict) -> bool:
-    """UPSERT en la tabla ventas_p5."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -266,7 +263,6 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
 # GUARDAR PASO 6 – VALORACIÓN ASESOR
 # ==========================================================
 def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
-    """UPSERT en la tabla valoracion_asesor."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -310,7 +306,7 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 # ==========================================================
 # GUARDAR PASO 8 – OTROS INGRESOS
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, mes_iso: str, df, id_visita: int) -> bool:
+def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
     Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
@@ -332,19 +328,18 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df, id_visita: int) -> bo
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
-                id_visita, cliente_identificacion, mes_iso,
+                cliente_identificacion, mes_iso,
                 titular, relacion, fuente, periodicidad,
                 monto_periodo, verificado, evidencia, meses_cont, prob_cont,
                 ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
                 comentario, fecha_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """
 
         for _, row in df.iterrows():
             cursor.execute(
                 insert_sql,
-                id_visita,                # 👈 nuevo campo obligatorio
                 cliente_id,
                 mes_iso,
                 row.get("Titular (nombre)", ""),
@@ -352,7 +347,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df, id_visita: int) -> bo
                 row.get("Fuente de ingreso", ""),
                 row.get("Periodicidad", ""),
                 float(row.get("Monto por período (₡)", 0) or 0),
-                bool(row.get("Verificado por asesor", False)),
+                1 if row.get("Verificado por asesor", False) else 0,
                 row.get("Tipo de evidencia", ""),
                 int(row.get("Meses de continuidad", 0) or 0),
                 int(row.get("Prob. continuidad (0–10)", 0) or 0),
