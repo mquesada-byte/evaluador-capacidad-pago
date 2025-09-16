@@ -313,16 +313,22 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
-    :param cliente_id: Identificación del cliente
-    :param mes_iso: período en formato YYYY-MM
-    :param df: DataFrame con los ingresos (incluye columnas derivadas)
+    Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
     """
     try:
-        if df.empty:
-            return True  # nada que guardar
-
         conn = get_connection()
         cursor = conn.cursor()
+
+        # 🔄 Borrar registros previos del cliente y mes
+        cursor.execute("""
+            DELETE FROM OtrosIngresos
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+
+        if df.empty:
+            conn.commit()
+            conn.close()
+            return True  # nada más que guardar
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
@@ -361,7 +367,3 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     except Exception as e:
         st.error(f"Error guardando otros_ingresos: {e}")
         return False
-
-
-
-
