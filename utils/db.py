@@ -155,7 +155,7 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (
             data.get("mes_referencia"), unidad_clientes, clientes_valor,
-            dias_abiertos, semanas_abiertas, ticket_promedio_colones,
+            dias_abiertos, semanas_abiertos, ticket_promedio_colones,
             ventas_estimadas_colones, comentario, data.get("no_data"),
             cliente_id, data.get("mes_iso")
         ))
@@ -310,7 +310,7 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 # ==========================================================
 # GUARDAR PASO 8 – OTROS INGRESOS
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
+def save_otros_ingresos(cliente_id: str, mes_iso: str, df, id_visita: int) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
     Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
@@ -328,22 +328,23 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         if df.empty:
             conn.commit()
             conn.close()
-            return True  # nada que guardar
+            return True  # nada más que guardar
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
-                cliente_identificacion, mes_iso,
+                id_visita, cliente_identificacion, mes_iso,
                 titular, relacion, fuente, periodicidad,
                 monto_periodo, verificado, evidencia, meses_cont, prob_cont,
                 ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
                 comentario, fecha_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """
 
         for _, row in df.iterrows():
             cursor.execute(
                 insert_sql,
+                id_visita,                # 👈 nuevo campo obligatorio
                 cliente_id,
                 mes_iso,
                 row.get("Titular (nombre)", ""),
@@ -367,3 +368,4 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     except Exception as e:
         st.error(f"Error guardando otros_ingresos: {e}")
         return False
+
