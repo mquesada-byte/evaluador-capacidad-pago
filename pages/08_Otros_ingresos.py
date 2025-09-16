@@ -272,7 +272,8 @@ with c2:
             ok = save_otros_ingresos(
                 cliente_id=st.session_state["cliente"]["identificacion"],
                 mes_iso=st.session_state["mes_iso"],
-                df=df if not df_valid.empty else df  # 👈 aseguramos que siempre se intente guardar
+                df=df if not df_valid.empty else df,
+                id_visita=st.session_state["cliente"]["id_visita"]  # 👈 nuevo parámetro
             )
             
             if ok:
