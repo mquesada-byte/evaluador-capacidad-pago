@@ -200,7 +200,8 @@ with colNav2:
                         ubicacion=?, sector_economico=?, actividad_principal=?,
                         patente_municipal=?, registros_contables=?, tipo_local=?,
                         antiguedad_anios=?, antiguedad_meses=?,
-                        asesor_nombre=?, fecha_hora=?, hora_fuente=?, lat=?, lon=?, maps_url=?
+                        asesor_nombre=?, fecha_hora=?, hora_fuente=?, lat=?, lon=?, maps_url=?,
+                        mes_iso=?
                     WHERE cliente_identificacion=?
                 """, (
                     c["nombre_completo"].strip(),
@@ -220,6 +221,7 @@ with colNav2:
                     asesor.get("lat"),
                     asesor.get("lon"),
                     asesor.get("maps_url", "N/A"),
+                    st.session_state["mes_iso"],
                     c["identificacion"].strip()
                 ))
                 mensaje = "♻️ Datos ACTUALIZADOS en Azure SQL"
@@ -231,8 +233,9 @@ with colNav2:
                         persona_juridica, ubicacion, sector_economico, actividad_principal,
                         patente_municipal, registros_contables, tipo_local,
                         antiguedad_anios, antiguedad_meses,
-                        asesor_nombre, fecha_hora, hora_fuente, lat, lon, maps_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        asesor_nombre, fecha_hora, hora_fuente, lat, lon, maps_url,
+                        mes_iso
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     c["identificacion"].strip(),
                     c["nombre_completo"].strip(),
@@ -251,7 +254,8 @@ with colNav2:
                     asesor.get("timestamp_source", "N/A"),
                     asesor.get("lat"),
                     asesor.get("lon"),
-                    asesor.get("maps_url", "N/A")
+                    asesor.get("maps_url", "N/A"),
+                    st.session_state["mes_iso"]
                 ))
                 mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
@@ -271,4 +275,5 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
+
 
