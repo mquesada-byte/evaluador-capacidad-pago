@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 from zoneinfo import ZoneInfo
-from utils.db import save_otros_ingresos   # 👈 usa versión sin id_visita
+from utils.db import save_otros_ingresos, load_visita   # 👈 añadimos load_visita
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
@@ -60,12 +60,23 @@ deriv_cols = ["Ingreso mensualizado (₡)", "Factor confiabilidad (0.2–1.0)", 
 st.title("💸 Paso 8: Otros ingresos del hogar")
 st.caption("Registre otros ingresos del cliente y su núcleo familiar.")
 
-# tabla inicial
-df_in = pd.DataFrame([{c: "" for c in base_cols}] * 3)
-df_in["Monto por período (₡)"] = 0
-df_in["Meses de continuidad"] = 0
-df_in["Prob. continuidad (0–10)"] = 0
-df_in["Verificado por asesor"] = False
+# -------- Inicializar tabla con datos previos si existen --------
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+df_in = None
+if cliente_id and not st.session_state.get("done_08"):
+    datos = load_visita(cliente_id)
+    if datos and "otros_ingresos" in datos:
+        try:
+            df_in = pd.DataFrame(datos["otros_ingresos"])
+        except Exception:
+            df_in = None
+
+if df_in is None or df_in.empty:
+    df_in = pd.DataFrame([{c: "" for c in base_cols}] * 3)
+    df_in["Monto por período (₡)"] = 0
+    df_in["Meses de continuidad"] = 0
+    df_in["Prob. continuidad (0–10)"] = 0
+    df_in["Verificado por asesor"] = False
 
 # Editor con menús desplegables
 df = st.data_editor(
@@ -149,4 +160,5 @@ with c2:
                 st.info("Continúa con el Paso 9 desde el menú lateral.")
         else:
             st.error("❌ No se pudieron guardar los otros ingresos en la base de datos")
+
 
