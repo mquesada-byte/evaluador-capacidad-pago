@@ -17,6 +17,7 @@ def init_paso2_state():
     # Cliente
     c.setdefault("nombre_completo", "")
     c.setdefault("identificacion", "")
+    c.setdefault("id_visita", None)   # 👈 nuevo campo
 
     # Negocio
     n.setdefault("nombre_comercial", "")
@@ -71,6 +72,7 @@ with st.container():
 
                 # Cliente
                 c["nombre_completo"] = datos["cliente_nombre"]
+                c["id_visita"] = datos.get("id")  # 👈 guardamos el id_visita
                 n["nombre_comercial"] = datos["nombre_comercial"]
                 n["persona_juridica"] = bool(datos["persona_juridica"])
                 n["ubicacion"] = datos["ubicacion"]
@@ -199,10 +201,10 @@ with colNav2:
             cursor = conn.cursor()
 
             # Verificar si ya existe registro
-            cursor.execute("SELECT COUNT(*) FROM visitas_credito WHERE cliente_identificacion = ?", (c["identificacion"].strip(),))
-            existe = cursor.fetchone()[0]
+            cursor.execute("SELECT id FROM visitas_credito WHERE cliente_identificacion = ?", (c["identificacion"].strip(),))
+            row = cursor.fetchone()
 
-            if existe:
+            if row:
                 # UPDATE
                 cursor.execute("""
                     UPDATE visitas_credito SET
@@ -232,6 +234,7 @@ with colNav2:
                     asesor.get("maps_url", "N/A"),
                     c["identificacion"].strip()
                 ))
+                st.session_state["cliente"]["id_visita"] = int(row[0])  # 👈 guardamos el id
                 mensaje = "♻️ Datos ACTUALIZADOS en Azure SQL"
             else:
                 # INSERT
@@ -263,6 +266,9 @@ with colNav2:
                     asesor.get("lon"),
                     asesor.get("maps_url", "N/A")
                 ))
+                cursor.execute("SELECT SCOPE_IDENTITY()")
+                id_visita = int(cursor.fetchone()[0])
+                st.session_state["cliente"]["id_visita"] = id_visita  # 👈 guardamos el id
                 mensaje = "🆕 Datos INSERTADOS en Azure SQL"
 
             conn.commit()
@@ -281,4 +287,5 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
+
 
