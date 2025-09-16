@@ -90,14 +90,11 @@ if st.button("📂 Cargar datos", use_container_width=True) and c["identificacio
         asesor["lat"] = datos["lat"]
         asesor["lon"] = datos["lon"]
         asesor["maps_url"] = datos["maps_url"]
+
         st.session_state["asesor"] = asesor
-
-        # Otros ingresos (igual que valoración del asesor)
-        if "otros_ingresos" in datos:
-            st.session_state["otros_ingresos"] = datos["otros_ingresos"]
-
     else:
         st.warning("⚠️ No se encontraron datos para esta cédula")
+
 
 
 st.divider()
