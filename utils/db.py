@@ -76,7 +76,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # Otros ingresos 👇 (ajustado: tomar último mes_iso de la tabla OtrosIngresos)
+    # Otros ingresos 👇 (ajustado: tomar último mes_iso disponible)
     cursor.execute("""
         SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
@@ -84,9 +84,9 @@ def load_visita(cliente_id: str) -> dict | None:
         ORDER BY mes_iso DESC
     """, (cliente_id,))
     mes_row = cursor.fetchone()
-    mes_iso = mes_row[0] if mes_row else None
 
-    if mes_iso:
+    if mes_row:
+        mes_iso = mes_row[0]
         cursor.execute("""
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
                    verificado, evidencia, meses_cont, prob_cont, comentario
@@ -417,3 +417,4 @@ if __name__ == "__main__":
         conn.close()
     except Exception as e:
         print("❌ No se pudo conectar:", e)
+
