@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils.bd import save_deudas_activas   # 👈 nuevo import
+from utils.db import save_deudas_activas   # 👈 nuevo import
 
 st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="💳")
 
