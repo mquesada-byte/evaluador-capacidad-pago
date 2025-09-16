@@ -62,11 +62,12 @@ def load_visita(cliente_id: str) -> dict | None:
 
     # Otros ingresos 👇
     cursor.execute("""
-        SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario
+        SELECT TOP 50 titular, relacion, fuente, periodicidad, monto_periodo,
+               verificado, evidencia, meses_cont, prob_cont, comentario, mes_iso
         FROM OtrosIngresos
-        WHERE cliente_identificacion=? AND mes_iso=?
-    """, (cliente_id, st.session_state.get("mes_iso", "")))
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
     rows = cursor.fetchall()
     if rows:
         cols = [col[0] for col in cursor.description]
@@ -90,4 +91,5 @@ def load_visita(cliente_id: str) -> dict | None:
 
     conn.close()
     return datos
+
 
