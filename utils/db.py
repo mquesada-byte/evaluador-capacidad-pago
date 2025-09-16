@@ -405,96 +405,6 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
 
 
 # ==========================================================
-# GUARDAR PASO 9 – DEUDAS ACTIVAS
-# ==========================================================
-def save_deudas_activas(cliente_id: str, mes_iso: str, df, totales: dict, sin_deudas: bool) -> bool:
-    """
-    Inserta los registros de deudas activas en la tabla Deudas_Activas y un resumen en Deudas_Activas_Totales.
-    Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
-    """
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # 🔄 Borrar registros previos de detalle
-        cursor.execute("""
-            DELETE FROM Deudas_Activas
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
-
-        # Guardar registros de detalle si hay deudas
-        if not df.empty and not sin_deudas:
-            insert_sql = """
-                INSERT INTO Deudas_Activas (
-                    cliente_identificacion, mes_iso,
-                    titular, acreedor, tipo, saldo_adeudado,
-                    cuota_periodo, periodicidad_pago, cuota_mensualizada,
-                    verificado, evidencia, estado, atraso_dias,
-                    meses_restantes, plazo_clasificacion,
-                    comentario, fecha_registro
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-            """
-            for _, row in df.iterrows():
-                cursor.execute(
-                    insert_sql,
-                    cliente_id,
-                    mes_iso,
-                    row.get("Titular", ""),
-                    row.get("Acreedor/Entidad", ""),
-                    row.get("Tipo de deuda", ""),
-                    float(row.get("Saldo adeudado (₡)", 0) or 0),
-                    float(row.get("Cuota por período (₡)", 0) or 0),
-                    row.get("Periodicidad de pago", ""),
-                    float(row.get("Cuota mensualizada (₡)", 0) or 0),
-                    1 if row.get("Verificado por asesor", False) else 0,
-                    row.get("Tipo de evidencia", ""),
-                    row.get("Estado", ""),
-                    int(row.get("Días de atraso", 0) or 0),
-                    int(row.get("Meses restantes (opcional)", 0) or 0),
-                    row.get("Plazo (clasificación)", ""),
-                    row.get("Comentario", "")
-                )
-
-        # 🔄 Borrar registros previos de totales
-        cursor.execute("""
-            DELETE FROM Deudas_Activas_Totales
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
-
-        # Guardar resumen de totales
-        cursor.execute("""
-            INSERT INTO Deudas_Activas_Totales (
-                cliente_identificacion, mes_iso,
-                total_pago_mensual_colones, total_pago_mensual_verificado_colones,
-                total_adeudado_colones, total_adeudado_corto_plazo_colones,
-                total_adeudado_largo_plazo_colones, registros_validos,
-                sin_deudas, fecha_registro
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-        """, (
-            cliente_id, mes_iso,
-            totales.get("total_pago_mensual_colones", 0),
-            totales.get("total_pago_mensual_verificado_colones", 0),
-            totales.get("total_adeudado_colones", 0),
-            totales.get("total_adeudado_corto_plazo_colones", 0),
-            totales.get("total_adeudado_largo_plazo_colones", 0),
-            totales.get("registros_validos", 0),
-            1 if sin_deudas else 0
-        ))
-
-        conn.commit()
-        conn.close()
-        return True
-
-    except Exception as e:
-        st.error(f"Error guardando deudas_activas: {e}")
-        return False
-
-
-
-
-# ==========================================================
 # TEST DE CONEXIÓN
 # ==========================================================
 if __name__ == "__main__":
@@ -507,7 +417,4 @@ if __name__ == "__main__":
         conn.close()
     except Exception as e:
         print("❌ No se pudo conectar:", e)
-
-
-
 
