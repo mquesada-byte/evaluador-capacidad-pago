@@ -63,14 +63,7 @@ st.caption("Registre otros ingresos del cliente y su núcleo familiar.")
 # -------- Inicializar tabla con datos previos si existen --------
 cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
 df_in = None
-
-# 👇 Ajuste: leer primero de session_state["otros_ingresos"] si existe
-if "otros_ingresos" in st.session_state and st.session_state["otros_ingresos"]:
-    try:
-        df_in = pd.DataFrame(st.session_state["otros_ingresos"])
-    except Exception:
-        df_in = None
-elif cliente_id and not st.session_state.get("done_08"):
+if cliente_id and not st.session_state.get("done_08"):
     datos = load_visita(cliente_id)
     if datos and "otros_ingresos" in datos:
         try:
@@ -161,12 +154,12 @@ with c2:
         if ok:
             st.success("✅ Otros ingresos guardados en la base de datos")
             st.session_state["done_08"] = True
-            st.session_state["otros_ingresos"] = df_valid.to_dict(orient="records")  # 👈 Guardar en session_state
             try:
                 st.switch_page("pages/09_Deudas.py")
             except Exception:
                 st.info("Continúa con el Paso 9 desde el menú lateral.")
         else:
             st.error("❌ No se pudieron guardar los otros ingresos en la base de datos")
+
 
 
