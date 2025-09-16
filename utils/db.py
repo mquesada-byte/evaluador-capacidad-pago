@@ -307,6 +307,60 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
         return False
 
 
+# ==========================================================
+# GUARDAR PASO 8 – OTROS INGRESOS
+# ==========================================================
+def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
+    """
+    Inserta los registros de otros ingresos en la tabla OtrosIngresos.
+    :param cliente_id: Identificación del cliente
+    :param mes_iso: período en formato YYYY-MM
+    :param df: DataFrame con los ingresos (incluye columnas derivadas)
+    """
+    try:
+        if df.empty:
+            return True  # nada que guardar
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        insert_sql = """
+            INSERT INTO OtrosIngresos (
+                cliente_identificacion, mes_iso,
+                titular, relacion, fuente, periodicidad,
+                monto_periodo, verificado, evidencia, meses_cont, prob_cont,
+                ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
+                comentario, fecha_registro
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+        """
+
+        for _, row in df.iterrows():
+            cursor.execute(
+                insert_sql,
+                cliente_id,
+                mes_iso,
+                row.get("Titular (nombre)", ""),
+                row.get("Relación", ""),
+                row.get("Fuente de ingreso", ""),
+                row.get("Periodicidad", ""),
+                float(row.get("Monto por período (₡)", 0) or 0),
+                bool(row.get("Verificado por asesor", False)),
+                row.get("Tipo de evidencia", ""),
+                int(row.get("Meses de continuidad", 0) or 0),
+                int(row.get("Prob. continuidad (0–10)", 0) or 0),
+                float(row.get("Ingreso mensualizado (₡)", 0) or 0),
+                float(row.get("Factor confiabilidad (0.2–1.0)", 0) or 0),
+                float(row.get("Ingreso ponderado (₡)", 0) or 0),
+                row.get("Comentario", "")
+            )
+
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error guardando otros_ingresos: {e}")
+        return False
 
 
 
