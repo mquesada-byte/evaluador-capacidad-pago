@@ -272,8 +272,9 @@ with c2:
             ok = save_otros_ingresos(
                 cliente_id=st.session_state["cliente"]["identificacion"],
                 mes_iso=st.session_state["mes_iso"],
-                df=df_valid
+                df=df if not df_valid.empty else df  # 👈 aseguramos que siempre se intente guardar
             )
+            
             if ok:
                 st.success("Otros ingresos guardados en la base de datos")
             else:
