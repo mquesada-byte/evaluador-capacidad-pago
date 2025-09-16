@@ -1,5 +1,7 @@
 import streamlit as st
 from utils.db import get_connection, load_visita   # 👈 usamos helpers de conexión
+import datetime as dt
+from zoneinfo import ZoneInfo
 
 # =========================
 # PASO 2 – Datos del cliente y del negocio
@@ -35,6 +37,14 @@ def antiguedad_str(anios:int, meses:int) -> str:
 init_paso2_state()
 c = st.session_state.cliente
 n = st.session_state.negocio
+
+# =========================
+# Inicializar mes_iso
+# =========================
+TZ = ZoneInfo("America/Costa_Rica")
+if "mes_iso" not in st.session_state:
+    now = dt.datetime.now(TZ)
+    st.session_state["mes_iso"] = now.strftime("%Y-%m")
 
 st.title("👤 Paso 2: Datos del cliente y del negocio")
 st.caption("Complete los campos. Los marcados con * son obligatorios.")
@@ -96,11 +106,6 @@ with st.container():
                         vtd["fuente_otro"] = vt.get("fuente_otro", "")
                     else:
                         vtd["fuente_otro"] = ""
-                  
-
-
-
-            
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
 
@@ -276,5 +281,4 @@ with colNav2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar en la base de datos: {e}")
-
 
