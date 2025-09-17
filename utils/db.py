@@ -91,6 +91,22 @@ def load_visita(cliente_id: str) -> dict | None:
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
                    verificado, evidencia, meses_cont, prob_cont, comentario
             FROM OtrosIngresos
+
+ # Deudas Activas 👇
+ cursor.execute("""
+     SELECT TOP 1 mes_iso
+     FROM DeudasActivas
+     WHERE cliente_identificacion=?
+     ORDER BY mes_iso DESC
+ """, (cliente_id,))
+ mes_row = cursor.fetchone()
+ mes_iso = mes_row[0] if mes_row else None
+
+    if mes_iso:
+        cursor.execute("""
+            SELECT titular, relacion, fuente, periodicidad, monto_periodo,
+                   verificado, evidencia, meses_cont, prob_cont, comentario
+            FROM OtrosIngresos
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (cliente_id, mes_iso))
         rows = cursor.fetchall()
@@ -113,8 +129,52 @@ def load_visita(cliente_id: str) -> dict | None:
 
             datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
+    # Deudas Activas 👇
+    cursor.execute("""
+        SELECT TOP 1 mes_iso
+        FROM DeudasActivas
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
+    mes_row = cursor.fetchone()
+    mes_iso = mes_row[0] if mes_row else None
+
+    if mes_iso:
+        cursor.execute("""
+            SELECT titular, acreedor, tipo_deuda, saldo_adeudado,
+                   cuota_periodo, periodicidad, verificado, evidencia,
+                   estado, dias_atraso, comentario, meses_restantes, plazo,
+                   cuota_mensualizada
+            FROM DeudasActivas
+            WHERE cliente_identificacion=? AND mes_iso=? AND sin_deudas=0
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        if rows:
+            cols = [col[0] for col in cursor.description]
+            df_deu = pd.DataFrame.from_records(rows, columns=cols)
+
+            df_deu = df_deu.rename(columns={
+                "titular": "Titular",
+                "acreedor": "Acreedor/Entidad",
+                "tipo_deuda": "Tipo de deuda",
+                "saldo_adeudado": "Saldo adeudado (₡)",
+                "cuota_periodo": "Cuota por período (₡)",
+                "periodicidad": "Periodicidad de pago",
+                "verificado": "Verificado por asesor",
+                "evidencia": "Tipo de evidencia",
+                "estado": "Estado",
+                "dias_atraso": "Días de atraso",
+                "comentario": "Comentario",
+                "meses_restantes": "Meses restantes (opcional)",
+                "plazo": "Plazo (clasificación)",
+                "cuota_mensualizada": "Cuota mensualizada (₡)"
+            })
+
+            datos["deudas_activas"] = df_deu.to_dict(orient="records")
+
     conn.close()
     return datos
+
 
 
 # ==========================================================
