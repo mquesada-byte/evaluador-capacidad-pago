@@ -76,11 +76,9 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # ============================
-    # Otros ingresos (ajustado)
-    # ============================
+    # Otros ingresos 👇 (ajustado: tomar último mes_iso disponible con columnas derivadas)
     cursor.execute("""
-        SELECT TOP 1 mes_iso
+        SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
         WHERE cliente_identificacion=?
         ORDER BY mes_iso DESC
@@ -91,7 +89,9 @@ def load_visita(cliente_id: str) -> dict | None:
         mes_iso = mes_row[0]
         cursor.execute("""
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-                   verificado, evidencia, meses_cont, prob_cont, comentario
+                   verificado, evidencia, meses_cont, prob_cont,
+                   ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
+                   comentario
             FROM OtrosIngresos
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (cliente_id, mes_iso))
@@ -110,6 +110,9 @@ def load_visita(cliente_id: str) -> dict | None:
                 "evidencia": "Tipo de evidencia",
                 "meses_cont": "Meses de continuidad",
                 "prob_cont": "Prob. continuidad (0–10)",
+                "ingreso_mensualizado": "Ingreso mensualizado (₡)",
+                "factor_confiabilidad": "Factor confiabilidad (0.2–1.0)",
+                "ingreso_ponderado": "Ingreso ponderado (₡)",
                 "comentario": "Comentario"
             })
 
