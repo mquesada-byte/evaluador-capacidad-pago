@@ -560,10 +560,11 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (cliente_id, mes_iso))
 
-        if df.empty or sin_gastos:
+        # Si no hay registros válidos o se marcó "sin gastos", salir
+        if df is None or df.empty or sin_gastos:
             conn.commit()
             conn.close()
-            return True  # nada que guardar
+            return True
 
         insert_sql = """
             INSERT INTO GastosFamiliares (
@@ -579,8 +580,7 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
         """
 
         for _, row in df.iterrows():
-            cursor.execute(
-                insert_sql,
+            cursor.execute(insert_sql, (
                 cliente_id,
                 mes_iso,
                 row.get("Rubro", ""),
@@ -591,17 +591,19 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
                 row.get("Tipo de evidencia", ""),
                 row.get("Comentario", ""),
                 float(row.get("Gasto mensualizado (₡)", 0) or 0),
-                totales.get("total_gastos_familiares_mensualizado_colones", 0),
-                totales.get("total_gastos_familiares_verificado_colones", 0),
-                totales.get("registros_validos", 0)
-            )
+                int(totales.get("total_gastos_familiares_mensualizado_colones", 0)),
+                int(totales.get("total_gastos_familiares_verificado_colones", 0)),
+                int(totales.get("registros_validos", 0))
+            ))
 
         conn.commit()
         conn.close()
         return True
+
     except Exception as e:
-        st.error(f"Error guardando gastos familiares: {e}")
+        print(f"❌ Error guardando gastos familiares: {e}")
         return False
+
 
 # ==========================================================
 # GUARDAR PASO 13 – BALANCE GENERAL
