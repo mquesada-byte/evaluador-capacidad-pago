@@ -314,6 +314,26 @@ with c2:
         }
         st.session_state["done_13"] = True
 
+
+        # 👇 Guardar en SQL
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+        mes_iso = st.session_state.get("mes_iso", "")
+
+        try:
+            save_ok = save_balance_general(
+                cliente_id=cliente_id,
+                mes_iso=mes_iso,
+                datos=st.session_state["reporte"]["balance_general"]
+            )
+            if save_ok:
+                st.success("✅ Balance general guardado en la base de datos.")
+            else:
+                st.warning("⚠️ No se pudo guardar el balance en la base de datos.")
+        except Exception as e:
+            st.error(f"Error guardando balance general en SQL: {e}")
+
+
+        
         for nxt in [
             "pages/14_Informe_final.py",
             "pages/14_informe_final.py",
