@@ -1,6 +1,7 @@
 # pages/10_Gastos_operativos.py
 import streamlit as st
 import pandas as pd
+from utils.db import save_gastos_operativos   # 👈 nuevo import
 
 st.set_page_config(page_title="Paso 10: Gastos operativos", page_icon="🧾")
 
@@ -183,6 +184,27 @@ with c2:
             }
         }
         st.session_state["done_10"] = True
+
+                # 👇 Guardar en SQL
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+        mes_iso = st.session_state.get("mes_iso", "")
+
+        try:
+            save_ok = save_gastos_operativos(
+                cliente_id=cliente_id,
+                mes_iso=mes_iso,
+                df=df if not sin_gastos else pd.DataFrame(),
+                totales=st.session_state["reporte"]["gastos_operativos"]["totales"],
+                sin_gastos=sin_gastos
+            )
+            if save_ok:
+                st.success("✅ Gastos operativos guardados en la base de datos.")
+            else:
+                st.warning("⚠️ No se pudieron guardar los gastos en la base de datos.")
+        except Exception as e:
+            st.error(f"Error guardando en SQL: {e}")
+
+        
 
         # Ir al próximo paso: 11_Gastos_familiares.py
         try:
