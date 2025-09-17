@@ -83,7 +83,8 @@ def _calc_bottom_up_total(vbu: dict) -> int:
 
 # --------- UI ----------
 mes_etiqueta, mes_iso = _mes_anterior_label()
-cliente_id = st.session_state.cliente.get("identificacion")
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+
 
 init_paso4_state(cliente_id, mes_iso)
 vbu = st.session_state.ventas_bottomup
