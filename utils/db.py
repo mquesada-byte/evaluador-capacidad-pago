@@ -91,6 +91,30 @@ def load_visita(cliente_id: str) -> dict | None:
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
                    verificado, evidencia, meses_cont, prob_cont, comentario
             FROM OtrosIngresos
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        if rows:
+            cols = [col[0] for col in cursor.description]
+            df_oi = pd.DataFrame.from_records(rows, columns=cols)
+
+            df_oi = df_oi.rename(columns={
+                "titular": "Titular (nombre)",
+                "relacion": "Relación",
+                "fuente": "Fuente de ingreso",
+                "periodicidad": "Periodicidad",
+                "monto_periodo": "Monto por período (₡)",
+                "verificado": "Verificado por asesor",
+                "evidencia": "Tipo de evidencia",
+                "meses_cont": "Meses de continuidad",
+                "prob_cont": "Prob. continuidad (0–10)",
+                "comentario": "Comentario"
+            })
+
+            datos["otros_ingresos"] = df_oi.to_dict(orient="records")
+
+    conn.close()
+    return datos
 
  # Deudas Activas 👇
  cursor.execute("""
