@@ -542,6 +542,66 @@ def save_gastos_operativos(cliente_id: str, mes_iso: str, df: pd.DataFrame, tota
         print(f"[save_gastos_operativos] Error: {e}")
         return False
 
+# ==========================================================
+# GUARDAR PASO 11 – GASTOS FAMILIARES
+# ==========================================================
+def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin_gastos: bool = False) -> bool:
+    """
+    Inserta los registros de gastos familiares en la tabla GastosFamiliares.
+    Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # 🔄 Borrar registros previos del cliente y mes
+        cursor.execute("""
+            DELETE FROM GastosFamiliares
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+
+        if df.empty or sin_gastos:
+            conn.commit()
+            conn.close()
+            return True  # nada que guardar
+
+        insert_sql = """
+            INSERT INTO GastosFamiliares (
+                cliente_identificacion, mes_iso,
+                rubro, detalle, monto_periodo, periodicidad,
+                verificado, tipo_evidencia, comentario, gasto_mensualizado,
+                total_gastos_familiares_mensualizado_colones,
+                total_gastos_familiares_verificado_colones,
+                registros_validos,
+                fecha_registro
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+        """
+
+        for _, row in df.iterrows():
+            cursor.execute(
+                insert_sql,
+                cliente_id,
+                mes_iso,
+                row.get("Rubro", ""),
+                row.get("Detalle", ""),
+                float(row.get("Monto por período (₡)", 0) or 0),
+                row.get("Periodicidad", ""),
+                1 if row.get("Verificado por asesor", False) else 0,
+                row.get("Tipo de evidencia", ""),
+                row.get("Comentario", ""),
+                float(row.get("Gasto mensualizado (₡)", 0) or 0),
+                totales.get("total_gastos_familiares_mensualizado_colones", 0),
+                totales.get("total_gastos_familiares_verificado_colones", 0),
+                totales.get("registros_validos", 0)
+            )
+
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error guardando gastos familiares: {e}")
+        return False
 
 
 
