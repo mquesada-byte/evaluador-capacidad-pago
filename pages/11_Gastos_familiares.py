@@ -1,6 +1,7 @@
 # pages/11_Gastos_familiares.py
 import streamlit as st
 import pandas as pd
+from utils.db import save_gastos_familiares   # ✅ agregado
 
 st.set_page_config(page_title="Paso 11: Gastos familiares", page_icon="🏠")
 
