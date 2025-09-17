@@ -403,6 +403,92 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         st.error(f"Error guardando otros_ingresos: {e}")
         return False
 
+# ==========================================================
+# GUARDAR PASO 9 – DEUDAS ACTIVAS
+# ==========================================================
+def save_deudas_activas(cliente_id: str, mes_iso: str, df, totales: dict, sin_deudas: bool) -> bool:
+    """
+    Guarda las deudas activas de un cliente en la tabla DeudasActivas.
+    Si sin_deudas=True, solo guarda los totales con bandera sin_deudas=1.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # 🔄 Borrar registros previos
+        cursor.execute("""
+            DELETE FROM DeudasActivas
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+
+        if not sin_deudas and not df.empty:
+            insert_sql = """
+                INSERT INTO DeudasActivas (
+                    cliente_identificacion, mes_iso,
+                    titular, acreedor, tipo_deuda, saldo_adeudado,
+                    cuota_periodo, periodicidad, verificado, evidencia,
+                    estado, dias_atraso, comentario, meses_restantes,
+                    plazo, cuota_mensualizada,
+                    total_pago_mensual_colones, total_pago_mensual_verificado_colones,
+                    total_adeudado_colones, total_adeudado_corto_plazo_colones,
+                    total_adeudado_largo_plazo_colones, registros_validos, sin_deudas
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            for _, row in df.iterrows():
+                cursor.execute(
+                    insert_sql,
+                    cliente_id,
+                    mes_iso,
+                    row.get("Titular", ""),
+                    row.get("Acreedor/Entidad", ""),
+                    row.get("Tipo de deuda", ""),
+                    float(row.get("Saldo adeudado (₡)", 0) or 0),
+                    float(row.get("Cuota por período (₡)", 0) or 0),
+                    row.get("Periodicidad de pago", ""),
+                    1 if row.get("Verificado por asesor", False) else 0,
+                    row.get("Tipo de evidencia", ""),
+                    row.get("Estado", ""),
+                    int(row.get("Días de atraso", 0) or 0),
+                    row.get("Comentario", ""),
+                    int(row.get("Meses restantes (opcional)", 0) or 0),
+                    row.get("Plazo (clasificación)", ""),
+                    float(row.get("Cuota mensualizada (₡)", 0) or 0),
+                    float(totales.get("total_pago_mensual_colones", 0) or 0),
+                    float(totales.get("total_pago_mensual_verificado_colones", 0) or 0),
+                    float(totales.get("total_adeudado_colones", 0) or 0),
+                    float(totales.get("total_adeudado_corto_plazo_colones", 0) or 0),
+                    float(totales.get("total_adeudado_largo_plazo_colones", 0) or 0),
+                    int(totales.get("registros_validos", 0) or 0),
+                    0
+                )
+        else:
+            # Guardar solo totales si sin_deudas=True
+            cursor.execute("""
+                INSERT INTO DeudasActivas (
+                    cliente_identificacion, mes_iso,
+                    total_pago_mensual_colones, total_pago_mensual_verificado_colones,
+                    total_adeudado_colones, total_adeudado_corto_plazo_colones,
+                    total_adeudado_largo_plazo_colones, registros_validos, sin_deudas
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (
+                cliente_id, mes_iso,
+                float(totales.get("total_pago_mensual_colones", 0) or 0),
+                float(totales.get("total_pago_mensual_verificado_colones", 0) or 0),
+                float(totales.get("total_adeudado_colones", 0) or 0),
+                float(totales.get("total_adeudado_corto_plazo_colones", 0) or 0),
+                float(totales.get("total_adeudado_largo_plazo_colones", 0) or 0),
+                int(totales.get("registros_validos", 0) or 0)
+            ))
+
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error guardando deudas_activas: {e}")
+        return False
+
 
 # ==========================================================
 # TEST DE CONEXIÓN
