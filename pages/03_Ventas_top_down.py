@@ -47,7 +47,20 @@ if cliente_id and not st.session_state.get("done_03A"):
         db_vtd = datos["ventas_topdown"]
         vtd["monto"] = int(db_vtd.get("monto_colones", 0) or 0)
         vtd["tipicidad"] = db_vtd.get("tipicidad", "")
-        vtd["fuente"] = db_vtd.get("fuente", "")
+        
+        # 👇 Ajuste para manejar "Otro"
+        fuente_guardada = db_vtd.get("fuente", "")
+        fuente_opts = [
+            "", "Facturación electrónica", "POS/Datáfono",
+            "Extractos bancarios/SINPE", "Cuaderno/Excel", "Memoria", "Otro"
+        ]
+        if fuente_guardada in fuente_opts:
+            vtd["fuente"] = fuente_guardada
+            vtd["fuente_otro"] = ""
+        else:
+            vtd["fuente"] = "Otro"
+            vtd["fuente_otro"] = fuente_guardada
+        
         vtd["confianza_cliente"] = int(db_vtd.get("confianza_cliente_0a10", 5) or 5)
         vtd["comentario"] = db_vtd.get("comentario", "")
 
