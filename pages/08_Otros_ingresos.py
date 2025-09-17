@@ -117,18 +117,22 @@ df = st.data_editor(
 # =========================
 mensualizados, factores, ponderados = [], [], []
 for _, r in df.iterrows():
-    monto = float(r.get("Monto por período (₡)", 0) or 0)
-    per = r.get("Periodicidad") or ""
-    verif = bool(r.get("Verificado por asesor", False))
-    evid = r.get("Tipo de evidencia", "")
-    meses = int(r.get("Meses de continuidad", 0) or 0)
-    prob = int(r.get("Prob. continuidad (0–10)", 0) or 0)
+    monto = float(r["Monto por período (₡)"]) if "Monto por período (₡)" in r and pd.notna(r["Monto por período (₡)"]) else 0
+    per = r["Periodicidad"] if "Periodicidad" in r and pd.notna(r["Periodicidad"]) else ""
+    verif = bool(r["Verificado por asesor"]) if "Verificado por asesor" in r and pd.notna(r["Verificado por asesor"]) else False
+    evid = r["Tipo de evidencia"] if "Tipo de evidencia" in r and pd.notna(r["Tipo de evidencia"]) else ""
+    meses = int(r["Meses de continuidad"]) if "Meses de continuidad" in r and pd.notna(r["Meses de continuidad"]) else 0
+    prob = int(r["Prob. continuidad (0–10)"]) if "Prob. continuidad (0–10)" in r and pd.notna(r["Prob. continuidad (0–10)"]) else 0
 
     m_mensual = _mensualizar(monto, per)
     f_conf = _factor_confiabilidad(verif, evid, meses, prob)
     mensualizados.append(m_mensual)
     factores.append(f_conf)
     ponderados.append(m_mensual * f_conf)
+
+
+
+
 
 df["Ingreso mensualizado (₡)"] = [int(x) for x in mensualizados]
 df["Factor confiabilidad (0.2–1.0)"] = [round(x, 2) for x in factores]
