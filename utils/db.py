@@ -76,7 +76,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # Otros ingresos 👇 (ajustado: tomar último mes_iso disponible)
+    # Otros ingresos 👇 (ajustado: tomar último mes_iso de la tabla OtrosIngresos)
     cursor.execute("""
         SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
@@ -84,9 +84,9 @@ def load_visita(cliente_id: str) -> dict | None:
         ORDER BY mes_iso DESC
     """, (cliente_id,))
     mes_row = cursor.fetchone()
+    mes_iso = mes_row[0] if mes_row else None
 
-    if mes_row:
-        mes_iso = mes_row[0]
+    if mes_iso:
         cursor.execute("""
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
                    verificado, evidencia, meses_cont, prob_cont, comentario
@@ -405,66 +405,16 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
 
 
 # ==========================================================
-# GUARDAR PASO 9 – DEUDAS ACTIVAS
+# TEST DE CONEXIÓN
 # ==========================================================
-def save_deudas_activas(cliente_id: str, mes_iso: str, df, totales: dict, sin_deudas: bool) -> bool:
-    """
-    Guarda las deudas activas del hogar en la tabla DeudasActivas y sus totales.
-    """
+if __name__ == "__main__":
     try:
         conn = get_connection()
         cursor = conn.cursor()
-
-        # 🔄 Borrar registros previos
-        cursor.execute("""
-            DELETE FROM DeudasActivas
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
-
-        if not df.empty and not sin_deudas:
-            insert_sql = """
-                INSERT INTO DeudasActivas (
-                    cliente_identificacion, mes_iso,
-                    titular, acreedor, tipo_deuda,
-                    saldo, cuota_periodo, periodicidad,
-                    verificado, evidencia, estado, dias_atraso,
-                    comentario, meses_restantes, plazo_clasif,
-                    cuota_mensualizada, fecha_registro
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-            """
-            for _, row in df.iterrows():
-                cursor.execute(
-                    insert_sql,
-                    cliente_id,
-                    mes_iso,
-                    row.get("Titular", ""),
-                    row.get("Acreedor/Entidad", ""),
-                    row.get("Tipo de deuda", ""),
-                    float(row.get("Saldo adeudado (₡)", 0) or 0),
-                    float(row.get("Cuota por período (₡)", 0) or 0),
-                    row.get("Periodicidad de pago", ""),
-                    1 if row.get("Verificado por asesor", False) else 0,
-                    row.get("Tipo de evidencia", ""),
-                    row.get("Estado", ""),
-                    int(row.get("Días de atraso", 0) or 0),
-                    row.get("Comentario", ""),
-                    int(row.get("Meses restantes (opcional)", 0) or 0),
-                    row.get("Plazo (clasificación)", ""),
-                    float(row.get("Cuota mensualizada (₡)", 0) or 0),
-                )
-
-        # Totales en tabla aparte
-        cursor.execute("""
-            DELETE FROM DeudasActivasTotales
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
-
-        cursor.execute("""
-            INSERT INTO DeudasActivasTotales (
-                cliente_identificacion, mes_iso,
-                total_pago_mensual_colones, total_pago_mensual_verificado_colones,
-                total_adeudado_colones, total_adeudado_corto_plazo
-
-
+        cursor.execute("SELECT GETDATE()")
+        fecha = cursor.fetchone()[0]
+        print("🔎 Conexión exitosa. Fecha/hora en SQL Server:", fecha)
+        conn.close()
+    except Exception as e:
+        print("❌ No se pudo conectar:", e)
 
