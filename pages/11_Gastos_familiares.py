@@ -180,6 +180,26 @@ with c2:
         }
         st.session_state["done_11"] = True
 
+        # 👇 Guardar en SQL
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+        mes_iso = st.session_state.get("mes_iso", "")
+
+        try:
+            save_ok = save_gastos_familiares(
+                cliente_id=cliente_id,
+                mes_iso=mes_iso,
+                df=df if reg_validos > 0 else pd.DataFrame(),
+                totales=st.session_state["reporte"]["gastos_familiares"]["totales"],
+                sin_gastos=(reg_validos == 0)
+            )
+            if save_ok:
+                st.success("✅ Gastos familiares guardados en la base de datos.")
+            else:
+                st.warning("⚠️ No se pudieron guardar los gastos familiares en la base de datos.")
+        except Exception as e:
+            st.error(f"Error guardando en SQL: {e}")
+
+
         # Ir al próximo paso (archivo exacto solicitado primero)
         for nxt in [
             "pages/12_Estado_de_resultadosl.py",  # el nombre pedido
