@@ -603,6 +603,94 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
         st.error(f"Error guardando gastos familiares: {e}")
         return False
 
+# ==========================================================
+# GUARDAR PASO 13 – BALANCE GENERAL
+# ==========================================================
+def save_balance_general(cliente_id: str, mes_iso: str, datos: dict) -> bool:
+    """
+    Guarda la información del Balance General.
+    - datos["totales"]: diccionario con los totales
+    - datos["comentarios"]: string
+    - datos["caja_bancos"], datos["cxc_clientes"], datos["inv_mp"], datos["inv_pp"],
+      datos["inv_pt"], datos["activo_fijo"], datos["cpp"], datos["anticipos"]: listas de dicts
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # 🔄 1) Borrar registros previos
+        cursor.execute("""
+            DELETE FROM BalanceGeneralTotales
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+        cursor.execute("""
+            DELETE FROM BalanceGeneralDetalles
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+
+        # 🔽 2) Insertar totales
+        tot = datos.get("totales", {})
+        cursor.execute("""
+            INSERT INTO BalanceGeneralTotales (
+                cliente_identificacion, mes_iso,
+                activo_circulante, activo_fijo, total_activos,
+                pasivo_circulante, pasivo_largo, total_pasivo,
+                patrimonio, capital_trabajo,
+                comentarios
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            cliente_id, mes_iso,
+            float(tot.get("activo_circulante", 0) or 0),
+            float(tot.get("activo_fijo", 0) or 0),
+            float(tot.get("total_activos", 0) or 0),
+            float(tot.get("pasivo_circulante", 0) or 0),
+            float(tot.get("pasivo_largo", 0) or 0),
+            float(tot.get("total_pasivo", 0) or 0),
+            float(tot.get("patrimonio", 0) or 0),
+            float(tot.get("capital_trabajo", 0) or 0),
+            datos.get("comentarios", "")
+        ))
+
+        # 🔽 3) Insertar detalles por secciones
+        insert_sql = """
+            INSERT INTO BalanceGeneralDetalles (
+                cliente_identificacion, mes_iso,
+                seccion, descripcion, monto, monto_secundario,
+                verificado, evidencia, comentario
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+
+        def insert_detalles(seccion: str, lista: list, desc_field: str, monto_field: str, monto2_field: str = None):
+            for row in lista:
+                cursor.execute(
+                    insert_sql,
+                    cliente_id, mes_iso,
+                    seccion,
+                    row.get(desc_field, ""),
+                    float(row.get(monto_field, 0) or 0),
+                    float(row.get(monto2_field, 0) or 0) if monto2_field else None,
+                    1 if row.get("Verificado por asesor", False) else 0,
+                    row.get("Tipo de evidencia", ""),
+                    row.get("Comentario", "")
+                )
+
+        insert_detalles("caja_bancos", datos.get("caja_bancos", []), "Cuenta/Banco", "Saldo (₡)")
+        insert_detalles("cxc_clientes", datos.get("cxc_clientes", []), "Cliente/Descripción", "Monto (₡)")
+        insert_detalles("inv_mp", datos.get("inv_mp", []), "Detalle", "Valor (₡)")
+        insert_detalles("inv_pp", datos.get("inv_pp", []), "Detalle", "Valor (₡)")
+        insert_detalles("inv_pt", datos.get("inv_pt", []), "Detalle", "Valor (₡)")
+        insert_detalles("activo_fijo", datos.get("activo_fijo", []), "Activo", "Valor bruto (₡)", "Depreciación acum. (₡)")
+        insert_detalles("cpp", datos.get("cpp", []), "Proveedor", "Monto (₡)")
+        insert_detalles("anticipos", datos.get("anticipos", []), "Cliente/Descripción", "Monto (₡)")
+
+        # ✅ Guardar cambios
+        conn.commit()
+        conn.close()
+        return True
+
+    except Exception as e:
+        st.error(f"Error guardando balance_general: {e}")
+        return False
 
 
 # ==========================================================
