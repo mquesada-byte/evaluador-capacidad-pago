@@ -185,7 +185,7 @@ with c2:
         }
         st.session_state["done_10"] = True
 
-                # 👇 Guardar en SQL
+        # 👇 Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
         mes_iso = st.session_state.get("mes_iso", "")
 
@@ -203,8 +203,6 @@ with c2:
                 st.warning("⚠️ No se pudieron guardar los gastos en la base de datos.")
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
-
-        
 
         # Ir al próximo paso: 11_Gastos_familiares.py
         try:
