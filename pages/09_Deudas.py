@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from utils.db import save_deudas_activas   # 👈 nuevo import
+from utils.db import save_deudas_activas, load_visita
+
 
 st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="💳")
 
@@ -53,27 +54,43 @@ base_cols = [
     "Plazo (clasificación)",
 ]
 
-# ========= CARGA INICIAL DESDE LO GUARDADO (si existe) =========
-guardado = (st.session_state.get("reporte", {})
-            .get("deudas_activas", {})
-            .get("tabla", []))
-if guardado:
-    df_base_inicial = pd.DataFrame(guardado).copy()
-    for c in base_cols:
-        if c not in df_base_inicial.columns:
-            if c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
-                df_base_inicial[c] = 0
-            elif c == "Verificado por asesor":
-                df_base_inicial[c] = False
-            else:
-                df_base_inicial[c] = ""
-    df_base_inicial = df_base_inicial[base_cols]
-else:
+# ========= CARGA INICIAL DESDE LO GUARDADO O SQL =========
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+df_base_inicial = None
+
+# 1) Intentar cargar desde SQL
+if cliente_id:
+    datos = load_visita(cliente_id)
+    if datos and "deudas_activas" in datos:
+        try:
+            df_base_inicial = pd.DataFrame(datos["deudas_activas"])
+        except Exception:
+            df_base_inicial = None
+
+# 2) Si no hay en SQL, intentar con lo guardado en session_state
+if df_base_inicial is None or df_base_inicial.empty:
+    guardado = (st.session_state.get("reporte", {})
+                .get("deudas_activas", {})
+                .get("tabla", []))
+    if guardado:
+        df_base_inicial = pd.DataFrame(guardado).copy()
+        for c in base_cols:
+            if c not in df_base_inicial.columns:
+                if c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+                    df_base_inicial[c] = 0
+                elif c == "Verificado por asesor":
+                    df_base_inicial[c] = False
+                else:
+                    df_base_inicial[c] = ""
+        df_base_inicial = df_base_inicial[base_cols]
+
+# 3) Si tampoco hay en session_state, crear 4 filas vacías
+if df_base_inicial is None or df_base_inicial.empty:
     df_base_inicial = pd.DataFrame([{c: "" for c in base_cols}] * 4)
     for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
         df_base_inicial[c] = 0
     df_base_inicial["Verificado por asesor"] = False
-# ================================================================
+# =========================================================
 
 # Editor de captura
 df_in = st.data_editor(
@@ -252,3 +269,4 @@ with c2:
         except Exception:
             st.success("Deudas activas guardadas. Abrí **10 – Gastos operativos** desde el menú lateral.")
             st.stop()
+
