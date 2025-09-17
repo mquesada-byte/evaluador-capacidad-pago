@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils.db import save_deudas_activas, load_visita
-
+from utils.db import save_deudas_activas   # 👈 nuevo import
 
 st.set_page_config(page_title="Paso 9: Deudas activas del hogar", page_icon="💳")
 
@@ -54,26 +53,27 @@ base_cols = [
     "Plazo (clasificación)",
 ]
 
-# ========= CARGA INICIAL DESDE LO GUARDADO O SQL =========
-cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
-df_base_inicial = None
-
-if cliente_id and not st.session_state.get("done_09"):
-    from utils.db import load_visita
-    datos = load_visita(cliente_id)
-    if datos and "deudas_activas" in datos:
-        try:
-            df_base_inicial = pd.DataFrame(datos["deudas_activas"])
-        except Exception:
-            df_base_inicial = None
-
-if df_base_inicial is None or df_base_inicial.empty:
+# ========= CARGA INICIAL DESDE LO GUARDADO (si existe) =========
+guardado = (st.session_state.get("reporte", {})
+            .get("deudas_activas", {})
+            .get("tabla", []))
+if guardado:
+    df_base_inicial = pd.DataFrame(guardado).copy()
+    for c in base_cols:
+        if c not in df_base_inicial.columns:
+            if c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
+                df_base_inicial[c] = 0
+            elif c == "Verificado por asesor":
+                df_base_inicial[c] = False
+            else:
+                df_base_inicial[c] = ""
+    df_base_inicial = df_base_inicial[base_cols]
+else:
     df_base_inicial = pd.DataFrame([{c: "" for c in base_cols}] * 4)
     for c in ["Saldo adeudado (₡)", "Cuota por período (₡)", "Días de atraso", "Meses restantes (opcional)"]:
         df_base_inicial[c] = 0
     df_base_inicial["Verificado por asesor"] = False
-# =========================================================
-
+# ================================================================
 
 # Editor de captura
 df_in = st.data_editor(
