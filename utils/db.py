@@ -1,7 +1,11 @@
 import pyodbc
 import streamlit as st
 import pandas as pd
+import datetime as dt
 
+# ==========================================================
+# FUNCIONES DE CONEXIÓN Y CARGA DE DATOS
+# ==========================================================
 
 def get_connection():
     """Devuelve una conexión a Azure SQL Database usando los secrets."""
@@ -76,13 +80,10 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    conn.close()
-    return datos
-
     # Otros ingresos 👇
     cursor.execute("""
         SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-               verificado, evidencia, meses_cont, prob_cont, comentario
+                verificado, evidencia, meses_cont, prob_cont, comentario
         FROM OtrosIngresos
         WHERE cliente_identificacion=? AND mes_iso=?
     """, (cliente_id, datos.get("mes_iso", "")))
@@ -90,7 +91,8 @@ def load_visita(cliente_id: str) -> dict | None:
     if rows:
         cols = [col[0] for col in cursor.description]
         df_oi = pd.DataFrame.from_records(rows, columns=cols)
-
+        
+        # Renombrar columnas para la visualización en Streamlit
         df_oi = df_oi.rename(columns={
             "titular": "Titular (nombre)",
             "relacion": "Relación",
@@ -103,16 +105,17 @@ def load_visita(cliente_id: str) -> dict | None:
             "prob_cont": "Prob. continuidad (0–10)",
             "comentario": "Comentario"
         })
-
         datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
-
-
+    conn.close()
+    return datos
 
 
 # ==========================================================
+# FUNCIONES DE GUARDADO
+# ==========================================================
+
 # GUARDAR PASO 3 – TOP-DOWN
-# ==========================================================
 def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
     try:
         conn = get_connection()
@@ -153,9 +156,7 @@ def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
         return False
 
 
-# ==========================================================
 # GUARDAR PASO 4 – BOTTOM-UP
-# ==========================================================
 def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
     try:
         conn = get_connection()
@@ -214,9 +215,7 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         return False
 
 
-# ==========================================================
 # GUARDAR PASO 5 – INSUMOS
-# ==========================================================
 def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     try:
         conn = get_connection()
@@ -291,9 +290,7 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
         return False
 
 
-# ==========================================================
 # GUARDAR PASO 6 – VALORACIÓN ASESOR
-# ==========================================================
 def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
     try:
         conn = get_connection()
@@ -335,9 +332,7 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
         return False
 
 
-# ==========================================================
 # GUARDAR PASO 8 – OTROS INGRESOS
-# ==========================================================
 def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
@@ -347,7 +342,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 Borrar registros previos del cliente y mes
+        # Borrar registros previos del cliente y mes
         cursor.execute("""
             DELETE FROM OtrosIngresos
             WHERE cliente_identificacion=? AND mes_iso=?
@@ -406,7 +401,7 @@ if __name__ == "__main__":
         cursor = conn.cursor()
         cursor.execute("SELECT GETDATE()")
         fecha = cursor.fetchone()[0]
-        print("🔎 Conexión exitosa. Fecha/hora en SQL Server:", fecha)
+        st.success("🔎 Conexión exitosa. Fecha/hora en SQL Server:" + str(fecha))
         conn.close()
     except Exception as e:
-        print("❌ No se pudo conectar:", e)
+        st.error(f"❌ No se pudo conectar: {e}")
