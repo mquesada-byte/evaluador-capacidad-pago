@@ -489,6 +489,61 @@ def save_deudas_activas(cliente_id: str, mes_iso: str, df, totales: dict, sin_de
         st.error(f"Error guardando deudas_activas: {e}")
         return False
 
+# ====================================
+# Guardar Gastos Operativos
+# ====================================
+def save_gastos_operativos(cliente_id: str, mes_iso: str, df: pd.DataFrame, totales: dict, sin_gastos: bool = False) -> bool:
+    """
+    Guarda los gastos operativos en la tabla GastosOperativos.
+    Si ya existen registros para cliente_id + mes_iso, se eliminan y se insertan de nuevo.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Eliminar registros previos (para evitar duplicados)
+        cursor.execute("""
+            DELETE FROM GastosOperativos 
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+
+        if not sin_gastos and not df.empty:
+            for _, row in df.iterrows():
+                cursor.execute("""
+                    INSERT INTO GastosOperativos (
+                        cliente_identificacion, mes_iso,
+                        Rubro, Detalle, MontoPorPeriodo, Periodicidad,
+                        VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
+                        total_gasto_operativo_mensualizado_colones,
+                        total_gasto_operativo_verificado_colones,
+                        registros_validos
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    cliente_id,
+                    mes_iso,
+                    row.get("Rubro", ""),
+                    row.get("Detalle", ""),
+                    float(row.get("Monto por período (₡)", 0) or 0),
+                    row.get("Periodicidad", ""),
+                    1 if row.get("Verificado por asesor", False) else 0,
+                    row.get("Tipo de evidencia", ""),
+                    row.get("Comentario", ""),
+                    float(row.get("Gasto mensualizado (₡)", 0) or 0),
+                    float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
+                    float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
+                    int(totales.get("registros_validos", 0) or 0)
+                ))
+
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[save_gastos_operativos] Error: {e}")
+        return False
+
+
+
 
 # ==========================================================
 # TEST DE CONEXIÓN
