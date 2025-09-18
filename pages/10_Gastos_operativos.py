@@ -38,11 +38,19 @@ base_cols = [
 ]
 
 # ---------- CARGA INICIAL DESDE LO GUARDADO (si existe) ----------
+guardado = []
+
+# Primero intentamos desde la sesión
 guardado = (
     st.session_state.get("reporte", {})
     .get("gastos_operativos", {})
     .get("tabla", [])
 )
+
+# Si no hay en sesión, intentamos desde lo cargado en Paso 2 (Azure)
+if not guardado:
+    guardado = st.session_state.get("datos", {}).get("gastos_operativos", [])
+
 
 if guardado:
     df_base = pd.DataFrame(guardado).copy()
