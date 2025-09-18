@@ -76,7 +76,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # Otros ingresos
+    # === Paso 8: Otros ingresos (corregido) ===
     cursor.execute("""
         SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
@@ -89,7 +89,8 @@ def load_visita(cliente_id: str) -> dict | None:
     if mes_iso:
         cursor.execute("""
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-                   verificado, evidencia, meses_cont, prob_cont, comentario
+                   verificado, evidencia, meses_cont, prob_cont, comentario,
+                   ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado
             FROM OtrosIngresos
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (cliente_id, mes_iso))
@@ -108,11 +109,21 @@ def load_visita(cliente_id: str) -> dict | None:
                 "evidencia": "Tipo de evidencia",
                 "meses_cont": "Meses de continuidad",
                 "prob_cont": "Prob. continuidad (0–10)",
-                "comentario": "Comentario"
+                "comentario": "Comentario",
+                "ingreso_mensualizado": "Ingreso mensualizado (₡)",
+                "factor_confiabilidad": "Factor confiabilidad (0.2–1.0)",
+                "ingreso_ponderado": "Ingreso ponderado (₡)"
             })
 
-            datos["otros_ingresos"] = df_oi.to_dict(orient="records")
+            datos["otros_ingresos"] = {
+                "tabla": df_oi.to_dict(orient="records"),
+                "totales": {
+                    "total_mensualizado_colones": float(df_oi["Ingreso mensualizado (₡)"].sum()),
+                    "total_ponderado_colones": float(df_oi["Ingreso ponderado (₡)"].sum())
+                }
+            }
 
+    
     # Deudas Activas
     cursor.execute("""
         SELECT TOP 1 mes_iso
