@@ -226,6 +226,64 @@ def load_visita(cliente_id: str) -> dict | None:
                 df_gf["Verificado por asesor"] = df_gf["Verificado por asesor"].astype(bool)
             datos["gastos_familiares"] = df_gf.to_dict(orient="records")
 
+
+
+    # === Paso 13: Balance General ===
+    cursor.execute("""
+        SELECT TOP 1 mes_iso
+        FROM BalanceGeneralTotales
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
+    mes_row = cursor.fetchone()
+    mes_iso_bg = mes_row[0] if mes_row else None
+
+    if mes_iso_bg:
+        # Totales
+        cursor.execute("""
+            SELECT activo_circulante, activo_fijo, total_activos,
+                   pasivo_circulante, pasivo_largo, total_pasivo,
+                   patrimonio, capital_trabajo, comentarios
+            FROM BalanceGeneralTotales
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso_bg))
+        row_tot = cursor.fetchone()
+        if row_tot:
+            cols_tot = [col[0] for col in cursor.description]
+            datos["balance_general"] = {
+                "totales": dict(zip(cols_tot, row_tot))
+            }
+
+        # Detalles
+        cursor.execute("""
+            SELECT seccion, descripcion, monto, monto_secundario,
+                   verificado, evidencia, comentario
+            FROM BalanceGeneralDetalles
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso_bg))
+        rows_det = cursor.fetchall()
+        if rows_det:
+            cols_det = [col[0] for col in cursor.description]
+            df_det = pd.DataFrame.from_records(rows_det, columns=cols_det)
+
+            # Agrupar por sección para reconstruir el dict
+            for seccion in df_det["seccion"].unique():
+                sub_df = df_det[df_det["seccion"] == seccion].copy()
+                sub_df = sub_df.rename(columns={
+                    "descripcion": "Descripción",
+                    "monto": "Monto (₡)",
+                    "monto_secundario": "Depreciación acum. (₡)",
+                    "verificado": "Verificado por asesor",
+                    "evidencia": "Tipo de evidencia",
+                    "comentario": "Comentario"
+                })
+                if "Verificado por asesor" in sub_df.columns:
+                    sub_df["Verificado por asesor"] = sub_df["Verificado por asesor"].astype(bool)
+                datos["balance_general"][seccion] = sub_df.to_dict(orient="records")
+
+
+
+    
     conn.close()
     return datos
 
@@ -815,6 +873,7 @@ def save_balance_general(cliente_id: str, mes_iso: str, datos: dict) -> bool:
     except Exception as e:
         st.error(f"Error guardando balance_general: {e}")
         return False
+
 
 
 # ==========================================================
