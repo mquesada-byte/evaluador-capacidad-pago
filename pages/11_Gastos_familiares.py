@@ -1,7 +1,7 @@
 # pages/11_Gastos_familiares.py
 import streamlit as st
 import pandas as pd
-from utils.db import save_gastos_familiares   # ✅ agregado
+from utils.db import save_gastos_familiares, load_visita   # ✅ agregado
 
 st.set_page_config(page_title="Paso 11: Gastos familiares", page_icon="🏠")
 
@@ -41,35 +41,46 @@ base_cols = [
     "Verificado por asesor", "Tipo de evidencia", "Comentario",
 ]
 
-# ---------- CARGA INICIAL DESDE LO GUARDADO (si existe) ----------
-guardado = (
-    st.session_state.get("reporte", {})
-    .get("gastos_familiares", {})
-    .get("tabla", [])
-)
+# ---------- CARGA INICIAL DESDE SQL (si existe) ----------
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+df_base = None
+if cliente_id and not st.session_state.get("done_11"):
+    datos = load_visita(cliente_id)
+    if datos and "gastos_familiares" in datos:
+        try:
+            df_base = pd.DataFrame(datos["gastos_familiares"])
+        except Exception:
+            df_base = None
 
-if guardado:
-    df_base = pd.DataFrame(guardado).copy()
-    # Asegurar columnas base y tipos
-    for c in base_cols:
-        if c not in df_base.columns:
-            if c == "Monto por período (₡)":
-                df_base[c] = 0
-            elif c == "Verificado por asesor":
-                df_base[c] = False
-            else:
-                df_base[c] = ""
-    df_base = df_base[base_cols]
-    df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
-    df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
-else:
-    # Placeholders iniciales (una fila por rubro)
-    df_base = pd.DataFrame([
-        {
-            "Rubro": r, "Detalle": "", "Monto por período (₡)": 0, "Periodicidad": "Mensual",
-            "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": "",
-        } for r in rubros_fam
-    ])
+# Si no hay datos en SQL, usar session_state o placeholders
+if df_base is None or df_base.empty:
+    guardado = (
+        st.session_state.get("reporte", {})
+        .get("gastos_familiares", {})
+        .get("tabla", [])
+    )
+    if guardado:
+        df_base = pd.DataFrame(guardado).copy()
+        # Asegurar columnas base y tipos
+        for c in base_cols:
+            if c not in df_base.columns:
+                if c == "Monto por período (₡)":
+                    df_base[c] = 0
+                elif c == "Verificado por asesor":
+                    df_base[c] = False
+                else:
+                    df_base[c] = ""
+        df_base = df_base[base_cols]
+        df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
+        df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
+    else:
+        # Placeholders iniciales (una fila por rubro)
+        df_base = pd.DataFrame([
+            {
+                "Rubro": r, "Detalle": "", "Monto por período (₡)": 0, "Periodicidad": "Mensual",
+                "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": "",
+            } for r in rubros_fam
+        ])
 
 # --- Editor base ---
 df_in = st.data_editor(
@@ -200,7 +211,6 @@ with c2:
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
 
-
         # Ir al próximo paso (archivo exacto solicitado primero)
         for nxt in [
             "pages/12_Estado_de_resultadosl.py",  # el nombre pedido
@@ -219,5 +229,6 @@ with c2:
 
 # Evitar render adicional
 st.stop()
+
 
 
