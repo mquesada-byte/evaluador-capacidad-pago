@@ -192,49 +192,6 @@ def load_visita(cliente_id: str) -> dict | None:
                 df_go["Verificado por asesor"] = df_go["Verificado por asesor"].astype(bool)
             datos["gastos_operativos"] = df_go.to_dict(orient="records")
 
-
-    # === Paso 11: Gastos familiares (NUEVO) ===
-    cursor.execute("""
-        SELECT TOP 1 mes_iso
-        FROM GastosFamiliares
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    mes_row = cursor.fetchone()
-    mes_iso_gf = mes_row[0] if mes_row else None
-
-    if mes_iso_gf:
-        cursor.execute("""
-            SELECT Rubro, Detalle, MontoPorPeriodo, Periodicidad,
-                   VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado
-            FROM GastosFamiliares
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso_gf))
-        rows = cursor.fetchall()
-        if rows:
-            cols = [col[0] for col in cursor.description]
-            df_gf = pd.DataFrame.from_records(rows, columns=cols)
-            df_gf = df_gf.rename(columns={
-                "Rubro": "Rubro",
-                "Detalle": "Detalle",
-                "MontoPorPeriodo": "Monto por período (₡)",
-                "Periodicidad": "Periodicidad",
-                "VerificadoAsesor": "Verificado por asesor",
-                "TipoEvidencia": "Tipo de evidencia",
-                "Comentario": "Comentario",
-                "GastoMensualizado": "Gasto mensualizado (₡)"
-            })
-            # Convertir verificado a bool si viene como 0/1
-            if "Verificado por asesor" in df_gf.columns:
-                df_gf["Verificado por asesor"] = df_gf["Verificado por asesor"].astype(bool)
-            datos["gastos_familiares"] = df_gf.to_dict(orient="records")
-
-    
-    
-    
-    
-    
-    
     conn.close()
     return datos
 
