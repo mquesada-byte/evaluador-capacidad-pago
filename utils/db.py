@@ -156,7 +156,7 @@ def load_visita(cliente_id: str) -> dict | None:
 
             datos["deudas_activas"] = df_deu.to_dict(orient="records")
 
-    # === Paso 10: Gastos operativos ===
+    # === Paso 10: Gastos operativos (ajustado con totales) ===
     cursor.execute("""
         SELECT TOP 1 mes_iso
         FROM GastosOperativos
@@ -177,6 +177,8 @@ def load_visita(cliente_id: str) -> dict | None:
         if rows:
             cols = [col[0] for col in cursor.description]
             df_go = pd.DataFrame.from_records(rows, columns=cols)
+
+            # Renombrar columnas
             df_go = df_go.rename(columns={
                 "Rubro": "Rubro",
                 "Detalle": "Detalle",
@@ -187,9 +189,25 @@ def load_visita(cliente_id: str) -> dict | None:
                 "Comentario": "Comentario",
                 "GastoMensualizado": "Gasto mensualizado (₡)"
             })
+
             if "Verificado por asesor" in df_go.columns:
                 df_go["Verificado por asesor"] = df_go["Verificado por asesor"].astype(bool)
-            datos["gastos_operativos"] = df_go.to_dict(orient="records")
+
+            # 👉 Cálculo de totales aquí
+            valid_mask = df_go["Monto por período (₡)"] > 0
+            total_gasto_mensual = int(df_go.loc[valid_mask, "Gasto mensualizado (₡)"].sum())
+            total_gasto_verificado = int(df_go.loc[df_go["Verificado por asesor"], "Gasto mensualizado (₡)"].sum())
+            registros_validos = int(valid_mask.sum())
+
+            datos["gastos_operativos"] = {
+                "tabla": df_go.to_dict(orient="records"),
+                "totales": {
+                    "total_gasto_operativo_mensualizado_colones": total_gasto_mensual,
+                    "total_gasto_operativo_verificado_colones": total_gasto_verificado,
+                    "registros_validos": registros_validos
+                }
+            }
+
 
     # === Paso 11: Gastos familiares (ajustado) ===
     cursor.execute("""
