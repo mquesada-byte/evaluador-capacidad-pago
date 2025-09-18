@@ -76,7 +76,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # Otros ingresos 👇 (ajustado: tomar último mes_iso de la tabla OtrosIngresos)
+    # Otros ingresos
     cursor.execute("""
         SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
@@ -113,7 +113,7 @@ def load_visita(cliente_id: str) -> dict | None:
 
             datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
-    # Deudas Activas 👇
+    # Deudas Activas
     cursor.execute("""
         SELECT TOP 1 mes_iso
         FROM DeudasActivas
@@ -156,7 +156,7 @@ def load_visita(cliente_id: str) -> dict | None:
 
             datos["deudas_activas"] = df_deu.to_dict(orient="records")
 
-    # === Paso 10: Gastos operativos (NUEVO) ===
+    # === Paso 10: Gastos operativos ===
     cursor.execute("""
         SELECT TOP 1 mes_iso
         FROM GastosOperativos
@@ -187,13 +187,11 @@ def load_visita(cliente_id: str) -> dict | None:
                 "Comentario": "Comentario",
                 "GastoMensualizado": "Gasto mensualizado (₡)"
             })
-            # Convertir verificado a bool si viene como 0/1
             if "Verificado por asesor" in df_go.columns:
                 df_go["Verificado por asesor"] = df_go["Verificado por asesor"].astype(bool)
             datos["gastos_operativos"] = df_go.to_dict(orient="records")
 
-
-    # === Paso 11: Gastos familiares (NUEVO) ===
+    # === Paso 11: Gastos familiares (ajustado) ===
     cursor.execute("""
         SELECT TOP 1 mes_iso
         FROM GastosFamiliares
@@ -205,8 +203,8 @@ def load_visita(cliente_id: str) -> dict | None:
 
     if mes_iso_gf:
         cursor.execute("""
-            SELECT Rubro, Detalle, MontoPorPeriodo, Periodicidad,
-                   VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado
+            SELECT rubro, detalle, monto_periodo, periodicidad,
+                   verificado, tipo_evidencia, comentario, gasto_mensualizado
             FROM GastosFamiliares
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (cliente_id, mes_iso_gf))
@@ -215,26 +213,22 @@ def load_visita(cliente_id: str) -> dict | None:
             cols = [col[0] for col in cursor.description]
             df_gf = pd.DataFrame.from_records(rows, columns=cols)
             df_gf = df_gf.rename(columns={
-                "Rubro": "Rubro",
-                "Detalle": "Detalle",
-                "MontoPorPeriodo": "Monto por período (₡)",
-                "Periodicidad": "Periodicidad",
-                "VerificadoAsesor": "Verificado por asesor",
-                "TipoEvidencia": "Tipo de evidencia",
-                "Comentario": "Comentario",
-                "GastoMensualizado": "Gasto mensualizado (₡)"
+                "rubro": "Rubro",
+                "detalle": "Detalle",
+                "monto_periodo": "Monto por período (₡)",
+                "periodicidad": "Periodicidad",
+                "verificado": "Verificado por asesor",
+                "tipo_evidencia": "Tipo de evidencia",
+                "comentario": "Comentario",
+                "gasto_mensualizado": "Gasto mensualizado (₡)"
             })
-            # Convertir verificado a bool si viene como 0/1
             if "Verificado por asesor" in df_gf.columns:
                 df_gf["Verificado por asesor"] = df_gf["Verificado por asesor"].astype(bool)
             datos["gastos_familiares"] = df_gf.to_dict(orient="records")
 
-
-
-
-    
     conn.close()
     return datos
+
 
 
 
