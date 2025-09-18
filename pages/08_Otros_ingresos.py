@@ -77,7 +77,8 @@ st.caption("Registre otros ingresos del cliente y su núcleo familiar.")
 # -------- Inicializar tabla con datos previos si existen --------
 cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
 df_in = None
-if cliente_id and not st.session_state.get("done_08"):
+
+if cliente_id:
     datos = load_visita(cliente_id)
     if datos and "otros_ingresos" in datos:
         try:
@@ -91,6 +92,7 @@ if df_in is None or df_in.empty:
     df_in["Meses de continuidad"] = 0
     df_in["Prob. continuidad (0–10)"] = 0
     df_in["Verificado por asesor"] = False
+
 
 # Editor con menús desplegables
 df = st.data_editor(
