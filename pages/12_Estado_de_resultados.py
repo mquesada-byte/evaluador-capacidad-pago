@@ -60,6 +60,29 @@ if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["rep
         except Exception:
             st.stop()
     st.stop()
+
+# ⚠️ Caso especial: Paso 5 marcado como 'No tengo datos'
+vin = st.session_state["reporte"]["ventas_p5"]
+if vin.get("no_data") == 1:
+    st.info("ℹ️ En el Paso 5 se indicó que **no hay datos para este mes**. Se continuará con ventas=0.")
+    st.session_state["reporte"]["estado_resultados"] = {
+        "ventas_colones": 0,
+        "compras_costos_colones": 0,
+        "margen_tipo": "",
+        "margen_pct": None,
+        "utilidad_bruta_colones": 0,
+        "gastos_operativos_colones": 0,
+        "utilidad_neta_operativa_colones": 0,
+        "otros_ingresos_colones": 0,
+        "gastos_familiares_colones": 0,
+        "pago_de_deudas_colones": 0,
+        "subtotal_post_otros_colones": 0,
+        "disponible_para_prestamo_colones": 0,
+    }
+    st.session_state["done_12"] = True
+    st.success("✅ Estado de Resultados marcado como sin datos. Puedes continuar al Balance General.")
+    st.stop()
+
     
 # ========= Recolección (con rutas de origen) =========
 src = {}
