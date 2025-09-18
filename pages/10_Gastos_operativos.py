@@ -40,7 +40,8 @@ base_cols = [
 # ---------- CARGA INICIAL DESDE LO GUARDADO (si existe en SQL) ----------
 cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
 df_base = None
-if cliente_id and not st.session_state.get("done_10"):
+
+if cliente_id:
     datos = load_visita(cliente_id)
     if datos and "gastos_operativos" in datos:
         try:
