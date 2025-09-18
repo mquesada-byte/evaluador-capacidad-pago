@@ -1,7 +1,7 @@
 # pages/10_Gastos_operativos.py
 import streamlit as st
 import pandas as pd
-from utils.db import save_gastos_operativos   # 👈 nuevo import
+from utils.db import save_gastos_operativos, load_visita   # 👈 nuevo import
 
 st.set_page_config(page_title="Paso 10: Gastos operativos", page_icon="🧾")
 
@@ -37,28 +37,18 @@ base_cols = [
     "Verificado por asesor", "Tipo de evidencia", "Comentario",
 ]
 
-# ---------- CARGA INICIAL DESDE LO GUARDADO (si existe) ----------
-guardado = (
-    st.session_state.get("reporte", {})
-    .get("gastos_operativos", {})
-    .get("tabla", [])
-)
+# ---------- CARGA INICIAL DESDE LO GUARDADO (si existe en SQL) ----------
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+df_base = None
+if cliente_id and not st.session_state.get("done_10"):
+    datos = load_visita(cliente_id)
+    if datos and "gastos_operativos" in datos:
+        try:
+            df_base = pd.DataFrame(datos["gastos_operativos"])
+        except Exception:
+            df_base = None
 
-if guardado:
-    df_base = pd.DataFrame(guardado).copy()
-    # Asegurar columnas base y tipos
-    for c in base_cols:
-        if c not in df_base.columns:
-            if c == "Monto por período (₡)":
-                df_base[c] = 0
-            elif c == "Verificado por asesor":
-                df_base[c] = False
-            else:
-                df_base[c] = ""
-    df_base = df_base[base_cols]
-    df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
-    df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
-else:
+if df_base is None or df_base.empty:
     # Placeholders iniciales (una fila por rubro)
     df_base = pd.DataFrame([
         {
@@ -210,3 +200,4 @@ with c2:
         except Exception:
             st.success("Gastos operativos guardados. Abrí **11 – Gastos familiares** desde el menú lateral.")
             st.stop()
+
