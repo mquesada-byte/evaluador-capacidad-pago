@@ -76,7 +76,7 @@ def load_visita(cliente_id: str) -> dict | None:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
 
-    # Otros ingresos (Paso 8)
+    # Otros ingresos
     cursor.execute("""
         SELECT TOP 1 mes_iso 
         FROM OtrosIngresos
@@ -87,11 +87,9 @@ def load_visita(cliente_id: str) -> dict | None:
     mes_iso = mes_row[0] if mes_row else None
 
     if mes_iso:
-        # Detalle de ingresos
         cursor.execute("""
             SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-                   verificado, evidencia, meses_cont, prob_cont, comentario,
-                   ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado
+                   verificado, evidencia, meses_cont, prob_cont, comentario
             FROM OtrosIngresos
             WHERE cliente_identificacion=? AND mes_iso=?
         """, (cliente_id, mes_iso))
@@ -99,6 +97,7 @@ def load_visita(cliente_id: str) -> dict | None:
         if rows:
             cols = [col[0] for col in cursor.description]
             df_oi = pd.DataFrame.from_records(rows, columns=cols)
+
             df_oi = df_oi.rename(columns={
                 "titular": "Titular (nombre)",
                 "relacion": "Relación",
@@ -109,30 +108,11 @@ def load_visita(cliente_id: str) -> dict | None:
                 "evidencia": "Tipo de evidencia",
                 "meses_cont": "Meses de continuidad",
                 "prob_cont": "Prob. continuidad (0–10)",
-                "comentario": "Comentario",
-                "ingreso_mensualizado": "Ingreso mensualizado (₡)",
-                "factor_confiabilidad": "Factor confiabilidad (0.2–1.0)",
-                "ingreso_ponderado": "Ingreso ponderado (₡)"
+                "comentario": "Comentario"
             })
-            if "Verificado por asesor" in df_oi.columns:
-                df_oi["Verificado por asesor"] = df_oi["Verificado por asesor"].astype(bool)
 
-            # Totales
-            total_mens = float(df_oi["Ingreso mensualizado (₡)"].sum())
-            total_pond = float(df_oi["Ingreso ponderado (₡)"].sum())
-            registros_validos = len(df_oi)
+            datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
-            datos["otros_ingresos"] = {
-                "tabla": df_oi.to_dict(orient="records"),
-                "totales": {
-                    "total_mensualizado_colones": total_mens,
-                    "total_ponderado_colones": total_pond,
-                    "registros_validos": registros_validos
-                }
-            }
-
-
-    
     # Deudas Activas
     cursor.execute("""
         SELECT TOP 1 mes_iso
