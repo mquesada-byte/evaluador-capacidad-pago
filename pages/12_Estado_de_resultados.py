@@ -122,14 +122,15 @@ gastos_ope_total = _num(
 )
 src["gastos_operativos"] = "reporte.gastos_operativos.totales.total_gasto_operativo_mensualizado_colones"
 
-# 5) Otros ingresos
-otros_ing_total = _getr(["otros_ingresos", "totales", "total_ponderado_colones"])
-ruta_oi = "reporte.otros_ingresos.totales.total_ponderado_colones"
+# 5) Otros ingresos (ajustado)
+otros_ing_total = _getr(["otros_ingresos", "totales", "total_ponderado"])
+ruta_oi = "reporte.otros_ingresos.totales.total_ponderado"
 if not otros_ing_total:
-    otros_ing_total = _getr(["otros_ingresos", "totales", "total_mensualizado_colones"], 0)
-    ruta_oi = "reporte.otros_ingresos.totales.total_mensualizado_colones"
+    otros_ing_total = _getr(["otros_ingresos", "totales", "total_mensualizado"], 0)
+    ruta_oi = "reporte.otros_ingresos.totales.total_mensualizado"
 src["otros_ingresos"] = ruta_oi
 otros_ing_total = _num(otros_ing_total, 0)
+
 
 # 6) Gastos familiares
 gastos_fam_total = _num(
@@ -141,20 +142,21 @@ src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_famil
 deudas_total = _num(_getr(["deudas_activas", "totales", "total_pago_mensual_colones"], 0), 0)
 src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 
-# ========= Cálculos =========
-utilidad_bruta = None
-if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
-    if tipo_margen == "Costo directo":
-        utilidad_bruta = ventas_total - compras_total
-    else:
-        pct = margen_pct / 100.0
-        if tipo_margen == "Sobre ventas" or tipo_margen == "Sobre facturación bruta":
-            utilidad_bruta = ventas_total * pct
+# ========= Cálculos ========= (ajustado)
+# Si Paso 5 marcó "no_data", la utilidad bruta es igual a ventas
+if _getr(["ventas_p5", "no_data"], 0) == 1:
+    utilidad_bruta = ventas_total
+else:
+    utilidad_bruta = ventas_total - compras_total  # fallback por defecto
+    if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
+        if tipo_margen == "Costo directo":
+            utilidad_bruta = ventas_total - compras_total
         else:
-            utilidad_bruta = compras_total * pct
-if utilidad_bruta is None:
-    utilidad_bruta = max(0.0, ventas_total - compras_total)
-
+            pct = margen_pct / 100.0
+            if tipo_margen in ("Sobre ventas", "Sobre facturación bruta"):
+                utilidad_bruta = ventas_total * pct
+            elif tipo_margen == "Sobre compras (markup)":
+                utilidad_bruta = compras_total * pct
 utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
 subtotal_post_otros = utilidad_neta_ope + otros_ing_total
 disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
