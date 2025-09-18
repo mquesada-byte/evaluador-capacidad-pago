@@ -1,6 +1,7 @@
 # pages/13_Balance_general.py
 import streamlit as st
 import pandas as pd
+from utils.db import save_balance_general, load_visita   # 👈 agregado load_visita
 
 st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
 
@@ -55,6 +56,19 @@ evidencias = [
 
 # Recuperar datos guardados si existen
 bg_saved = st.session_state.get("reporte", {}).get("balance_general", {})
+
+# 👇 Ajuste: cargar desde SQL si no hay en session_state
+if not bg_saved:
+    cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+    mes_iso = st.session_state.get("mes_iso", "")
+    try:
+        datos = load_visita(cliente_id)
+        if "balance_general" in datos:
+            bg_saved = datos["balance_general"]
+            st.session_state["reporte"]["balance_general"] = bg_saved
+    except Exception as e:
+        st.warning(f"No se pudo cargar balance general desde SQL: {e}")
+
 
 # ===================== ACTIVO CIRCULANTE =====================
 st.subheader("I. Activo Circulante")
