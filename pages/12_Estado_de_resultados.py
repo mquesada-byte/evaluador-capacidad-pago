@@ -1,11 +1,10 @@
 # ---------------------------------------------------------
 # Lee st.session_state["reporte"] generado por los pasos previos
-# o lo carga desde SQL, y calcula el Disponible para pago del préstamo (Credimujer).
+# y calcula el Disponible para pago del préstamo (Credimujer).
 # No modifica los datos previos, solo los lee y resume.
 
 import streamlit as st
 import pandas as pd
-from utils.db import load_visita   # 👈 agregado para traer datos desde SQL
 
 st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
 
@@ -52,17 +51,6 @@ def _fmt_col(x):
     except Exception:
         return "₡0"
 
-# ========= Cargar siempre desde SQL =========
-cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
-if cliente_id:
-    try:
-        datos = load_visita(cliente_id)
-        if datos:
-            st.session_state.setdefault("reporte", {}).update(datos)
-    except Exception as e:
-        st.error(f"Error cargando datos desde SQL: {e}")
-        st.stop()
-
 # ========= Guardrail para datos faltantes =========
 if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["reporte"]:
     st.warning("¡Faltan datos de Ventas! Por favor, regresa al **Paso 5** para ingresar la información de ventas, compras y margen.")
@@ -72,29 +60,7 @@ if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["rep
         except Exception:
             st.stop()
     st.stop()
-
-# ⚠️ Caso especial: Paso 5 marcado como 'No tengo datos'
-vin = st.session_state["reporte"]["ventas_p5"]
-if vin.get("no_data") == 1:
-    st.info("ℹ️ En el Paso 5 se indicó que **no hay datos para este mes**. Se continuará con ventas=0.")
-    st.session_state["reporte"]["estado_resultados"] = {
-        "ventas_colones": 0,
-        "compras_costos_colones": 0,
-        "margen_tipo": "",
-        "margen_pct": None,
-        "utilidad_bruta_colones": 0,
-        "gastos_operativos_colones": 0,
-        "utilidad_neta_operativa_colones": 0,
-        "otros_ingresos_colones": 0,
-        "gastos_familiares_colones": 0,
-        "pago_de_deudas_colones": 0,
-        "subtotal_post_otros_colones": 0,
-        "disponible_para_prestamo_colones": 0,
-    }
-    st.session_state["done_12"] = True
-    st.success("✅ Estado de Resultados marcado como sin datos. Puedes continuar al Balance General.")
-    st.stop()
-
+    
 # ========= Recolección (con rutas de origen) =========
 src = {}
 vin = st.session_state["reporte"]["ventas_p5"]
@@ -148,6 +114,7 @@ elif vin["modo"] == "Servicio con costo = % de ventas":
     margen_pct = _num_or_none(_getr(["ventas_p5", "costo_pct_sobre_ventas"]))
     if tipo_margen is not None and margen_pct is not None:
         src["margen"] = "reporte.ventas_p5.costo_pct_sobre_ventas"
+
 
 # 4) Gastos operativos
 gastos_ope_total = _num(
