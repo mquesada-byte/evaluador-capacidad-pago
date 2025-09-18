@@ -156,6 +156,47 @@ def load_visita(cliente_id: str) -> dict | None:
     
                 datos["deudas_activas"] = df_deu.to_dict(orient="records")
 
+        # === Paso 10: Gastos operativos (NUEVO) ===
+    cursor.execute("""
+        SELECT TOP 1 mes_iso
+        FROM GastosOperativos
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
+    mes_row = cursor.fetchone()
+    mes_iso_go = mes_row[0] if mes_row else None
+
+    if mes_iso_go:
+        cursor.execute("""
+            SELECT Rubro, Detalle, MontoPorPeriodo, Periodicidad,
+                   VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado
+            FROM GastosOperativos
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso_go))
+        rows = cursor.fetchall()
+        if rows:
+            cols = [col[0] for col in cursor.description]
+            df_go = pd.DataFrame.from_records(rows, columns=cols)
+            df_go = df_go.rename(columns={
+                "Rubro": "Rubro",
+                "Detalle": "Detalle",
+                "MontoPorPeriodo": "Monto por período (₡)",
+                "Periodicidad": "Periodicidad",
+                "VerificadoAsesor": "Verificado por asesor",
+                "TipoEvidencia": "Tipo de evidencia",
+                "Comentario": "Comentario",
+                "GastoMensualizado": "Gasto mensualizado (₡)"
+            })
+            # Convertir verificado a bool si viene como 0/1
+            if "Verificado por asesor" in df_go.columns:
+                df_go["Verificado por asesor"] = df_go["Verificado por asesor"].astype(bool)
+            datos["gastos_operativos"] = df_go.to_dict(orient="records")
+
+    
+    
+    
+    
+    
     conn.close()
     return datos
 
