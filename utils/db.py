@@ -160,6 +160,40 @@ def load_visita(cliente_id: str) -> dict | None:
     return datos
 
 
+    # Gastos Operativos 👇
+    cursor.execute("""
+        SELECT TOP 1 mes_iso
+        FROM GastosOperativos
+        WHERE cliente_identificacion=?
+        ORDER BY mes_iso DESC
+    """, (cliente_id,))
+    mes_row = cursor.fetchone()
+    mes_iso = mes_row[0] if mes_row else None
+
+    if mes_iso:
+        cursor.execute("""
+            SELECT Rubro, Detalle, MontoPorPeriodo, Periodicidad,
+                   VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado
+            FROM GastosOperativos
+            WHERE cliente_identificacion=? AND mes_iso=?
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        if rows:
+            cols = [col[0] for col in cursor.description]
+            df_go = pd.DataFrame.from_records(rows, columns=cols)
+
+            df_go = df_go.rename(columns={
+                "Rubro": "Rubro",
+                "Detalle": "Detalle",
+                "MontoPorPeriodo": "Monto por período (₡)",
+                "Periodicidad": "Periodicidad",
+                "VerificadoAsesor": "Verificado por asesor",
+                "TipoEvidencia": "Tipo de evidencia",
+                "Comentario": "Comentario",
+                "GastoMensualizado": "Gasto mensualizado (₡)"
+            })
+
+            datos["gastos_operativos"] = df_go.to_dict(orient="records")
 
 
 
