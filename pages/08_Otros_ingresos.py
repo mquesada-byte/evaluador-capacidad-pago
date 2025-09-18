@@ -173,6 +173,18 @@ with c2:
         )
         if ok:
             st.success("✅ Otros ingresos guardados en la base de datos")
+
+            # ✅ Guardar también en session_state["reporte"]
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["otros_ingresos"] = {
+                "tabla": df_valid.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_mensualizado": int(total_mensual),
+                    "total_ponderado": int(total_ponderado),
+                    "registros_validos": len(df_valid),
+                }
+            }
+
             st.session_state["done_08"] = True
             try:
                 st.switch_page("pages/09_Deudas.py")
@@ -180,5 +192,4 @@ with c2:
                 st.info("Continúa con el Paso 9 desde el menú lateral.")
         else:
             st.error("❌ No se pudieron guardar los otros ingresos en la base de datos")
-
 
