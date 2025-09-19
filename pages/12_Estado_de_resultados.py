@@ -146,9 +146,13 @@ src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 # Si Paso 5 marcó "no_data", la utilidad bruta es igual a ventas
 if _getr(["ventas_p5", "no_data"], 0) == 1:
     utilidad_bruta = ventas_total
+    tipo_margen = "Sin datos"
+    margen_pct = 0
 else:
     utilidad_bruta = ventas_total - compras_total  # fallback por defecto
-    if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
+    if (margen_pct is not None) and (
+        tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")
+    ):
         if tipo_margen == "Costo directo":
             utilidad_bruta = ventas_total - compras_total
         else:
@@ -157,9 +161,11 @@ else:
                 utilidad_bruta = ventas_total * pct
             elif tipo_margen == "Sobre compras (markup)":
                 utilidad_bruta = compras_total * pct
+
 utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
 subtotal_post_otros = utilidad_neta_ope + otros_ing_total
 disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
+
 
 # ========= UI =========
 st.title("📑 Paso 12: Estado de Resultados")
