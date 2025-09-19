@@ -60,7 +60,42 @@ if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["rep
         except Exception:
             st.stop()
     st.stop()
-    
+
+st.stop()
+
+# ========= Refrescar gastos operativos desde SQL si no están en session_state =========
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+if cliente_id and "gastos_operativos" not in st.session_state.get("reporte", {}):
+    datos = load_visita(cliente_id)
+    if datos and "gastos_operativos" in datos:
+        rep = st.session_state.setdefault("reporte", {})
+        rep["gastos_operativos"] = {
+            "tabla": datos["gastos_operativos"],
+            "totales": {
+                "total_gasto_operativo_mensualizado_colones": sum(
+                    r.get("Gasto mensualizado (₡)", 0) or 0
+                    for r in datos["gastos_operativos"]
+                ),
+                "total_gasto_operativo_verificado_colones": sum(
+                    (r.get("Gasto mensualizado (₡)", 0) or 0)
+                    for r in datos["gastos_operativos"]
+                    if r.get("Verificado por asesor")
+                ),
+                "registros_validos": len([
+                    r for r in datos["gastos_operativos"]
+                    if (r.get("Gasto mensualizado (₡)", 0) or 0) > 0
+                ]),
+            },
+        }
+        st.session_state["reporte"] = rep
+
+# ========= Recolección (con rutas de origen) =========
+src = {}
+vin = st.session_state["reporte"]["ventas_p5"]
+
+
+
+
 # ========= Recolección (con rutas de origen) =========
 src = {}
 vin = st.session_state["reporte"]["ventas_p5"]
