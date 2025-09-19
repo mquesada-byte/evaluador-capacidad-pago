@@ -5,7 +5,7 @@
 
 import streamlit as st
 import pandas as pd
-from utils.db import load_visita  # ← nuevo
+from utils.db import load_visita
 
 st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
 
@@ -62,36 +62,34 @@ if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["rep
             st.stop()
     st.stop()
 
-st.stop()
-
-# ========= Refrescar Gastos Operativos desde SQL si no están en memoria =========
+# ========= Refrescar Gastos Operativos si faltan =========
 cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
-if cliente_id and "gastos_operativos" not in st.session_state.get("reporte", {}):
-    datos = load_visita(cliente_id)
-    if datos and "gastos_operativos" in datos:
-        df_go = pd.DataFrame(datos["gastos_operativos"])
-
-        # Normalizar columnas numéricas y booleanas
-        if "Gasto mensualizado (₡)" in df_go.columns:
-            df_go["Gasto mensualizado (₡)"] = pd.to_numeric(df_go["Gasto mensualizado (₡)"], errors="coerce").fillna(0)
-        if "Monto por período (₡)" in df_go.columns:
-            df_go["Monto por período (₡)"] = pd.to_numeric(df_go["Monto por período (₡)"], errors="coerce").fillna(0)
-        if "Verificado por asesor" in df_go.columns:
-            df_go["Verificado por asesor"] = df_go["Verificado por asesor"].fillna(False).astype(bool)
-
-        total_m = int(df_go.get("Gasto mensualizado (₡)", pd.Series(dtype=float)).sum())
-        total_v = int(df_go.loc[df_go.get("Verificado por asesor", pd.Series(dtype=bool)) == True, "Gasto mensualizado (₡)"].sum()) if "Verificado por asesor" in df_go.columns else 0
-        registros_validos = int((df_go.get("Monto por período (₡)", pd.Series(dtype=float)) > 0).sum())
-
-        rep = st.session_state.setdefault("reporte", {})
-        rep["gastos_operativos"] = {
-            "tabla": df_go.fillna("").to_dict(orient="records"),
-            "totales": {
-                "total_gasto_operativo_mensualizado_colones": total_m,
-                "total_gasto_operativo_verificado_colones": total_v,
-                "registros_validos": registros_validos,
+if cliente_id and (
+    "gastos_operativos" not in st.session_state.get("reporte", {}) or
+    not st.session_state["reporte"]["gastos_operativos"].get("totales")
+):
+    try:
+        from utils.db import load_visita
+        datos = load_visita(cliente_id)
+        if datos and "gastos_operativos" in datos:
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["gastos_operativos"] = {
+                "tabla": datos["gastos_operativos"],
+                "totales": {
+                    "total_gasto_operativo_mensualizado_colones": sum(
+                        [r.get("Gasto mensualizado (₡)", 0) for r in datos["gastos_operativos"]]
+                    ),
+                    "total_gasto_operativo_verificado_colones": sum(
+                        [r.get("Gasto mensualizado (₡)", 0) for r in datos["gastos_operativos"] if r.get("Verificado por asesor")]
+                    ),
+                    "registros_validos": len(datos["gastos_operativos"]),
+                }
             }
-        }
+            st.info("🔄 Gastos operativos recargados desde SQL")
+    except Exception as e:
+        st.warning(f"No se pudieron recargar gastos operativos: {e}")
+
+
 
 
 # ========= Recolección (con rutas de origen) =========
