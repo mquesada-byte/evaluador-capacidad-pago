@@ -147,23 +147,13 @@ with colNav2:
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["ventas_topdown"] = reporte
 
-        # Guardar en BD (tabla de visitas)
+        # Guardar en BD
         ok = save_ventas_topdown(cliente_id, reporte)
-
-        # 🔹 Nuevo: actualizar EstadoResultados
-        from utils.db import upsert_estado_resultados   # 👈 lo definimos en db
-        upsert_estado_resultados(
-            cliente_id=cliente_id,
-            mes_iso=mes_iso,
-            ventas_topdown=int(vtd["monto"])   # guardamos el monto bruto de ventas
-        )
-
         if ok:
             st.success("✅ Ventas Top-down guardadas en Azure SQL")
             st.session_state["done_03A"] = True
         else:
             st.error("❌ Error al guardar Ventas Top-down")
-
 
         # Ir al Paso 4 – Ventas Bottom-up
         try:
