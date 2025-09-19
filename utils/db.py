@@ -399,6 +399,76 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         st.error(f"Error guardando ventas_bottomup: {e}")
         return False
 
+def upsert_estado_resultados(cliente_id, mes_iso, ventas_topdown=None,
+                             ventas_bottomup=None, ventas_p5=None,
+                             margen_tipo=None, margen_pct=None,
+                             compras_costos=None, gastos_operativos=None,
+                             otros_ingresos=None, gastos_familiares=None,
+                             deudas=None, disponible=None):
+    """
+    Inserta o actualiza el Estado de Resultados.
+    Solo actualiza los campos que se envían (no pisa con NULL).
+    """
+    import pyodbc
+    conn = get_connection()  # tu función de conexión existente
+    cur = conn.cursor()
+
+    # armamos pares campo=valor solo si no son None
+    updates, params = [], []
+    if ventas_topdown is not None:
+        updates.append("ventas_colones=?")
+        params.append(ventas_topdown)
+    if ventas_bottomup is not None:
+        updates.append("ventas_colones=?")
+        params.append(ventas_bottomup)
+    if ventas_p5 is not None:
+        updates.append("ventas_colones=?")
+        params.append(ventas_p5)
+    if margen_tipo is not None:
+        updates.append("margen_tipo=?")
+        params.append(margen_tipo)
+    if margen_pct is not None:
+        updates.append("margen_pct=?")
+        params.append(margen_pct)
+    if compras_costos is not None:
+        updates.append("compras_costos_colones=?")
+        params.append(compras_costos)
+    if gastos_operativos is not None:
+        updates.append("gastos_operativos_colones=?")
+        params.append(gastos_operativos)
+    if otros_ingresos is not None:
+        updates.append("otros_ingresos_colones=?")
+        params.append(otros_ingresos)
+    if gastos_familiares is not None:
+        updates.append("gastos_familiares_colones=?")
+        params.append(gastos_familiares)
+    if deudas is not None:
+        updates.append("pago_de_deudas_colones=?")
+        params.append(deudas)
+    if disponible is not None:
+        updates.append("disponible_para_prestamo_colones=?")
+        params.append(disponible)
+
+    if updates:
+        sql = f"""
+        MERGE EstadoResultados AS tgt
+        USING (SELECT ? AS cliente_id, ? AS mes_iso) AS src
+        ON (tgt.cliente_id = src.cliente_id AND tgt.mes_iso = src.mes_iso)
+        WHEN MATCHED THEN
+            UPDATE SET {', '.join(updates)}, fecha_actualizacion=GETDATE()
+        WHEN NOT MATCHED THEN
+            INSERT (cliente_id, mes_iso, {', '.join([u.split('=')[0] for u in updates])})
+            VALUES (?, ?, {', '.join(['?' for _ in updates])});
+        """
+        params_full = [cliente_id, mes_iso] + params + [cliente_id, mes_iso] + params
+        cur.execute(sql, params_full)
+        conn.commit()
+
+    cur.close()
+    conn.close()
+
+
+
 
 # ==========================================================
 # GUARDAR PASO 5 – INSUMOS
