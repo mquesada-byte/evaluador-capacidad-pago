@@ -143,16 +143,29 @@ deudas_total = _num(_getr(["deudas_activas", "totales", "total_pago_mensual_colo
 src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 
 # ========= Cálculos ========= (ajustado)
-# Si Paso 5 marcó "no_data", la utilidad bruta es igual a ventas
-if _getr(["ventas_p5", "no_data"], 0) == 1:
+no_data_flag = _getr(["ventas_p5", "no_data"], 0)
+
+if no_data_flag == 1:  # Casilla "No tengo datos" marcada
+    compras_total = 0
     utilidad_bruta = ventas_total
     tipo_margen = "Sin datos"
     margen_pct = 0
 else:
-    utilidad_bruta = ventas_total - compras_total  # fallback por defecto
-    if (margen_pct is not None) and (
-        tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")
-    ):
+    # Compras/Costos
+    compras_total = 0.0
+    if vin["modo"] == "Bienes (insumos/margen)":
+        compras_total = _getr(["ventas_p5", "compras_mes_colones"])
+        src["compras"] = "reporte.ventas_p5.compras_mes_colones"
+    elif vin["modo"] == "Servicio con costo = % de ventas":
+        compras_total = _getr(["ventas_p5", "costo_estimado_colones"])
+        src["compras"] = "reporte.ventas_p5.costo_estimado_colones"
+    else:
+        src["compras"] = "No aplica (modo Servicio por comisión)"
+    compras_total = _num(compras_total, 0)
+
+    # Utilidad Bruta según margen
+    utilidad_bruta = ventas_total - compras_total
+    if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
         if tipo_margen == "Costo directo":
             utilidad_bruta = ventas_total - compras_total
         else:
@@ -162,6 +175,7 @@ else:
             elif tipo_margen == "Sobre compras (markup)":
                 utilidad_bruta = compras_total * pct
 
+# Continuar con el flujo
 utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
 subtotal_post_otros = utilidad_neta_ope + otros_ing_total
 disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
