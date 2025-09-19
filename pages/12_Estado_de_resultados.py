@@ -1,272 +1,164 @@
-# ---------------------------------------------------------
-# Lee st.session_state["reporte"] generado por los pasos previos
-# y calcula el Disponible para pago del préstamo (Credimujer).
-# No modifica los datos previos, solo los lee y resume.
-
+import datetime as dt
+from zoneinfo import ZoneInfo
 import streamlit as st
-import pandas as pd
+from utils.db import save_ventas_topdown, load_visita   # 👈 añadimos load_visita
 
-st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
+st.set_page_config(page_title="Paso 3A: Ventas Top-down", page_icon="📈")
 
-# ========= Helpers de lectura/formatos =========
-def _getr(path, default=None):
-    """
-    Lee un valor del reporte en session_state, navegando por una lista de claves.
-    Ejemplo: _getr(["ventas_p5", "ventas_estimadas_colones"])
-    """
-    cur = st.session_state.get("reporte", {}) or {}
-    try:
-        for p in path:
-            cur = cur[p]
-        return cur
-    except (KeyError, IndexError, TypeError):
-        return default
+TZ = ZoneInfo("America/Costa_Rica")
 
-def _num(x, default=0.0):
-    """Convierte un valor a float de manera segura."""
-    try:
-        if x is None:
-            return float(default)
-        return float(x)
-    except Exception:
-        try:
-            s = str(x).strip().replace(",", "").replace("₡", "")
-            return float(s or default)
-        except Exception:
-            return float(default)
-
-def _num_or_none(x):
-    """Convierte un valor a float o retorna None."""
-    try:
-        if x is None or (isinstance(x, str) and x.strip() == ""):
-            return None
-        return float(str(x).strip().replace(",", "").replace("₡", ""))
-    except Exception:
-        return None
-
-def _fmt_col(x):
-    """Formatea un número como moneda de Costa Rica."""
-    try:
-        return f"₡{int(round(_num(x))):,}".replace(",", ".")
-    except Exception:
-        return "₡0"
-
-# ========= Guardrail para datos faltantes =========
-if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["reporte"]:
-    st.warning("¡Faltan datos de Ventas! Por favor, regresa al **Paso 5** para ingresar la información de ventas, compras y margen.")
-    if st.button("⬅️ Volver a 5 – Ventas"):
-        try:
-            st.switch_page("pages/05_Ventas_insumos_margen.py")
-        except Exception:
-            st.stop()
-    st.stop()
-    
-# ========= Recolección (con rutas de origen) =========
-src = {}
-vin = st.session_state["reporte"]["ventas_p5"]
-
-# 1) Ventas - Se busca en múltiples lugares, priorizando Conciliación y luego el Paso 5
-ventas_total = _getr(["ventas_conciliacion", "ventas_conciliadas_colones"])
-if ventas_total:
-    src["ventas"] = "reporte.ventas_conciliacion.ventas_conciliadas_colones"
-else:
-    ventas_total = (
-        _getr(["ventas_p5", "ventas_estimadas_colones"]) or
-        _getr(["ventas_topdown", "monto_colones"]) or
-        _getr(["ventas_bottomup", "ventas_estimadas_colones"])
-    )
-    if ventas_total:
-        if _getr(["ventas_p5", "ventas_estimadas_colones"]):
-            src["ventas"] = "reporte.ventas_p5.ventas_estimadas_colones"
-        elif _getr(["ventas_topdown", "monto_colones"]):
-            src["ventas"] = "reporte.ventas_topdown.monto_colones"
-        else:
-            src["ventas"] = "reporte.ventas_bottomup.ventas_estimadas_colones"
-ventas_total = _num(ventas_total, 0)
-
-# 2) Compras/Costos (Corregido para buscar según el modo del Paso 5)
-compras_total = 0.0
-if vin["modo"] == "Bienes (insumos/margen)":
-    compras_total = _getr(["ventas_p5", "compras_mes_colones"])
-    src["compras"] = "reporte.ventas_p5.compras_mes_colones"
-elif vin["modo"] == "Servicio con costo = % de ventas":
-    compras_total = _getr(["ventas_p5", "costo_estimado_colones"])
-    src["compras"] = "reporte.ventas_p5.costo_estimado_colones"
-else:
-    src["compras"] = "No aplica (modo Servicio por comisión)"
-compras_total = _num(compras_total, 0)
-
-# 3) Margen (tipo + % - Corregido para buscar en la clave "ventas_p5")
-tipo_margen = None
-margen_pct = None
-if vin["modo"] == "Bienes (insumos/margen)":
-    tipo_margen = _getr(["ventas_p5", "tipo_margen"])
-    margen_pct = _num_or_none(_getr(["ventas_p5", "margen_pct"]))
-    if tipo_margen is not None and margen_pct is not None:
-        src["margen"] = "reporte.ventas_p5.(tipo_margen,margen_pct)"
-elif vin["modo"] == "Servicio por comisión (%)":
-    tipo_margen = "Sobre facturación bruta"
-    margen_pct = _num_or_none(_getr(["ventas_p5", "comision_pct"]))
-    if tipo_margen is not None and margen_pct is not None:
-        src["margen"] = "reporte.ventas_p5.comision_pct"
-elif vin["modo"] == "Servicio con costo = % de ventas":
-    tipo_margen = "Costo directo"
-    margen_pct = _num_or_none(_getr(["ventas_p5", "costo_pct_sobre_ventas"]))
-    if tipo_margen is not None and margen_pct is not None:
-        src["margen"] = "reporte.ventas_p5.costo_pct_sobre_ventas"
-
-
-# 4) Gastos operativos
-gastos_ope_total = _num(
-    _getr(["gastos_operativos", "totales", "total_gasto_operativo_mensualizado_colones"], 0), 0
-)
-src["gastos_operativos"] = "reporte.gastos_operativos.totales.total_gasto_operativo_mensualizado_colones"
-
-# 5) Otros ingresos (ajustado)
-otros_ing_total = _getr(["otros_ingresos", "totales", "total_ponderado"])
-ruta_oi = "reporte.otros_ingresos.totales.total_ponderado"
-if not otros_ing_total:
-    otros_ing_total = _getr(["otros_ingresos", "totales", "total_mensualizado"], 0)
-    ruta_oi = "reporte.otros_ingresos.totales.total_mensualizado"
-src["otros_ingresos"] = ruta_oi
-otros_ing_total = _num(otros_ing_total, 0)
-
-
-# 6) Gastos familiares
-gastos_fam_total = _num(
-    _getr(["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"], 0), 0
-)
-src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_familiares_mensualizado_colones"
-
-# 7) Pago de deudas
-deudas_total = _num(_getr(["deudas_activas", "totales", "total_pago_mensual_colones"], 0), 0)
-src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
-
-# ========= Cálculos ========= (ajustado)
-# Si Paso 5 marcó "no_data", la utilidad bruta es igual a ventas
-if _getr(["ventas_p5", "no_data"], 0) == 1:
-    utilidad_bruta = ventas_total
-else:
-    utilidad_bruta = ventas_total - compras_total  # fallback por defecto
-    if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
-        if tipo_margen == "Costo directo":
-            utilidad_bruta = ventas_total - compras_total
-        else:
-            pct = margen_pct / 100.0
-            if tipo_margen in ("Sobre ventas", "Sobre facturación bruta"):
-                utilidad_bruta = ventas_total * pct
-            elif tipo_margen == "Sobre compras (markup)":
-                utilidad_bruta = compras_total * pct
-utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
-subtotal_post_otros = utilidad_neta_ope + otros_ing_total
-disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
-
-# ========= UI =========
-st.title("📑 Paso 12: Estado de Resultados")
-st.caption("Resumen automático a partir de tus pasos previos.")
-
-with st.expander("🔎 Origen de datos (rutas detectadas)"):
-    st.json(src)
-
-col1, col2, col3 = st.columns(3)
-with col1: st.metric("Ventas", _fmt_col(ventas_total))
-with col2: st.metric("Compras/Costos", _fmt_col(compras_total))
-with col3:
-    base_txt = "—"
-    if tipo_margen == "Sobre ventas" or tipo_margen == "Sobre facturación bruta":
-        base_txt = "ventas"
-    elif tipo_margen == "Sobre compras (markup)":
-        base_txt = "compras"
-    elif tipo_margen == "Costo directo":
-        base_txt = "ventas"
-
-    if margen_pct is not None:
-        st.metric(f"Margen ({tipo_margen})", f"{margen_pct:.0f}% sobre {base_txt}")
+# ========================= 
+# PASO 3A – Ventas (Top-down / declaración directa)
+# =========================
+def _mes_anterior_label():
+    """Devuelve ('mes nombre año', 'YYYY-MM') del mes calendario anterior en TZ CR."""
+    now = dt.datetime.now(TZ)
+    year, month = now.year, now.month
+    if month == 1:
+        prev_year, prev_month = year - 1, 12
     else:
-        st.metric("Margen (base)", "— sobre —")
+        prev_year, prev_month = year, month - 1
+    meses_es = ["enero","febrero","marzo","abril","mayo","junio",
+                "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+    etiqueta = f"{meses_es[prev_month-1]} {prev_year}"
+    iso_ym = f"{prev_year:04d}-{prev_month:02d}"
+    return etiqueta, iso_ym
 
-st.divider()
+def init_paso3A_state():
+    st.session_state.setdefault("ventas_topdown", {})
+    vtd = st.session_state.ventas_topdown
+    vtd.setdefault("monto", 0)
+    vtd.setdefault("tipicidad", "")  # "", "Típico", "Alto", "Bajo"
+    vtd.setdefault("fuente", "")     # lista de opciones abajo
+    vtd.setdefault("fuente_otro", "")
+    vtd.setdefault("confianza_cliente", 5)  # 0–10
+    vtd.setdefault("comentario", "")
 
-col4, col5 = st.columns(2)
-with col4: st.metric("🧮 Utilidad Bruta", _fmt_col(utilidad_bruta))
-with col5: st.metric("🧾 Gastos Operativos", _fmt_col(gastos_ope_total))
-st.metric("📌 Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope))
+# ---------- UI ----------
+init_paso3A_state()
+vtd = st.session_state.ventas_topdown
+mes_etiqueta, mes_iso = _mes_anterior_label()
 
-st.divider()
-
-col6, col7 = st.columns(2)
-with col6: st.metric("➕ Otros ingresos", _fmt_col(otros_ing_total))
-with col7: st.metric("Subtotal post-otros", _fmt_col(subtotal_post_otros))
-
-st.divider()
-
-col8, col9 = st.columns(2)
-with col8: st.metric("👪 Gastos familiares", _fmt_col(gastos_fam_total))
-with col9: st.metric("💳 Pago de deudas", _fmt_col(deudas_total))
-
-st.success(f"💰 **Disponible para el préstamo:** {_fmt_col(disponible_final)}")
-
-with st.expander("Ver tablas de origen (si están disponibles)"):
-    rep = st.session_state.get("reporte", {})
-    st.subheader("Otros ingresos")
-    st.dataframe(pd.DataFrame(rep.get("otros_ingresos", {}).get("tabla", [])), use_container_width=True)
-    st.subheader("Gastos operativos")
-    st.dataframe(pd.DataFrame(rep.get("gastos_operativos", {}).get("tabla", [])), use_container_width=True)
-    st.subheader("Gastos familiares")
-    st.dataframe(pd.DataFrame(rep.get("gastos_familiares", {}).get("tabla", [])), use_container_width=True)
-    st.subheader("Deudas activas")
-    st.dataframe(pd.DataFrame(rep.get("deudas_activas", {}).get("tabla", [])), use_container_width=True)
-
-# ====== Navegación ======
-st.divider()
-col_nav1, col_nav2 = st.columns([0.5, 0.5])
-
-with col_nav1:
-    if st.button("⬅️ Volver a 11 – Gastos familiares", use_container_width=True):
-        for prev in ["pages/11_Gastos_familiares.py"]:
-            try:
-                st.switch_page(prev)
-                break
-            except Exception:
-                continue
-
-with col_nav2:
-    if st.button(
-        "Continuar ➡️ Balance general",
-        type="primary",
-        use_container_width=True,
-    ):
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["estado_resultados"] = {
-            "ventas_colones": int(round(ventas_total)),
-            "compras_costos_colones": int(round(compras_total)),
-            "margen_tipo": (tipo_margen or ""),
-            "margen_pct": float(margen_pct) if margen_pct is not None else None,
-            "utilidad_bruta_colones": int(round(utilidad_bruta)),
-            "gastos_operativos_colones": int(round(gastos_ope_total)),
-            "utilidad_neta_operativa_colones": int(round(utilidad_neta_ope)),
-            "otros_ingresos_colones": int(round(otros_ing_total)),
-            "gastos_familiares_colones": int(round(gastos_fam_total)),
-            "pago_de_deudas_colones": int(round(deudas_total)),
-            "subtotal_post_otros_colones": int(round(subtotal_post_otros)),
-            "disponible_para_prestamo_colones": int(round(disponible_final)),
-        }
-        st.session_state["done_12"] = True
-        # -> Principal: 13_Balance_general.py
-        for nxt in [
-            "pages/13_Balance_general.py",  # principal
-            "pages/balance_general.py",     # alternativas por si cambia el nombre
-            "balance_general.py",
-            "pages/13_Balance.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
+# 👇 Nuevo: precargar si hay datos guardados en BD (desde Paso 2 con load_visita)
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+if cliente_id and not st.session_state.get("done_03A"):
+    datos = load_visita(cliente_id)
+    if datos and "ventas_topdown" in datos:
+        db_vtd = datos["ventas_topdown"]
+        vtd["monto"] = int(db_vtd.get("monto_colones", 0) or 0)
+        vtd["tipicidad"] = db_vtd.get("tipicidad", "")
+        
+        # 👇 Ajuste para manejar "Otro"
+        fuente_guardada = db_vtd.get("fuente", "")
+        fuente_opts = [
+            "", "Facturación electrónica", "POS/Datáfono",
+            "Extractos bancarios/SINPE", "Cuaderno/Excel", "Memoria", "Otro"
+        ]
+        if fuente_guardada in fuente_opts:
+            vtd["fuente"] = fuente_guardada
+            vtd["fuente_otro"] = ""
         else:
-            st.success("Estado de resultados guardado. Abrí **Balance general** desde el menú lateral.")
+            vtd["fuente"] = "Otro"
+            vtd["fuente_otro"] = fuente_guardada
+        
+        vtd["confianza_cliente"] = int(db_vtd.get("confianza_cliente_0a10", 5) or 5)
+        vtd["comentario"] = db_vtd.get("comentario", "")
+
+st.title("📈 Paso 3A: Ventas – Top-down (declaración directa)")
+st.caption(f"Ingrese las ventas del último mes calendario: **{mes_etiqueta}**.")
+
+with st.container():
+    col1, col2 = st.columns([0.55, 0.45])
+    with col1:
+        vtd["monto"] = st.number_input(
+            f"Ventas de {mes_etiqueta} (₡) *",
+            min_value=0, step=1000, value=int(vtd["monto"]),
+            help="Monto total vendido en el mes calendario anterior."
+        )
+        vtd["tipicidad"] = st.selectbox(
+            "¿Ese mes fue…? *",
+            options=["", "Típico", "Alto", "Bajo"],
+            index=["", "Típico", "Alto", "Bajo"].index(vtd["tipicidad"]) if vtd["tipicidad"] in ["", "Típico", "Alto", "Bajo"] else 0,
+            help="Cómo se compara ese mes con un mes normal del negocio."
+        )
+    with col2:
+        fuente_opts = [
+            "", "Facturación electrónica", "POS/Datáfono",
+            "Extractos bancarios/SINPE", "Cuaderno/Excel", "Memoria", "Otro"
+        ]
+        vtd["fuente"] = st.selectbox(
+            "Fuente del dato *",
+            options=fuente_opts,
+            index=fuente_opts.index(vtd["fuente"]) if vtd["fuente"] in fuente_opts else 0,
+            help="De dónde sale el monto declarado."
+        )
+        if vtd["fuente"] == "Otro":
+            vtd["fuente_otro"] = st.text_input(
+                "Especifique la fuente",
+                value=vtd.get("fuente_otro", "")
+            )
+        vtd["confianza_cliente"] = st.slider(
+            "Confianza declarada por el cliente (0–10)",
+            min_value=0, max_value=10, step=1, value=int(vtd["confianza_cliente"] or 0),
+            help="En una escala de 0 a 10, ¿qué tan seguro está del monto del último mes?"
+        )
+
+vtd["comentario"] = st.text_area(
+    "Comentario (opcional)",
+    value=vtd["comentario"],
+    placeholder="Notas breves: p. ej., promociones, feriados, cierres, etc.",
+    height=80
+)
+
+st.divider()
+
+# -------- Validación obligatorios --------
+fuente_valida = (vtd["fuente"] and vtd["fuente"] != "Otro") or (vtd["fuente"] == "Otro" and vtd["fuente_otro"].strip())
+obligatorios_ok = all([
+    vtd["monto"] > 0,
+    vtd["tipicidad"] in ["Típico", "Alto", "Bajo"],
+    fuente_valida
+])
+
+# -------- Navegación --------
+colNav1, colNav2 = st.columns([0.5, 0.5])
+with colNav1:
+    if st.button("⬅️ Volver al Paso 2", key="back_to_step_2", use_container_width=True):
+        st.switch_page("pages/02_Cliente_y_negocio.py")
+
+with colNav2:
+    if st.button("Siguiente ➡️ (4)", key="next_step_3A", disabled=not obligatorios_ok, use_container_width=True):
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+        if not cliente_id:
+            st.error("⚠️ No se encontró la cédula del cliente en memoria. Vuelva al Paso 2.")
             st.stop()
 
-# Corta ejecución
-st.stop()
+        # Construir el reporte
+        fuente_final = vtd["fuente_otro"].strip() if vtd["fuente"] == "Otro" else vtd["fuente"]
+        reporte = {
+            "mes_referencia": mes_etiqueta,
+            "mes_iso": mes_iso,
+            "monto_colones": int(vtd["monto"]),
+            "tipicidad": vtd["tipicidad"],
+            "fuente": fuente_final,
+            "confianza_cliente_0a10": int(vtd["confianza_cliente"]),
+            "comentario": vtd["comentario"].strip(),
+        }
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["ventas_topdown"] = reporte
+
+        # Guardar en BD
+        ok = save_ventas_topdown(cliente_id, reporte)
+        if ok:
+            st.success("✅ Ventas Top-down guardadas en Azure SQL")
+            st.session_state["done_03A"] = True
+        else:
+            st.error("❌ Error al guardar Ventas Top-down")
+
+        # Ir al Paso 4 – Ventas Bottom-up
+        try:
+            st.switch_page("pages/04_Ventas_botton_up.py")
+            st.stop()
+        except Exception:
+            st.info("✅ Ventas Top-down guardadas. Abre el **Paso 4 – Ventas Bottom-up** desde el menú lateral.")
+            st.stop()
