@@ -67,14 +67,14 @@ st.caption("Comparamos las estimaciones (Top-down, Bottom-up e Insumos), pondera
 cliente_id = st.session_state.cliente.get("identificacion")
 rep = st.session_state.get("reporte", {})
 
-# 👉 Si el session_state no tiene reporte, cargar desde SQL
-if cliente_id and not rep:
+# 👉 Refrescar datos de ventas desde SQL si falta algo en memoria
+if cliente_id:
     datos = load_visita(cliente_id)
     if datos:
-        if "ventas_topdown" in datos: rep["ventas_topdown"] = datos["ventas_topdown"]
-        if "ventas_bottomup" in datos: rep["ventas_bottomup"] = datos["ventas_bottomup"]
-        if "ventas_p5" in datos: rep["ventas_p5"] = datos["ventas_p5"]
-        if "valoracion_asesor" in datos: rep["valoracion_asesor"] = datos["valoracion_asesor"]
+        rep.setdefault("ventas_topdown", datos.get("ventas_topdown", {}))
+        rep.setdefault("ventas_bottomup", datos.get("ventas_bottomup", {}))
+        rep.setdefault("ventas_p5", datos.get("ventas_p5", {}))
+        rep.setdefault("valoracion_asesor", datos.get("valoracion_asesor", {}))
     st.session_state["reporte"] = rep
 
 # =========================
