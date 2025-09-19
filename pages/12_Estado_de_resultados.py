@@ -5,6 +5,7 @@
 
 import streamlit as st
 import pandas as pd
+from utils.db import load_visita   # 👈 agregado para refrescar desde SQL
 
 st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
 
@@ -60,12 +61,22 @@ if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["rep
         except Exception:
             st.stop()
     st.stop()
-    
+
+# ========= Refrescar desde SQL si faltan gastos operativos =========
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
+rep = st.session_state.get("reporte", {})
+
+if cliente_id and not rep.get("gastos_operativos"):
+    datos = load_visita(cliente_id)
+    if datos and "gastos_operativos" in datos:
+        rep["gastos_operativos"] = datos["gastos_operativos"]
+        st.session_state["reporte"] = rep
+
 # ========= Recolección (con rutas de origen) =========
 src = {}
 vin = st.session_state["reporte"]["ventas_p5"]
 
-# 1) Ventas - Se busca en múltiples lugares, priorizando Conciliación y luego el Paso 5
+# 1) Ventas
 ventas_total = _getr(["ventas_conciliacion", "ventas_conciliadas_colones"])
 if ventas_total:
     src["ventas"] = "reporte.ventas_conciliacion.ventas_conciliadas_colones"
@@ -84,7 +95,7 @@ else:
             src["ventas"] = "reporte.ventas_bottomup.ventas_estimadas_colones"
 ventas_total = _num(ventas_total, 0)
 
-# 2) Compras/Costos (Corregido para buscar según el modo del Paso 5)
+# 2) Compras/Costos
 compras_total = 0.0
 if vin["modo"] == "Bienes (insumos/margen)":
     compras_total = _getr(["ventas_p5", "compras_mes_colones"])
@@ -96,7 +107,7 @@ else:
     src["compras"] = "No aplica (modo Servicio por comisión)"
 compras_total = _num(compras_total, 0)
 
-# 3) Margen (tipo + % - Corregido para buscar en la clave "ventas_p5")
+# 3) Margen
 tipo_margen = None
 margen_pct = None
 if vin["modo"] == "Bienes (insumos/margen)":
@@ -115,14 +126,13 @@ elif vin["modo"] == "Servicio con costo = % de ventas":
     if tipo_margen is not None and margen_pct is not None:
         src["margen"] = "reporte.ventas_p5.costo_pct_sobre_ventas"
 
-
 # 4) Gastos operativos
 gastos_ope_total = _num(
     _getr(["gastos_operativos", "totales", "total_gasto_operativo_mensualizado_colones"], 0), 0
 )
 src["gastos_operativos"] = "reporte.gastos_operativos.totales.total_gasto_operativo_mensualizado_colones"
 
-# 5) Otros ingresos (ajustado)
+# 5) Otros ingresos
 otros_ing_total = _getr(["otros_ingresos", "totales", "total_ponderado"])
 ruta_oi = "reporte.otros_ingresos.totales.total_ponderado"
 if not otros_ing_total:
@@ -130,7 +140,6 @@ if not otros_ing_total:
     ruta_oi = "reporte.otros_ingresos.totales.total_mensualizado"
 src["otros_ingresos"] = ruta_oi
 otros_ing_total = _num(otros_ing_total, 0)
-
 
 # 6) Gastos familiares
 gastos_fam_total = _num(
@@ -142,12 +151,11 @@ src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_famil
 deudas_total = _num(_getr(["deudas_activas", "totales", "total_pago_mensual_colones"], 0), 0)
 src["deudas"] = "reporte.deudas_activas.totales.total_pago_mensual_colones"
 
-# ========= Cálculos ========= (ajustado)
-# Si Paso 5 marcó "no_data", la utilidad bruta es igual a ventas
+# ========= Cálculos =========
 if _getr(["ventas_p5", "no_data"], 0) == 1:
     utilidad_bruta = ventas_total
 else:
-    utilidad_bruta = ventas_total - compras_total  # fallback por defecto
+    utilidad_bruta = ventas_total - compras_total
     if (margen_pct is not None) and (tipo_margen in ("Sobre ventas", "Sobre compras (markup)", "Sobre facturación bruta", "Costo directo")):
         if tipo_margen == "Costo directo":
             utilidad_bruta = ventas_total - compras_total
@@ -157,6 +165,7 @@ else:
                 utilidad_bruta = ventas_total * pct
             elif tipo_margen == "Sobre compras (markup)":
                 utilidad_bruta = compras_total * pct
+
 utilidad_neta_ope   = utilidad_bruta - gastos_ope_total
 subtotal_post_otros = utilidad_neta_ope + otros_ing_total
 disponible_final    = subtotal_post_otros - gastos_fam_total - deudas_total
@@ -254,8 +263,8 @@ with col_nav2:
         st.session_state["done_12"] = True
         # -> Principal: 13_Balance_general.py
         for nxt in [
-            "pages/13_Balance_general.py",  # principal
-            "pages/balance_general.py",     # alternativas por si cambia el nombre
+            "pages/13_Balance_general.py",
+            "pages/balance_general.py",
             "balance_general.py",
             "pages/13_Balance.py",
         ]:
@@ -270,5 +279,3 @@ with col_nav2:
 
 # Corta ejecución
 st.stop()
-
-
