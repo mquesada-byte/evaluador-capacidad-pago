@@ -5,7 +5,6 @@
 
 import streamlit as st
 import pandas as pd
-from utils.db import load_visita
 
 st.set_page_config(page_title="Paso 12: Estado de Resultados", page_icon="📑")
 
@@ -52,68 +51,16 @@ def _fmt_col(x):
     except Exception:
         return "₡0"
 
-# ========= Guardrail para datos faltantes (Ventas mínimas + recarga Gastos) =========
-cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
-if not cliente_id:
-    st.warning("⚠️ No se encontró un cliente cargado en memoria. Volvé al Paso 2.")
+# ========= Guardrail para datos faltantes =========
+if "reporte" not in st.session_state or "ventas_p5" not in st.session_state["reporte"]:
+    st.warning("¡Faltan datos de Ventas! Por favor, regresa al **Paso 5** para ingresar la información de ventas, compras y margen.")
+    if st.button("⬅️ Volver a 5 – Ventas"):
+        try:
+            st.switch_page("pages/05_Ventas_insumos_margen.py")
+        except Exception:
+            st.stop()
     st.stop()
-
-# Asegurar que exista el diccionario reporte
-st.session_state.setdefault("reporte", {})
-rep = st.session_state["reporte"]
-
-# Si faltan datos de ventas → no se puede continuar
-if "ventas_p5" not in rep:
-    datos = load_visita(cliente_id)
-    if not datos or "ventas_p5" not in datos:
-        st.warning("¡Faltan datos de Ventas! Por favor, regresa al **Paso 5** para ingresar la información de ventas, compras y margen.")
-        if st.button("⬅️ Volver a 5 – Ventas"):
-            try:
-                st.switch_page("pages/05_Ventas_insumos_margen.py")
-            except Exception:
-                st.stop()
-        st.stop()
-    else:
-        # Cargar ventas desde SQL
-        rep["ventas_p5"] = datos.get("ventas_p5", {})
-        if "ventas_topdown" in datos: rep["ventas_topdown"] = datos["ventas_topdown"]
-        if "ventas_bottomup" in datos: rep["ventas_bottomup"] = datos["ventas_bottomup"]
-        if "valoracion_asesor" in datos: rep["valoracion_asesor"] = datos["valoracion_asesor"]
-
-# Recargar gastos operativos si no están
-if "gastos_operativos" not in rep or not isinstance(rep["gastos_operativos"], dict) or not rep["gastos_operativos"].get("totales"):
-    datos = load_visita(cliente_id)
-    if datos and "gastos_operativos" in datos:
-        rep["gastos_operativos"] = {
-            "tabla": datos["gastos_operativos"],
-            "totales": {
-                "total_gasto_operativo_mensualizado_colones": sum(
-                    float(x.get("Gasto mensualizado (₡)", 0) or 0)
-                    for x in datos["gastos_operativos"]
-                ),
-                "total_gasto_operativo_verificado_colones": sum(
-                    float(x.get("Gasto mensualizado (₡)", 0) or 0)
-                    for x in datos["gastos_operativos"]
-                    if x.get("Verificado por asesor")
-                ),
-                "registros_validos": len([
-                    x for x in datos["gastos_operativos"]
-                    if float(x.get("Monto por período (₡)", 0) or 0) > 0
-                ]),
-            }
-        }
-
-
-
-
-
-# ========= Recolección (con rutas de origen) =========
-src = {}
-vin = st.session_state["reporte"]["ventas_p5"]
-
-
-
-
+    
 # ========= Recolección (con rutas de origen) =========
 src = {}
 vin = st.session_state["reporte"]["ventas_p5"]
