@@ -92,6 +92,24 @@ with st.container():
                 asesor["maps_url"] = datos["maps_url"]
 
                 st.session_state["asesor"] = asesor
+                    
+                # Otros ingresos (tabla + totales, si existen)
+                if "otros_ingresos" in datos:
+                    st.session_state.setdefault("reporte", {})
+                    st.session_state["reporte"]["otros_ingresos"] = {
+                        "tabla": datos["otros_ingresos"].get("tabla", []),
+                        "totales": {
+                            "total_mensualizado": datos["otros_ingresos"].get("totales", {}).get("total_mensualizado", 0),
+                            "total_ponderado": datos["otros_ingresos"].get("totales", {}).get("total_ponderado", 0),
+                            "registros_validos": datos["otros_ingresos"].get("totales", {}).get("registros_validos", 0),
+                        }
+                    }
+
+
+
+
+
+            
             else:
                 st.warning("⚠️ No se encontraron datos para esta cédula")
 
