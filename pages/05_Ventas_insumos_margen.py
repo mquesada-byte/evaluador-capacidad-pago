@@ -107,7 +107,7 @@ def _calc_servicio_costo_pct_ventas(ventas: float, costo_pct: float):
 # UI
 # =========================
 mes_etiqueta, mes_iso = _mes_anterior_label()
-cliente_id = st.session_state.cliente.get("identificacion")
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
 
 init_paso5_state(cliente_id, mes_iso)
 vin = st.session_state.ventas_p5
