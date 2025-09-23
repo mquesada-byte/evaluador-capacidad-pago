@@ -64,7 +64,7 @@ st.caption("Comparamos las estimaciones (Top-down, Bottom-up e Insumos), pondera
 # =========================
 # Recuperar datos del cliente
 # =========================
-cliente_id = st.session_state.cliente.get("identificacion")
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
 rep = st.session_state.get("reporte", {})
 
 # 👉 Refrescar datos de ventas desde SQL si falta algo en memoria
