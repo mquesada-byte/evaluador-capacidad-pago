@@ -596,6 +596,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
         return False
 
 
+
 # ==========================================================
 # GUARDAR PASO 9 – DEUDAS ACTIVAS
 # ==========================================================
