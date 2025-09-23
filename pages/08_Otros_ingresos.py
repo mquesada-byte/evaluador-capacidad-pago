@@ -132,6 +132,10 @@ for _, r in df.iterrows():
     factores.append(f_conf)
     ponderados.append(m_mensual * f_conf)
 
+
+
+
+
 df["Ingreso mensualizado (₡)"] = [int(x) for x in mensualizados]
 df["Factor confiabilidad (0.2–1.0)"] = [round(x, 2) for x in factores]
 df["Ingreso ponderado (₡)"] = [int(x) for x in ponderados]
@@ -142,13 +146,12 @@ df["Ingreso ponderado (₡)"] = [int(x) for x in ponderados]
 df_valid = df[df["Monto por período (₡)"] > 0]
 total_mensual = int(df_valid["Ingreso mensualizado (₡)"].sum()) if not df_valid.empty else 0
 total_ponderado = int(df_valid["Ingreso ponderado (₡)"].sum()) if not df_valid.empty else 0
-registros_validos = len(df_valid)
 
 st.markdown("### Resumen")
 st.write({
     "Total mensualizado": f"₡ {total_mensual:,}".replace(",", "."),
     "Total ponderado": f"₡ {total_ponderado:,}".replace(",", "."),
-    "Registros válidos": registros_validos
+    "Registros válidos": len(df_valid)
 })
 
 st.divider()
@@ -166,10 +169,7 @@ with c2:
         ok = save_otros_ingresos(
             cliente_id=st.session_state["cliente"]["identificacion"],
             mes_iso=st.session_state["mes_iso"],
-            df=df_valid,
-            total_mensualizado=total_mensual,
-            total_ponderado=total_ponderado,
-            registros_validos=registros_validos
+            df=df_valid
         )
         if ok:
             st.success("✅ Otros ingresos guardados en la base de datos")
@@ -181,7 +181,7 @@ with c2:
                 "totales": {
                     "total_mensualizado": int(total_mensual),
                     "total_ponderado": int(total_ponderado),
-                    "registros_validos": registros_validos,
+                    "registros_validos": len(df_valid),
                 }
             }
 
@@ -192,5 +192,3 @@ with c2:
                 st.info("Continúa con el Paso 9 desde el menú lateral.")
         else:
             st.error("❌ No se pudieron guardar los otros ingresos en la base de datos")
-
-
