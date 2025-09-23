@@ -522,11 +522,13 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 
 
 # ==========================================================
-# GUARDAR PASO 8 – OTROS INGRESOS
+# GUARDAR PASO 8 – OTROS INGRESOS (con totales)
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
+def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
+                        total_mensualizado=0, total_ponderado=0, registros_validos=0) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
+    Además guarda los totales (mensualizado, ponderado, registros).
     Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
     """
     try:
@@ -540,9 +542,16 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         """, (cliente_id, mes_iso))
 
         if df.empty:
+            # Si no hay filas, guardar solo los totales vacíos
+            cursor.execute("""
+                INSERT INTO OtrosIngresos (
+                    cliente_identificacion, mes_iso,
+                    total_mensualizado_colones, total_ponderado_colones, registros_validos, fecha_registro
+                ) VALUES (?, ?, ?, ?, ?, GETDATE())
+            """, (cliente_id, mes_iso, int(total_mensualizado), int(total_ponderado), int(registros_validos)))
             conn.commit()
             conn.close()
-            return True  # nada más que guardar
+            return True
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
@@ -550,9 +559,10 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
                 titular, relacion, fuente, periodicidad,
                 monto_periodo, verificado, evidencia, meses_cont, prob_cont,
                 ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
-                comentario, fecha_registro
+                comentario, fecha_registro,
+                total_mensualizado_colones, total_ponderado_colones, registros_validos
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), ?, ?, ?)
         """
 
         for _, row in df.iterrows():
@@ -572,7 +582,10 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
                 float(row.get("Ingreso mensualizado (₡)", 0) or 0),
                 float(row.get("Factor confiabilidad (0.2–1.0)", 0) or 0),
                 float(row.get("Ingreso ponderado (₡)", 0) or 0),
-                row.get("Comentario", "")
+                row.get("Comentario", ""),
+                int(total_mensualizado),
+                int(total_ponderado),
+                int(registros_validos)
             )
 
         conn.commit()
@@ -581,6 +594,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     except Exception as e:
         st.error(f"Error guardando otros_ingresos: {e}")
         return False
+
 
 # ==========================================================
 # GUARDAR PASO 9 – DEUDAS ACTIVAS
