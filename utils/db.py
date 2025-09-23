@@ -266,7 +266,7 @@ def load_visita(cliente_id: str) -> dict | None:
             cols_det = [col[0] for col in cursor.description]
             df_det = pd.DataFrame.from_records(rows_det, columns=cols_det)
 
-            # Agrupar por sección para reconstruir el dict
+            # Agrupar por sección y guardar como DataFrame directo
             for seccion in df_det["seccion"].unique():
                 sub_df = df_det[df_det["seccion"] == seccion].copy()
                 sub_df = sub_df.rename(columns={
@@ -279,9 +279,7 @@ def load_visita(cliente_id: str) -> dict | None:
                 })
                 if "Verificado por asesor" in sub_df.columns:
                     sub_df["Verificado por asesor"] = sub_df["Verificado por asesor"].astype(bool)
-                datos["balance_general"][seccion] = sub_df.to_dict(orient="records")
-
-
+                datos["balance_general"][seccion] = sub_df  # 👈 ahora queda DataFrame
 
     
     conn.close()
