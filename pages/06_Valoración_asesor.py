@@ -49,7 +49,7 @@ def _factor_asesor(v: dict) -> float:
 
 # --------- UI ----------
 mes_iso = _mes_anterior_label()
-cliente_id = st.session_state.cliente.get("identificacion")
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
 
 init_valoracion_asesor_state(cliente_id, mes_iso)
 v = st.session_state.valoracion_asesor
