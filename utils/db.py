@@ -5,16 +5,20 @@ import pandas as pd
 
 def get_connection():
     """Devuelve una conexión a Azure SQL Database usando los secrets."""
-    conn = pyodbc.connect(
-        f"DRIVER={{{st.secrets['azure_sql']['driver']}}};"
-        f"SERVER={st.secrets['azure_sql']['server']};"
-        f"DATABASE={st.secrets['azure_sql']['database']};"
-        f"UID={st.secrets['azure_sql']['username']};"
-        f"PWD={st.secrets['azure_sql']['password']}",
-        timeout=30
-    )
-    return conn
-
+    try:
+        conn = pyodbc.connect(
+            f"DRIVER={{{st.secrets['azure_sql']['driver']}}};"
+            f"SERVER={st.secrets['azure_sql']['server']};"
+            f"DATABASE={st.secrets['azure_sql']['database']};"
+            f"UID={st.secrets['azure_sql']['username']};"
+            f"PWD={st.secrets['azure_sql']['password']}",
+            timeout=30
+        )
+        return conn
+    except pyodbc.Error:
+        st.error("⚠️ No se pudo conectar con la base de datos. "
+                 "Verifique credenciales, firewall o disponibilidad del servidor.")
+        return None
 
 def load_visita(cliente_id: str) -> dict | None:
     conn = get_connection()
