@@ -408,26 +408,32 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Variables iniciales
-        modo = data.get("modo")
-        tiene_registros = data.get("tiene_registros")
-        compras_mes_colones = float(data.get("compras_mes_colones") or 0)
-        tipo_margen = data.get("tipo_margen")
-        margen_pct = float(data.get("margen_pct") or 0)
-        facturacion_bruta_mes_colones = data.get("facturacion_bruta_mes_colones")
-        comision_pct = data.get("comision_pct")
-        ventas_reportadas_mes_colones = data.get("ventas_reportadas_mes_colones")
-        costo_pct_sobre_ventas = data.get("costo_pct_sobre_ventas")
-        costo_estimado_colones = data.get("costo_estimado_colones")
-        comentario = data.get("comentario")
-
-        # 🔎 Calcular ventas estimadas SIEMPRE que sea "Bienes (insumos/margen)"
-        ventas_estimadas_colones = data.get("ventas_estimadas_colones")
-        if modo == "Bienes (insumos/margen)":
-            if tipo_margen == "Sobre ventas" and margen_pct > 0:
-                ventas_estimadas_colones = compras_mes_colones / (margen_pct / 100.0)
-            elif tipo_margen == "Sobre compras (markup)" and margen_pct > 0:
-                ventas_estimadas_colones = compras_mes_colones * (1 + margen_pct / 100.0)
+        if data.get("no_data") == 1:
+            modo = None
+            tiene_registros = None
+            compras_mes_colones = None
+            tipo_margen = None
+            margen_pct = None
+            facturacion_bruta_mes_colones = None
+            comision_pct = None
+            ventas_reportadas_mes_colones = None
+            costo_pct_sobre_ventas = None
+            costo_estimado_colones = None
+            ventas_estimadas_colones = None
+            comentario = data.get("comentario")
+        else:
+            modo = data.get("modo")
+            tiene_registros = data.get("tiene_registros")
+            compras_mes_colones = data.get("compras_mes_colones")
+            tipo_margen = data.get("tipo_margen")
+            margen_pct = data.get("margen_pct")
+            facturacion_bruta_mes_colones = data.get("facturacion_bruta_mes_colones")
+            comision_pct = data.get("comision_pct")
+            ventas_reportadas_mes_colones = data.get("ventas_reportadas_mes_colones")
+            costo_pct_sobre_ventas = data.get("costo_pct_sobre_ventas")
+            costo_estimado_colones = data.get("costo_estimado_colones")
+            ventas_estimadas_colones = data.get("ventas_estimadas_colones")
+            comentario = data.get("comentario")
 
         cursor.execute("""
             UPDATE ventas_p5
@@ -469,7 +475,6 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     except Exception as e:
         st.error(f"Error guardando ventas_p5: {e}")
         return False
-
 
 
 # ==========================================================
@@ -517,13 +522,11 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 
 
 # ==========================================================
-# GUARDAR PASO 8 – OTROS INGRESOS (con totales)
+# GUARDAR PASO 8 – OTROS INGRESOS
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
-                        total_mensualizado=0, total_ponderado=0, registros_validos=0) -> bool:
+def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
-    Además guarda los totales (mensualizado, ponderado, registros).
     Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
     """
     try:
@@ -537,16 +540,9 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
         """, (cliente_id, mes_iso))
 
         if df.empty:
-            # Si no hay filas, guardar solo los totales vacíos
-            cursor.execute("""
-                INSERT INTO OtrosIngresos (
-                    cliente_identificacion, mes_iso,
-                    total_mensualizado_colones, total_ponderado_colones, registros_validos, fecha_registro
-                ) VALUES (?, ?, ?, ?, ?, GETDATE())
-            """, (cliente_id, mes_iso, int(total_mensualizado), int(total_ponderado), int(registros_validos)))
             conn.commit()
             conn.close()
-            return True
+            return True  # nada más que guardar
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
@@ -554,10 +550,9 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
                 titular, relacion, fuente, periodicidad,
                 monto_periodo, verificado, evidencia, meses_cont, prob_cont,
                 ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
-                comentario, fecha_registro,
-                total_mensualizado_colones, total_ponderado_colones, registros_validos
+                comentario, fecha_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """
 
         for _, row in df.iterrows():
@@ -577,10 +572,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
                 float(row.get("Ingreso mensualizado (₡)", 0) or 0),
                 float(row.get("Factor confiabilidad (0.2–1.0)", 0) or 0),
                 float(row.get("Ingreso ponderado (₡)", 0) or 0),
-                row.get("Comentario", ""),
-                int(total_mensualizado),
-                int(total_ponderado),
-                int(registros_validos)
+                row.get("Comentario", "")
             )
 
         conn.commit()
@@ -589,8 +581,6 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df,
     except Exception as e:
         st.error(f"Error guardando otros_ingresos: {e}")
         return False
-
-
 
 # ==========================================================
 # GUARDAR PASO 9 – DEUDAS ACTIVAS
