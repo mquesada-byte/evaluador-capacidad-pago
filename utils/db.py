@@ -408,32 +408,26 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
         conn = get_connection()
         cursor = conn.cursor()
 
-        if data.get("no_data") == 1:
-            modo = None
-            tiene_registros = None
-            compras_mes_colones = None
-            tipo_margen = None
-            margen_pct = None
-            facturacion_bruta_mes_colones = None
-            comision_pct = None
-            ventas_reportadas_mes_colones = None
-            costo_pct_sobre_ventas = None
-            costo_estimado_colones = None
-            ventas_estimadas_colones = None
-            comentario = data.get("comentario")
-        else:
-            modo = data.get("modo")
-            tiene_registros = data.get("tiene_registros")
-            compras_mes_colones = data.get("compras_mes_colones")
-            tipo_margen = data.get("tipo_margen")
-            margen_pct = data.get("margen_pct")
-            facturacion_bruta_mes_colones = data.get("facturacion_bruta_mes_colones")
-            comision_pct = data.get("comision_pct")
-            ventas_reportadas_mes_colones = data.get("ventas_reportadas_mes_colones")
-            costo_pct_sobre_ventas = data.get("costo_pct_sobre_ventas")
-            costo_estimado_colones = data.get("costo_estimado_colones")
-            ventas_estimadas_colones = data.get("ventas_estimadas_colones")
-            comentario = data.get("comentario")
+        # Variables iniciales
+        modo = data.get("modo")
+        tiene_registros = data.get("tiene_registros")
+        compras_mes_colones = float(data.get("compras_mes_colones") or 0)
+        tipo_margen = data.get("tipo_margen")
+        margen_pct = float(data.get("margen_pct") or 0)
+        facturacion_bruta_mes_colones = data.get("facturacion_bruta_mes_colones")
+        comision_pct = data.get("comision_pct")
+        ventas_reportadas_mes_colones = data.get("ventas_reportadas_mes_colones")
+        costo_pct_sobre_ventas = data.get("costo_pct_sobre_ventas")
+        costo_estimado_colones = data.get("costo_estimado_colones")
+        comentario = data.get("comentario")
+
+        # 🔎 Calcular ventas estimadas SIEMPRE que sea "Bienes (insumos/margen)"
+        ventas_estimadas_colones = data.get("ventas_estimadas_colones")
+        if modo == "Bienes (insumos/margen)":
+            if tipo_margen == "Sobre ventas" and margen_pct > 0:
+                ventas_estimadas_colones = compras_mes_colones / (margen_pct / 100.0)
+            elif tipo_margen == "Sobre compras (markup)" and margen_pct > 0:
+                ventas_estimadas_colones = compras_mes_colones * (1 + margen_pct / 100.0)
 
         cursor.execute("""
             UPDATE ventas_p5
@@ -475,6 +469,7 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     except Exception as e:
         st.error(f"Error guardando ventas_p5: {e}")
         return False
+
 
 
 # ==========================================================
