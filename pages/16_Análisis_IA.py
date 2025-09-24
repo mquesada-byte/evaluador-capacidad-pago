@@ -44,6 +44,61 @@ if "reglamentos_texto" not in st.session_state:
     texto_fondo   = _load_pdf_text(os.path.join("assets", "reglamento_del_fondo_de_utilidad_pública.pdf"))
     st.session_state["reglamentos_texto"] = f"{texto_credito}\n\n{texto_fondo}".strip()
 
+# ====== Perfil inicial del cliente ======
+def _perfil_cliente(rep: dict) -> str:
+    cliente = st.session_state.get("cliente", {})
+    negocio = st.session_state.get("negocio", {})
+
+    # Formalidad
+    faltantes = []
+    if not negocio.get("persona_juridica"):
+        faltantes.append("carece de personería jurídica")
+    if not negocio.get("registros_contables"):
+        faltantes.append("no lleva registros contables")
+
+    # Sueldos en gastos operativos
+    gastos_tabla = (rep.get("gastos_operativos") or {}).get("tabla", [])
+    sueldos = next((r for r in gastos_tabla if str(r.get("Rubro", "")).lower() == "sueldos"), None)
+    monto_sueldos = 0
+    if sueldos:
+        try:
+            monto_sueldos = float(sueldos.get("Gasto mensualizado (₡)", 0))
+        except Exception:
+            monto_sueldos = 0
+    if monto_sueldos <= 0:
+        faltantes.append("no asigna un salario (sueldos = 0)")
+
+    es_informal = len(faltantes) > 0
+
+    # Tipo de negocio
+    tipo_local = negocio.get("tipo_local", "N/D")
+
+    # Antigüedad
+    anios = negocio.get("antiguedad_anios", 0)
+    meses = negocio.get("antiguedad_meses", 0)
+    total_meses = anios * 12 + meses
+    if total_meses < 24:
+        etapa = "fase inicial con alta probabilidad de no consolidarse (<2 años)"
+    elif total_meses <= 60:
+        etapa = "fase de maduración (2–5 años)"
+    else:
+        etapa = "fase de consolidación (>5 años)"
+
+    # Patente
+    patente = negocio.get("patente_municipal", False)
+    incoherencias = []
+    if not patente and negocio.get("registros_contables"):
+        incoherencias.append("declara llevar registros contables pero no cuenta con patente")
+
+    return f"""
+**Evaluación inicial del cliente:**
+- Formalidad: {"Informal" if es_informal else "Formal"} ({", ".join(faltantes) if faltantes else "cumple con requisitos"}).
+- Tipo de negocio: {tipo_local}.
+- Antigüedad: {etapa}.
+- Patente municipal: {"Sí" if patente else "No"}.
+- Observaciones: {"; ".join(incoherencias) if incoherencias else "Sin incoherencias aparentes"}.
+"""
+
 def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     er = rep.get("estado_resultados", {}) or {}
     bg = rep.get("balance_general", {}) or {}
@@ -61,8 +116,15 @@ def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     patrimonio = bg.get("patrimonio")
     capital_trabajo = bg.get("capital_trabajo")
 
+    perfil = _perfil_cliente(rep)
+
     return f"""
 Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago**, **riesgos** y **recomendación**. 
+
+Primero, incluye la siguiente evaluación inicial:
+
+{perfil}
+
 Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en los siguientes reglamentos internos:
 
 ---
@@ -84,12 +146,13 @@ Datos del cliente (valores mensuales y totales):
 - Capital de trabajo: {capital_trabajo}
 
 Entrega la respuesta en **Markdown** con estas secciones:
-1) Fortalezas del negocio (viñetas)
-2) Riesgos / banderas rojas (viñetas)
-3) Lectura financiera (2–3 párrafos)
-4) Capacidad de pago y holgura (cálculos simples con los datos)
-5) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
-6) Pendientes de verificación (checklist breve)
+1) Evaluación del cliente y negocio
+2) Fortalezas del negocio (viñetas)
+3) Riesgos / banderas rojas (viñetas)
+4) Lectura financiera (2–3 párrafos)
+5) Capacidad de pago y holgura (cálculos simples con los datos)
+6) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
+7) Pendientes de verificación (checklist breve)
 Concluye con un párrafo final de criterio del analista.
     """.strip()
 
@@ -293,4 +356,3 @@ with c2:
             st.switch_page("Home.py")
         except Exception:
             st.experimental_rerun()
-
