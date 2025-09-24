@@ -7,11 +7,16 @@ st.title("💳 Paso 15: Condiciones de Crédito")
 st.caption("Cálculo de la cuota con y sin póliza del INS.")
 
 # ===== Entradas =====
-monto_solicitado = st.number_input("Monto solicitado (₡)", min_value=100000, step=50000, value=1000000)
+col1, col2 = st.columns(2)
 
-comision_pct = st.selectbox("Porcentaje de comisión (%)", [1.5, 2, 4, 6, 8, 10], index=1)
-tasa_interes_anual = st.selectbox("Tasa de interés anual (%)", [14, 22, 24, 26, 30, 34], index=0)
-plazo_meses = st.number_input("Plazo (meses)", min_value=6, max_value=120, step=1, value=24)
+with col1:
+    monto_solicitado = st.number_input("Monto solicitado (₡)", min_value=100000, step=50000, value=1000000)
+    tasa_interes_anual = st.selectbox("Tasa de interés anual (%)", [14, 22, 24, 26, 30, 34], index=0)
+
+with col2:
+    comision_pct = st.selectbox("Porcentaje de comisión (%)", [1.5, 2, 4, 6, 8, 10], index=1)
+    plazo_meses = st.number_input("Plazo (meses)", min_value=6, max_value=120, step=1, value=24)
+
 
 # ===== Cálculos =====
 monto_con_comision = monto_solicitado * (1 + comision_pct / 100)
