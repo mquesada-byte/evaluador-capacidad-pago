@@ -7,12 +7,14 @@ st.title("💳 Paso 15: Condiciones de Crédito")
 st.caption("Cálculo de la cuota con y sin póliza del INS.")
 
 # ===== Entradas =====
+# Línea 1: monto solicitado + saldo pay off
 col1, col2 = st.columns(2)
 with col1:
     monto_solicitado = st.number_input("Monto solicitado (₡)", min_value=0, step=50000, value=0)
 with col2:
     monto_payoff = st.number_input("Saldo pay off (solo recréditos)", min_value=0, step=50000, value=0)
 
+# Línea 2: comisión, tasa, plazo
 col3, col4, col5 = st.columns(3)
 with col3:
     comision_pct = st.selectbox(
@@ -36,8 +38,16 @@ with col5:
         index=0
     )
 
+# Línea 3: honorarios y timbres (hipotecas)
+col6, col7 = st.columns(2)
+with col6:
+    honorarios = st.number_input("Honorarios (₡)", min_value=0, step=10000, value=0)
+with col7:
+    timbres = st.number_input("Timbres (₡)", min_value=0, step=1000, value=0)
+
 # ===== Cálculos =====
 cuota_base = cuota_con_poliza = poliza = 0
+monto_con_comision = 0
 
 if monto_solicitado > 0 and comision_pct and tasa_interes_anual and plazo_meses:
     monto_con_comision = monto_solicitado * (1 + comision_pct / 100)
@@ -62,7 +72,7 @@ with col1:
     st.metric("Saldo pay off (recrédito)", f"₡{monto_payoff:,.0f}")
     if comision_pct:
         st.metric("Comisión aplicada", f"{comision_pct:.1f}%")
-    if 'monto_con_comision' in locals():
+    if monto_con_comision:
         st.metric("Monto con comisión", f"₡{monto_con_comision:,.0f}")
 with col2:
     if tasa_interes_anual:
@@ -71,6 +81,10 @@ with col2:
         st.metric("Plazo", f"{plazo_meses} meses")
     if poliza:
         st.metric("Póliza INS (mensual)", f"₡{poliza:,.0f}")
+    if honorarios:
+        st.metric("Honorarios", f"₡{honorarios:,.0f}")
+    if timbres:
+        st.metric("Timbres", f"₡{timbres:,.0f}")
 
 st.divider()
 st.subheader("💰 Cuotas calculadas")
