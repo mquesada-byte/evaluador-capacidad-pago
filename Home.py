@@ -171,19 +171,33 @@ with st.container(border=True):
     else:
         st.info("Crea `pages/14_Informe_final.py` para habilitar el Paso 14.")
 
-# Paso 15 – Análisis asistido (IA)
+# Paso 15 – Condiciones de Crédito
 with st.container(border=True):
-    p15 = first_existing([
-        "pages/15_Analisis_IA.py",
-        "pages/15_Análisis_IA.py",  # por si existe con tilde
-    ])
+    p15 = first_existing(["pages/15_Condiciones_credito.py"])
     if p15:
         st.page_link(p15,
-            label=f"{step_status('done_15')} 15 – Análisis asistido (IA)",
+            label=f"{step_status('done_15')} 15 – Condiciones de Crédito",
+            help="Cálculo de la cuota con y sin póliza del INS."
+        )
+    else:
+        st.info("Crea `pages/15_Condiciones_credito.py` para habilitar el Paso 15.")
+
+# Paso 16 – Análisis asistido (IA)
+with st.container(border=True):
+    p16 = first_existing([
+        "pages/16_Analisis_IA.py",
+        "pages/16_Análisis_IA.py",  # por si existe con tilde
+        "pages/15_Analisis_IA.py",  # fallback (si aún está en 15)
+        "pages/15_Análisis_IA.py",
+    ])
+    if p16:
+        st.page_link(p16,
+            label=f"{step_status('done_16')} 16 – Análisis asistido (IA)",
             help="Genera el análisis del caso con IA y permite descargarlo en PDF."
         )
     else:
-        st.info("Crea `pages/15_Analisis_IA.py` para habilitar el Paso 15.")
+        st.info("Crea `pages/16_Analisis_IA.py` para habilitar el Paso 16.")
+
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
