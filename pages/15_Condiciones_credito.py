@@ -3,6 +3,16 @@ import streamlit as st
 import numpy as np
 import numpy_financial as npf
 
+
+# ======================
+# 📌 Parámetros globales
+# ======================
+TASA_MAX_CREDITO = 36.65   # % anual, tasa máxima para todo tipo de créditos
+TASA_MAX_MICROCREDITO = 51.74  # % anual, tasa máxima para microcrédito
+SALARIO_BASE = 462_200     # Salario base en colones
+# ======================
+
+
 st.set_page_config(page_title="Paso 15: Condiciones de Crédito", page_icon="💳")
 
 st.title("💳 Paso 15: Condiciones de Crédito")
