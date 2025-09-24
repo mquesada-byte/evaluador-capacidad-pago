@@ -20,7 +20,7 @@ tasa_mensual = tasa_interes_anual / 100 / 12
 n = plazo_meses
 
 if tasa_mensual > 0:
-    cuota_base = monto_con_comision * (tasa_mensual * (1 + tasa_mensual)**n) / ((1 + tasa_mensual)**n - 1)
+    cuota_base = monto_con_comision * (tasa_mensual * (1 + tasa_mensual) ** n) / ((1 + tasa_mensual) ** n - 1)
 else:
     cuota_base = monto_con_comision / n
 
@@ -47,3 +47,20 @@ with col3:
     st.metric("Cuota sin póliza", f"₡{cuota_base:,.0f}")
 with col4:
     st.metric("Cuota con póliza", f"₡{cuota_con_poliza:,.0f}")
+
+# ===== Navegación =====
+st.divider()
+c1, c2 = st.columns([0.5, 0.5])
+
+with c1:
+    if st.button("⬅️ Volver a 14 – Informe final", use_container_width=True):
+        for prev in ["pages/14_Informe_final.py", "14_Informe_final.py"]:
+            try:
+                st.switch_page(prev)
+                break
+            except Exception:
+                continue
+
+with c2:
+    if st.button("Finalizar ✅", type="primary", use_container_width=True):
+        st.success("Proceso completado. Puedes volver al inicio desde el menú lateral.")
