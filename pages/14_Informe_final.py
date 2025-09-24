@@ -348,10 +348,6 @@ filas = [
 
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
-
-
-st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
-
 ape = None
 if ventas_conc:
     ventas_conc = _num(ventas_conc)
