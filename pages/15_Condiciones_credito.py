@@ -52,10 +52,18 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     poliza = (monto_total / 100000) * 100
     cuota_con_poliza = cuota_base + poliza
 
-    # Cálculo de la TIR
+    # ===== Cálculo de la TIR =====
     flujos = [monto_solicitado + saldo_payoff] + [-cuota_con_poliza for _ in range(plazo_meses)]
-    tir_mensual = npf.irr(flujos)
-    tir_anual = (1 + tir_mensual)**12 - 1 if tir_mensual is not None else None
+    
+    try:
+        tir_mensual = npf.irr(flujos)
+        if tir_mensual is not None and not np.isnan(tir_mensual):
+            tir_anual = (1 + tir_mensual)**12 - 1
+        else:
+            tir_anual = None
+    except Exception:
+        tir_anual = None
+
 
 
     # Mostrar la TIR en el espacio junto a honorarios
