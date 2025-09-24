@@ -53,16 +53,16 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     cuota_con_poliza = cuota_base + poliza
 
     # ===== Cálculo de la TIR =====
-flujos = [monto_total] + [-cuota_con_poliza for _ in range(plazo_meses)]
-
-try:
-    tir_mensual = npf.irr(flujos)
-    if tir_mensual is not None and not np.isnan(tir_mensual):
-        tir_anual = (1 + tir_mensual)**12 - 1
-    else:
+    flujos = [monto_total] + [-cuota_con_poliza for _ in range(plazo_meses)]
+    
+    try:
+        tir_mensual = npf.irr(flujos)
+        if tir_mensual is not None and not np.isnan(tir_mensual):
+            tir_anual = (1 + tir_mensual)**12 - 1
+        else:
+            tir_anual = None
+    except Exception:
         tir_anual = None
-except Exception:
-    tir_anual = None
 
 
 
