@@ -38,12 +38,8 @@ with col5:
         index=0
     )
 
-# Línea 3: honorarios y timbres (hipotecas)
-col6, col7 = st.columns(2)
-with col6:
-    honorarios = st.number_input("Honorarios (₡)", min_value=0, step=10000, value=0)
-with col7:
-    timbres = st.number_input("Timbres (₡)", min_value=0, step=1000, value=0)
+# Línea 3: honorarios y timbres
+honorarios_timbres = st.number_input("Honorarios y timbres (₡)", min_value=0, step=10000, value=0)
 
 # ===== Cálculos =====
 cuota_base = cuota_con_poliza = poliza = 0
@@ -81,10 +77,8 @@ with col2:
         st.metric("Plazo", f"{plazo_meses} meses")
     if poliza:
         st.metric("Póliza INS (mensual)", f"₡{poliza:,.0f}")
-    if honorarios:
-        st.metric("Honorarios", f"₡{honorarios:,.0f}")
-    if timbres:
-        st.metric("Timbres", f"₡{timbres:,.0f}")
+    if honorarios_timbres:
+        st.metric("Honorarios y timbres", f"₡{honorarios_timbres:,.0f}")
 
 st.divider()
 st.subheader("💰 Cuotas calculadas")
