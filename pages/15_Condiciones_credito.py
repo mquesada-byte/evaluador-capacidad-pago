@@ -70,6 +70,7 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Monto solicitado total", f"₡{monto_total:,.0f}")
+        st.metric("Honorarios y timbres", f"₡{honorarios_timbres:,.0f}")
         st.metric("Comisión aplicada", f"{comision_pct:.1f}%")
     with col2:
         st.metric("Saldo pay off", f"₡{saldo_payoff:,.0f}")
