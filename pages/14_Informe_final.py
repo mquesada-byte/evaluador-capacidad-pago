@@ -325,23 +325,29 @@ st.info(coment_val or "—")
 # Análisis de ventas
 st.subheader("III-b. Análisis de ventas")
 
-detalle_conc = vcon.get("detalle", {})
-
-data = [
-    ["Ángulo", "Monto bruto", "Ajuste", "Usado"],
-    ["Top-down (clienta)",
-     _fmt_col(top_raw),
-     txt_ajuste,
-     _fmt_col(top_ajustado)],
-    ["Bottom-up (operativa)",
-     _fmt_col(bottom_val),
-     "—",
-     _fmt_col(bottom_val)],
-    [modo_insumos,
-     _fmt_col(insumos_decl),
-     "—",
-     _fmt_col(insumos_val)],
+filas = [
+    {
+        "Ángulo": "Top-down (clienta)",
+        "Monto bruto": _fmt_col(top_raw),
+        "Ajuste": txt_ajuste,
+        "Usado": _fmt_col(top_ajustado),
+    },
+    {
+        "Ángulo": "Bottom-up (operativa)",
+        "Monto bruto": _fmt_col(bottom_val),
+        "Ajuste": "—",
+        "Usado": _fmt_col(bottom_val),
+    },
+    {
+        "Ángulo": modo_insumos,
+        "Monto bruto": _fmt_col(insumos_decl),
+        "Ajuste": "—",
+        "Usado": _fmt_col(insumos_val),
+    },
 ]
+
+st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+
 
 
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
