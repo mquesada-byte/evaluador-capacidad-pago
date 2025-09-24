@@ -40,9 +40,10 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     else:
         cuota_base = monto_total / n
 
-    # Póliza INS: monto total dividido entre 100 mil
-    poliza = monto_total / 100000
+    # Póliza INS: 100 colones por cada 100 mil del monto solicitado total
+    poliza = (monto_total / 100000) * 100
     cuota_con_poliza = cuota_base + poliza
+
 
 
     # ===== Salida =====
