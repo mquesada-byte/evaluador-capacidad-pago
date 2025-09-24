@@ -601,28 +601,33 @@ def _build_pdf_bytes() -> bytes:
 
 
 
-        
         # ----------------- Estado de Resultados -----------------
-        story.append(Paragraph("Estado de Resultados", h2))
+        story.append(Paragraph("IV. Estado de Resultados", h2))
+        
         er_data = [
-            ["Ventas", _fmt_col(ventas_total)],
-            ["Compras / Costos", _fmt_col(compras_total)],
-            ["Utilidad Bruta", _fmt_col(utilidad_bruta)],
-            ["Gastos Operativos", _fmt_col(gastos_ope_total)],
-            ["Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope)],
-            ["Otros Ingresos", _fmt_col(otros_ing_total)],
-            ["Subtotal post-otros", _fmt_col(subtotal_post_otros)],
-            ["Gastos familiares", _fmt_col(gastos_fam_total)],
-            ["Pago de deudas", _fmt_col(deudas_total)],
-            ["Disponible para préstamo", _fmt_col(disponible_final)],
+            ["Ventas", _fmt_col(ventas_total), "💰"],
+            ["Compras/Costos", _fmt_col(compras_total), "📦"],
+            ["Utilidad Bruta", _fmt_col(utilidad_bruta), "📊"],
+            ["Gastos Operativos", _fmt_col(gastos_ope_total), "🧾"],
+            ["Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope), "📌"],
+            ["Otros Ingresos", _fmt_col(otros_ing_total), "➕"],
+            ["Subtotal post-otros", _fmt_col(subtotal_post_otros), "〰️"],
+            ["Gastos familiares", _fmt_col(gastos_fam_total), "👪"],
+            ["Pago de deudas", _fmt_col(deudas_total), "💳"],
+            ["Disponible para préstamo", _fmt_col(disponible_final), "✅"],
         ]
-        t_er = Table(er_data, colWidths=[200, 200])
+        
+        t_er = Table(er_data, colWidths=[180, 200, 40])
         t_er.setStyle(TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("GRID", (0,0), (-1,-1), 0.25, colors.grey),
             ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-            ("ALIGN", (1,0), (-1,-1), "RIGHT"),
+            ("ALIGN", (1,0), (1,-1), "RIGHT"),
+            ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
         ]))
         story.append(t_er)
+        story.append(Spacer(1, 12))
+
 
         story.append(PageBreak())
 
