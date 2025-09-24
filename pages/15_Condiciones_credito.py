@@ -1,6 +1,8 @@
 # pages/15_Condiciones_credito.py
 import streamlit as st
 import numpy as np
+import numpy_financial as npf
+
 
 st.set_page_config(page_title="Paso 15: Condiciones de Crédito", page_icon="💳")
 
@@ -50,13 +52,11 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     poliza = (monto_total / 100000) * 100
     cuota_con_poliza = cuota_base + poliza
 
-    # Calcular TIR mensual y anualizada
+    # Cálculo de la TIR
     flujos = [monto_solicitado + saldo_payoff] + [-cuota_con_poliza for _ in range(plazo_meses)]
-    try:
-        tir_mensual = np.irr(flujos)
-        tir_anual = (1 + tir_mensual) ** 12 - 1 if tir_mensual is not None else None
-    except Exception:
-        tir_anual = None
+    tir_mensual = npf.irr(flujos)
+    tir_anual = (1 + tir_mensual)**12 - 1 if tir_mensual is not None else None
+
 
     # Mostrar la TIR en el espacio junto a honorarios
     with col7:
