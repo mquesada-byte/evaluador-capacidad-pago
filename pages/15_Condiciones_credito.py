@@ -54,7 +54,6 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
 
     # ===== Cálculo de la TIR =====
     flujos = [monto_total] + [-cuota_con_poliza for _ in range(plazo_meses)]
-    
     try:
         tir_mensual = npf.irr(flujos)
         if tir_mensual is not None and not np.isnan(tir_mensual):
@@ -63,9 +62,6 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
             tir_anual = None
     except Exception:
         tir_anual = None
-
-
-
 
     # Mostrar la TIR en el espacio junto a honorarios
     with col7:
