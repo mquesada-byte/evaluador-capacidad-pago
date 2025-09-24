@@ -12,33 +12,6 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 import pandas as pd
 
-# ---------- Sincronizar Balance General ----------
-def _sync_balance_general():
-    if "reporte" not in st.session_state:
-        return
-    rep = st.session_state["reporte"].setdefault("balance_general", {})
-
-    # Mapear claves de session_state a balance_general
-    mapping = {
-        "bg_inv_mp": "inv_mp",
-        "bg_inv_pp": "inv_pp",
-        "bg_inv_pt": "inv_pt",
-        "bg_cxc_clientes": "cxc_clientes",
-        "bg_caja_bancos": "caja_bancos",
-        "bg_cpp": "cpp",
-        "bg_anticipos": "anticipos",
-        "bg_activo_fijo": "activo_fijo",
-        "bg_comentarios": "comentarios",
-    }
-
-    for state_key, rep_key in mapping.items():
-        if state_key in st.session_state and st.session_state[state_key]:
-            rep[rep_key] = st.session_state[state_key]
-
-# Llamar la sincronización apenas carga el informe
-_sync_balance_general()
-
-
 # ---------- Config ----------
 st.set_page_config(page_title="Paso 14: Informe final", page_icon="📑", layout="centered")
 TZ = ZoneInfo("America/Costa_Rica")
@@ -295,8 +268,17 @@ filas = [
     },
 ]
 
-
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
+
+# Cuadro de estimaciones disponibles (siempre visible)
+st.subheader("Estimaciones de ventas disponibles")
+if estimaciones:
+    df_est = pd.DataFrame(estimaciones)
+else:
+    # Crear un DataFrame vacío con las columnas esperadas
+    df_est = pd.DataFrame(columns=["Fecha", "Ángulo", "Monto (en colones)", "Comentarios"])
+st.dataframe(df_est, use_container_width=True, hide_index=True)
+
 
 ape = None
 if ventas_conc:
@@ -340,86 +322,7 @@ st.markdown("\n".join(comentarios) if comentarios else "—")
 
 st.divider()
 
-
-# ================= ESTADO DE RESULTADOS (resumen) =================
-st.subheader("IV. Estado de Resultados")
-
-er = st.session_state.get("reporte", {}).get("estado_resultados", {})
-
-ventas_total = er.get("ventas_colones")
-compras_total = er.get("compras_costos_colones")
-utilidad_bruta = er.get("utilidad_bruta_colones")
-gastos_ope_total = er.get("gastos_operativos_colones")
-utilidad_neta_ope = er.get("utilidad_neta_operativa_colones")
-otros_ing_total = er.get("otros_ingresos_colones")
-subtotal_post_otros = er.get("subtotal_post_otros_colones")
-gastos_fam_total = er.get("gastos_familiares_colones")
-deudas_total = er.get("pago_de_deudas_colones")
-disponible_final = er.get("disponible_para_prestamo_colones")
-
-if er:
-    col1, col2, col3 = st.columns(3)
-    with col1: st.metric("Ventas", _fmt_col(ventas_total))
-    with col2: st.metric("Compras/Costos", _fmt_col(compras_total))
-    with col3: st.metric("Utilidad Bruta", _fmt_col(utilidad_bruta))
-
-    col4, col5 = st.columns(2)
-    with col4: st.metric("🧾 Gastos Operativos", _fmt_col(gastos_ope_total))
-    with col5: st.metric("📌 Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope))
-
-    st.markdown("---")
-    col6, col7 = st.columns(2)
-    with col6: st.metric("➕ Otros ingresos", _fmt_col(otros_ing_total))
-    with col7: st.metric("Subtotal post-otros", _fmt_col(subtotal_post_otros))
-
-    st.markdown("---")
-    col8, col9 = st.columns(2)
-    with col8: st.metric("👪 Gastos familiares", _fmt_col(gastos_fam_total))
-    with col9: st.metric("💳 Pago de deudas", _fmt_col(deudas_total))
-
-    st.success(f"💰 **Disponible para el préstamo:** {_fmt_col(disponible_final)}")
-else:
-    st.info("No se encontraron datos del Estado de Resultados (Paso 12).")
-
-
-# ================= BALANCE GENERAL (resumen) =================
-st.subheader("V. Balance General")
-
-bg = st.session_state.get("reporte", {}).get("balance_general", {})
-
-tot = bg.get("totales", {}) or {}
-comentarios_bg = bg.get("comentarios", "")
-
-if tot:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("💼 Activo Circulante", _fmt_col(tot.get("activo_circulante")))
-        st.metric("🏭 Activo Fijo Neto", _fmt_col(tot.get("activo_fijo")))
-        st.metric("🧮 Total Activos", _fmt_col(tot.get("total_activos")))
-    with col2:
-        st.metric("💳 Pasivo Circulante", _fmt_col(tot.get("pasivo_circulante")))
-        st.metric("📉 Pasivo Largo Plazo", _fmt_col(tot.get("pasivo_largo")))
-        st.metric("📉 Total Pasivos", _fmt_col(tot.get("total_pasivo")))
-
-    st.markdown("---")
-    col3, col4 = st.columns(2)
-    with col3:
-        st.metric("📈 Patrimonio (Activo - Pasivo)", _fmt_col(tot.get("patrimonio")))
-    with col4:
-        st.metric("🧰 Capital de trabajo (AC - PC)", _fmt_col(tot.get("capital_trabajo")))
-
-    st.markdown("**Comentarios del asesor:**")
-    st.info(comentarios_bg or "—")
-else:
-    st.info("No se encontraron datos del Balance General (Paso 13).")
-
-
-
-
-
 # ======================== PDF =========================
-import io
-
 def _build_pdf_bytes() -> bytes:
     """Construye un PDF del informe usando reportlab y devuelve bytes."""
     try:
@@ -445,7 +348,7 @@ def _build_pdf_bytes() -> bytes:
 
         story = []
 
-        # ----------------- Portada -----------------
+        # Portada
         story.append(Paragraph("Informe de evaluación – Credimujer", h1))
         story.append(Paragraph(f"Fecha de visita: {fecha_str} ({fuente_hora})", p))
         story.append(Paragraph(f"Asesor: {asesor_nombre}", p))
@@ -453,7 +356,7 @@ def _build_pdf_bytes() -> bytes:
             story.append(Paragraph(f"GPS: {float(lat):.6f}, {float(lon):.6f}", p))
         story.append(Spacer(1, 12))
 
-        # ----------------- Cliente -----------------
+        # Cliente y negocio
         story.append(Paragraph("Cliente y negocio", h2))
         story.append(Paragraph(f"Cliente: {cliente_nombre}", p))
         story.append(Paragraph(f"Identificación: {cliente_cedula}", p))
@@ -468,11 +371,13 @@ def _build_pdf_bytes() -> bytes:
         story.append(Paragraph(f"Ubicación / señas: {ubicacion}", p))
         story.append(Spacer(1, 8))
 
-        # ----------------- Valoración -----------------
+        # Valoración
         story.append(Paragraph("Valoración del asesor", h2))
         t_val = Table(
-            [["Conocimiento", "Credibilidad", "Factor", "Percepción", "Clasificación"],
-             [str(conoc), str(cred), f"{factor_asesor:.2f}", dudas, clas]],
+            [
+                ["Conocimiento", "Credibilidad", "Factor", "Percepción", "Clasificación"],
+                [str(conoc), str(cred), f"{factor_asesor:.2f}", dudas, clas],
+            ],
             colWidths=[90, 90, 90, 120, 120]
         )
         t_val.setStyle(TableStyle([
@@ -481,6 +386,7 @@ def _build_pdf_bytes() -> bytes:
             ("ALIGN", (0,0), (-1,-1), "CENTER"),
         ]))
         story.append(t_val)
+        story.append(Spacer(1, 6))
         if evidencia:
             story.append(Paragraph("Evidencia observada:", h3))
             for e in evidencia:
@@ -490,97 +396,89 @@ def _build_pdf_bytes() -> bytes:
 
         story.append(PageBreak())
 
-        # ----------------- Análisis de Ventas -----------------
+        # Análisis de ventas
         story.append(Paragraph("Análisis de ventas", h2))
-
-        detalle_conc = vcon.get("detalle", {})
-
         data = [
             ["Ángulo", "Monto bruto", "Ajuste", "Usado"],
-            ["Top-down (clienta)",
-             _fmt_col(detalle_conc.get("top_down_raw")),
-             detalle_conc.get("top_down_ajuste_txt", "—"),
-             _fmt_col(detalle_conc.get("top_down_ajustado"))],
-            ["Bottom-up (operativa)",
-             _fmt_col(detalle_conc.get("bottom_up_raw")),
-             "—",
-             _fmt_col(detalle_conc.get("bottom_up_raw"))],
-            [detalle_conc.get("insumos_modo", "Insumos/Margen"),
-             _fmt_col(detalle_conc.get("insumos_declarado")),
-             "—",
-             _fmt_col(detalle_conc.get("insumos_estimado"))],
+            ["Top-down (clienta)", _fmt_col(top_raw), (txt_ajuste if top_ajustado else "—"), (_fmt_col(top_ajustado) if top_ajustado else "—")],
+            ["Bottom-up (operativa)", _fmt_col(bottom_val), "—", (_fmt_col(bottom_val) if bottom_val else "—")],
+            ["Insumos/Margen", ("No aplica" if vin.get("no_aplica") else _fmt_col(insumos_val)), "—",
+             ("—" if vin.get("no_aplica") else (_fmt_col(insumos_val) if insumos_val else "—"))],
         ]
-
-
-        
         t_sales = Table(data, colWidths=[150, 110, 120, 110])
         t_sales.setStyle(TableStyle([
             ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
             ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
             ("ALIGN", (1,1), (-1,-1), "RIGHT"),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
         ]))
         story.append(t_sales)
         story.append(Spacer(1, 6))
 
-        # ----------------- Estado de Resultados -----------------
-        story.append(Paragraph("Estado de Resultados", h2))
-        er_data = [
-            ["Ventas", _fmt_col(ventas_total)],
-            ["Compras / Costos", _fmt_col(compras_total)],
-            ["Utilidad Bruta", _fmt_col(utilidad_bruta)],
-            ["Gastos Operativos", _fmt_col(gastos_ope_total)],
-            ["Utilidad Neta Operativa", _fmt_col(utilidad_neta_ope)],
-            ["Otros Ingresos", _fmt_col(otros_ing_total)],
-            ["Subtotal post-otros", _fmt_col(subtotal_post_otros)],
-            ["Gastos familiares", _fmt_col(gastos_fam_total)],
-            ["Pago de deudas", _fmt_col(deudas_total)],
-            ["Disponible para préstamo", _fmt_col(disponible_final)],
-        ]
-        t_er = Table(er_data, colWidths=[200, 200])
-        t_er.setStyle(TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-            ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-            ("ALIGN", (1,0), (-1,-1), "RIGHT"),
-        ]))
-        story.append(t_er)
-
-        story.append(PageBreak())
-
-        # ----------------- Balance General -----------------
-        story.append(Paragraph("Balance General", h2))
-        bg_data = [
-            ["Activo Circulante", _fmt_col(tot.get("activo_circulante"))],
-            ["Activo Fijo Neto", _fmt_col(tot.get("activo_fijo"))],
-            ["Total Activos", _fmt_col(tot.get("total_activos"))],
-            ["Pasivo Circulante", _fmt_col(tot.get("pasivo_circulante"))],
-            ["Pasivo Largo Plazo", _fmt_col(tot.get("pasivo_largo"))],
-            ["Total Pasivos", _fmt_col(tot.get("total_pasivo"))],
-            ["Patrimonio", _fmt_col(tot.get("patrimonio"))],
-            ["Capital de trabajo", _fmt_col(tot.get("capital_trabajo"))],
-        ]
-        t_bg = Table(bg_data, colWidths=[200, 200])
-        t_bg.setStyle(TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-            ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-            ("ALIGN", (1,0), (-1,-1), "RIGHT"),
-        ]))
-        story.append(t_bg)
-
-        if comentarios_bg:
+        # Tabla de estimaciones para el PDF
+        if estimaciones:
+            story.append(Paragraph("Estimaciones de ventas disponibles", h3))
+            est_data = [
+                ["Fecha", "Ángulo", "Monto", "Comentarios"]
+            ]
+            for row in estimaciones:
+                est_data.append([
+                    row.get("Fecha", "—"),
+                    row.get("Ángulo", "—"),
+                    _fmt_col(row.get("Monto (en colones)")),
+                    row.get("Comentarios", "—")
+                ])
+            t_est = Table(est_data, colWidths=[80, 100, 100, 210])
+            t_est.setStyle(TableStyle([
+                ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+                ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+                ("ALIGN", (0,0), (-1,-1), "LEFT"),
+                ("ALIGN", (2,1), (2,-1), "RIGHT"),
+            ]))
+            story.append(t_est)
             story.append(Spacer(1, 6))
-            story.append(Paragraph("Comentarios del Balance:", h3))
-            story.append(Paragraph(comentarios_bg, p))
+
+        if ventas_conc:
+            ape_loc = None
+            if top_ajustado and _num(ventas_conc) > 0:
+                ape_loc = abs(_num(top_ajustado) - _num(ventas_conc)) / _num(ventas_conc)
+            max_dev_loc = max_dev
+            if max_dev_loc is None:
+                pares = []
+                for a, b in [(top_ajustado, bottom_val), (top_ajustado, insumos_val), (bottom_val, insumos_val)]:
+                    d = _desv_pct(a, b)
+                    if d is not None:
+                        pares.append(d)
+                max_dev_loc = max(pares) if pares else None
+
+            story.append(Paragraph(f"Ventas conciliadas: {_fmt_col(ventas_conc)}", p))
+            story.append(Paragraph(f"Precisión de la clienta: {'—' if ape_loc is None else f'{(1-ape_loc):.0%}'}", p))
+            story.append(Paragraph(f"Desviación máx. entre métodos: {'—' if max_dev_loc is None else f'{max_dev_loc:.0%}'}", p))
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(f"Fuente Top-down: {fuente_td or '—'}", p))
+            if pesos:
+                story.append(Paragraph(
+                    f"Ponderaciones conciliación (Top/Bottom/Insumos): "
+                    f"{pesos.get('top_down', 0):.2f} / {pesos.get('bottom_up', 0):.2f} / {pesos.get('insumos', 0):.2f}",
+                    small
+                ))
+
+        if comentarios:
+            story.append(Paragraph("Comentarios específicos de ventas:", h3))
+            for c in comentarios:
+                story.append(Paragraph(c, p))
 
         doc.build(story)
         return buf.getvalue()
-
+    except ImportError:
+        # reportlab no disponible: indicación para instalar
+        st.warning("Para generar PDF necesitás instalar **reportlab** (agregá `reportlab` a `requirements.txt`).")
+        return b""
     except Exception as e:
-        # Si hay error, devolvemos vacío sin cortar la app
-        print(f"Error al generar PDF: {e}")
+        st.error(f"Error al generar el PDF: {e}")
         return b""
 
-
-# =============== Generar PDF y botones ===============
+# Generar bytes del PDF (si reportlab no está, devolverá vacío y ya mostramos aviso)
 pdf_bytes = _build_pdf_bytes()
 file_name = f"Informe_{cliente_nombre.replace(' ', '_')}.pdf"
 
@@ -598,7 +496,7 @@ else:
 
 st.divider()
 
-# ================= Navegación =================
+# Navegación
 c1, c2, c3 = st.columns([0.33, 0.34, 0.33])
 
 with c1:
@@ -612,7 +510,9 @@ with c1:
 
 with c2:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
+        # Marcar paso completado (opcional)
         st.session_state["done_14"] = True
+        # Ir al análisis IA (con y sin tilde por compatibilidad de archivos)
         for nxt in [
             "pages/15_Análisis_IA.py",
             "pages/15_Analisis_IA.py",
