@@ -48,7 +48,7 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     st.subheader("Resultados")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Monto solicitado", f"₡{monto_solicitado:,.0f}")
+        st.metric("Monto solicitado total", f"₡{monto_total:,.0f}")
         st.metric("Honorarios y timbres", f"₡{honorarios_timbres:,.0f}")
         st.metric("Comisión aplicada", f"{comision_pct:.1f}%")
     with col2:
@@ -65,3 +65,4 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
         st.metric("Cuota con póliza", f"₡{cuota_con_poliza:,.0f}")
 else:
     st.info("Por favor completa comisión, tasa y plazo para calcular las cuotas.")
+
