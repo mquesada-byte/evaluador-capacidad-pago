@@ -29,6 +29,8 @@ col6, col7 = st.columns(2)
 with col6:
     honorarios_timbres = st.number_input("Honorarios y timbres (₡)", min_value=0, step=5000, value=0,
                                          help="Monto único que nos cotiza el abogado")
+with col7:
+    tir_output = st.empty()  # 👈 espacio reservado para la TIR anualizada
 
 # ===== Cálculos =====
 if comision_pct and tasa_interes_anual and plazo_meses > 0:
@@ -47,12 +49,19 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     poliza = (monto_total / 100000) * 100
     cuota_con_poliza = cuota_base + poliza
 
-    # Calcular TIR mensual con flujo de caja
+    # Calcular TIR mensual y anualizada
     flujos = [-monto_solicitado] + [-(cuota_con_poliza) for _ in range(plazo_meses)]
     try:
         tir_mensual = np.irr(flujos)
+        tir_anual = (1 + tir_mensual) ** 12 - 1 if tir_mensual is not None else None
     except Exception:
-        tir_mensual = None
+        tir_anual = None
+
+    # Mostrar TIR anualizada en la parte superior
+    if tir_anual is not None:
+        tir_output.metric("TIR anualizada", f"{tir_anual*100:.2f}%")
+    else:
+        tir_output.metric("TIR anualizada", "—")
 
     # ===== Salida =====
     st.subheader("Resultados")
@@ -61,8 +70,6 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
         st.metric("Monto solicitado total", f"₡{monto_total:,.0f}")
         st.metric("Honorarios y timbres", f"₡{honorarios_timbres:,.0f}")
         st.metric("Comisión aplicada", f"{comision_pct:.1f}%")
-        if tir_mensual is not None:
-            st.metric("TIR mensual", f"{tir_mensual*100:.2f}%")
     with col2:
         st.metric("Saldo pay off", f"₡{saldo_payoff:,.0f}")
         st.metric("Tasa de interés anual", f"{tasa_interes_anual:.1f}%")
