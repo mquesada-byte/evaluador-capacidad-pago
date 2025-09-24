@@ -7,3 +7,6 @@ requests
 PyPDF2
 pyodbc
 pymssql
+pandas
+numpy
+numpy-financial
