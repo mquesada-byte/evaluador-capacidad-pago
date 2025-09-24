@@ -50,18 +50,21 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     cuota_con_poliza = cuota_base + poliza
 
     # Calcular TIR mensual y anualizada
-    flujos = [-monto_solicitado] + [-(cuota_con_poliza) for _ in range(plazo_meses)]
+    flujos = [monto_solicitado + saldo_payoff] + [-cuota_con_poliza for _ in range(plazo_meses)]
     try:
         tir_mensual = np.irr(flujos)
         tir_anual = (1 + tir_mensual) ** 12 - 1 if tir_mensual is not None else None
     except Exception:
         tir_anual = None
 
-    # Mostrar TIR anualizada en la parte superior
-    if tir_anual is not None:
-        tir_output.metric("TIR anualizada", f"{tir_anual*100:.2f}%")
-    else:
-        tir_output.metric("TIR anualizada", "—")
+    # Mostrar TIR anualizada junto a Honorarios y timbres
+    with col6:
+        st.metric("Honorarios y timbres", f"₡{honorarios_timbres:,.0f}")
+        if tir_anual is not None and tir_anual > 0:
+            st.metric("TIR anualizada", f"{tir_anual*100:.2f}%")
+        else:
+            st.metric("TIR anualizada", "—")
+
 
     # ===== Salida =====
     st.subheader("Resultados")
