@@ -87,6 +87,29 @@ if st.button("Calcular condiciones"):
         with col7:
             if tir_anual is not None and tir_anual > 0:
                 tir_placeholder.metric("TIR anualizada", f"{tir_anual*100:.2f}%")
+        
+                # 🚨 Verificación contra la ley de usura
+                if monto_total <= MONTO_MAX_MICROCREDITO:
+                    # Caso 1: Microcrédito
+                    if tir_anual * 100 > TASA_MAX_MICROCREDITO:
+                        st.warning(
+                            f"⚠️ ALERTA: La TIR ({tir_anual*100:.2f}%) supera el límite legal para microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
+                        )
+                    else:
+                        st.success(
+                            f"🟢 OK: La TIR ({tir_anual*100:.2f}%) está dentro del límite de microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
+                        )
+                else:
+                    # Caso 2: Crédito normal
+                    if tir_anual * 100 > TASA_MAX_CREDITO:
+                        st.warning(
+                            f"⚠️ ALERTA: La TIR ({tir_anual*100:.2f}%) supera el límite legal para crédito ({TASA_MAX_CREDITO:.2f}%)"
+                        )
+                    else:
+                        st.success(
+                            f"🟢 OK: La TIR ({tir_anual*100:.2f}%) está dentro del límite de crédito ({TASA_MAX_CREDITO:.2f}%)"
+                        )
+        
             else:
                 tir_placeholder.metric("TIR anualizada", "—")
 
