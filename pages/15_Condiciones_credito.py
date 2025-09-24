@@ -42,23 +42,24 @@ with col5:
 honorarios_timbres = st.number_input("Honorarios y timbres (₡)", min_value=0, step=10000, value=0)
 
 # ===== Cálculos =====
-cuota_base = cuota_con_poliza = poliza = 0
-monto_con_comision = 0
+# Fórmula: ((monto solicitado + honorarios y timbres) * (1 + comisión/100)) + saldo pay off
+monto_total = ((monto_solicitado + honorarios_timbres) * (1 + comision_pct / 100)) + saldo_payoff
 
-if monto_solicitado > 0 and comision_pct and tasa_interes_anual and plazo_meses:
-    monto_con_comision = monto_solicitado * (1 + comision_pct / 100)
+tasa_mensual = tasa_interes_anual / 100 / 12
+n = plazo_meses if plazo_meses > 0 else 1
 
-    tasa_mensual = tasa_interes_anual / 100 / 12
-    n = plazo_meses
+if tasa_mensual > 0:
+    cuota_base = monto_total * (tasa_mensual * (1 + tasa_mensual)**n) / ((1 + tasa_mensual)**n - 1)
+else:
+    cuota_base = monto_total / n
 
-    if tasa_mensual > 0:
-        cuota_base = monto_con_comision * (tasa_mensual * (1 + tasa_mensual)**n) / ((1 + tasa_mensual)**n - 1)
-    else:
-        cuota_base = monto_con_comision / n
+# Póliza INS: 100 colones por cada 100 mil de préstamo (incluyendo comisión y honorarios, más pay off)
+poliza = (monto_total / 100000) * 100
+cuota_con_poliza = cuota_base + poliza
 
-    # Póliza INS: 100 colones por cada 100 mil de préstamo (incluyendo comisión)
-    poliza = (monto_con_comision / 100000) * 100
-    cuota_con_poliza = cuota_base + poliza
+
+
+
 
 # ===== Salida =====
 st.subheader("Resultados")
