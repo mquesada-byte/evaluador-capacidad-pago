@@ -40,9 +40,10 @@ if comision_pct and tasa_interes_anual and plazo_meses > 0:
     else:
         cuota_base = monto_total / n
 
-    # Póliza INS: 100 colones por cada 100 mil de préstamo (incluyendo comisión, honorarios y pay off)
-    poliza = (monto_total / 100000) * 100
+    # Póliza INS: monto total dividido entre 100 mil
+    poliza = monto_total / 100000
     cuota_con_poliza = cuota_base + poliza
+
 
     # ===== Salida =====
     st.subheader("Resultados")
