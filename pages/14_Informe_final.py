@@ -141,7 +141,10 @@ def _precision_label(ape):
         return "Media (20–40%)"
     return "Baja (>40%)"
 
-# ---------- Lectura de datos desde session_state ----------
+# --------------------------------------------------
+# LECTURA DE DATOS DESDE LA PAGINA ASESOR
+# --------------------------------------------------
+
 ases = st.session_state.get("asesor", {}) or {}
 rep = st.session_state.get("reporte", {}) or {}
 rep_ases = rep.get("asesor", {}) or {}
@@ -168,7 +171,11 @@ if (not gmap or not osm) and (lat is not None and lon is not None):
     gview = gview or gview_gen
     osm = osm or osm_gen
 
-# Cliente / negocio
+
+# --------------------------------------------------
+# CLIENTE / NEGOCIO
+# --------------------------------------------------
+
 cn = rep.get("cliente_negocio", {}) or {}
 cli_live = st.session_state.get("cliente", {}) or {}
 neg_live = st.session_state.get("negocio", {}) or {}
@@ -188,7 +195,10 @@ antiguedad = cn.get("antiguedad") or _fmt_antiguedad(
     neg_live.get("antiguedad_meses")
 ) or "—"
 
-# Valoración asesor
+
+# --------------------------------------------------
+# VALORACION ASESOR
+# --------------------------------------------------
 val = rep.get("valoracion_asesor", {}) or st.session_state.get("valoracion_asesor", {}) or {}
 conoc = int((val.get("conocimiento_0a10") or 0) if str(val.get("conocimiento_0a10") or "").strip() != "" else 0)
 cred = int((val.get("credibilidad_0a10") or 0) if str(val.get("credibilidad_0a10") or "").strip() != "" else 0)
@@ -204,7 +214,10 @@ else:
     evidencia = []
 coment_val = (val.get("comentario") or "").strip()
 
-# Ventas
+
+# --------------------------------------------------
+# VENTAS
+# --------------------------------------------------
 vtd = rep.get("ventas_topdown", {}) or {}
 top_raw = vtd.get("monto_colones")
 tipicidad = vtd.get("tipicidad")
@@ -374,7 +387,10 @@ if ventas_conc:
             f"{pesos.get('top_down', 0):.2f} / {pesos.get('bottom_up', 0):.2f} / {pesos.get('insumos', 0):.2f}"
         )
 
-# Comentarios específicos
+
+# --------------------------------------------------
+# COMENTARIOS ESPECIFICOS
+# --------------------------------------------------
 comentarios = []
 if coment_td:
     comentarios.append(f"- Top-down (clienta): {coment_td}")
@@ -387,7 +403,11 @@ st.markdown("\n".join(comentarios) if comentarios else "—")
 
 st.divider()
 
-# ================= ESTADO DE RESULTADOS (resumen) =================
+
+# --------------------------------------------------
+# ESTADO DE RESULTADOS (resumen)
+# --------------------------------------------------
+
 st.subheader("IV. Estado de Resultados")
 
 er = st.session_state.get("reporte", {}).get("estado_resultados", {})
@@ -436,7 +456,12 @@ if er:
 else:
     st.info("No se encontraron datos del Estado de Resultados (Paso 12).")
 
-# ================= BALANCE GENERAL (resumen) =================
+
+# --------------------------------------------------
+# BALANCE GENERAL (resumen)
+# --------------------------------------------------
+
+
 st.subheader("V. Balance General")
 
 bg = st.session_state.get("reporte", {}).get("balance_general", {})
@@ -468,7 +493,11 @@ else:
     st.info("No se encontraron datos del Balance General (Paso 13).")
 
 
-# ======================== PDF =========================
+
+# --------------------------------------------------
+# PDF
+# --------------------------------------------------
+
 def _build_pdf_bytes() -> bytes:
     """Construye un PDF del informe usando reportlab y devuelve bytes."""
     try:
