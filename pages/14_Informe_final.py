@@ -330,23 +330,24 @@ detalle_conc = vcon.get("detalle", {})
 filas = [
     {
         "Ángulo": "Top-down (clienta)",
-        "Monto bruto": _fmt_col(detalle_conc.get("top_down_raw")),
-        "Ajuste": detalle_conc.get("top_down_ajuste_txt", "—"),
-        "Usado": _fmt_col(detalle_conc.get("top_down_ajustado")),
+        "Monto bruto": _fmt_col(top_raw),
+        "Ajuste": txt_ajuste,
+        "Usado": _fmt_col(top_ajustado),
     },
     {
         "Ángulo": "Bottom-up (operativa)",
-        "Monto bruto": _fmt_col(detalle_conc.get("bottom_up_raw")),
+        "Monto bruto": _fmt_col(bottom_val),
         "Ajuste": "—",
-        "Usado": _fmt_col(detalle_conc.get("bottom_up_raw")),
+        "Usado": _fmt_col(bottom_val),
     },
     {
-        "Ángulo": detalle_conc.get("insumos_modo", "Insumos/Margen"),
-        "Monto bruto": _fmt_col(detalle_conc.get("insumos_declarado")),
+        "Ángulo": modo_insumos,
+        "Monto bruto": _fmt_col(insumos_decl),
         "Ajuste": "—",
-        "Usado": _fmt_col(detalle_conc.get("insumos_estimado")),
+        "Usado": _fmt_col(insumos_val),
     },
 ]
+
 
 st.dataframe(pd.DataFrame(filas), use_container_width=True, hide_index=True)
 
