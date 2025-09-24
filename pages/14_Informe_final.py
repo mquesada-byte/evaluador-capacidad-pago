@@ -327,25 +327,20 @@ st.subheader("III-b. Análisis de ventas")
 
 detalle_conc = vcon.get("detalle", {})
 
-filas = [
-    {
-        "Ángulo": "Top-down (clienta)",
-        "Monto bruto": _fmt_col(top_raw),
-        "Ajuste": txt_ajuste,
-        "Usado": _fmt_col(top_ajustado),
-    },
-    {
-        "Ángulo": "Bottom-up (operativa)",
-        "Monto bruto": _fmt_col(bottom_val),
-        "Ajuste": "—",
-        "Usado": _fmt_col(bottom_val),
-    },
-    {
-        "Ángulo": modo_insumos,
-        "Monto bruto": _fmt_col(insumos_decl),
-        "Ajuste": "—",
-        "Usado": _fmt_col(insumos_val),
-    },
+data = [
+    ["Ángulo", "Monto bruto", "Ajuste", "Usado"],
+    ["Top-down (clienta)",
+     _fmt_col(top_raw),
+     txt_ajuste,
+     _fmt_col(top_ajustado)],
+    ["Bottom-up (operativa)",
+     _fmt_col(bottom_val),
+     "—",
+     _fmt_col(bottom_val)],
+    [modo_insumos,
+     _fmt_col(insumos_decl),
+     "—",
+     _fmt_col(insumos_val)],
 ]
 
 
