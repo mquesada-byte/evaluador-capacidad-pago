@@ -8,21 +8,22 @@ st.caption("Cálculo de la cuota con y sin póliza del INS.")
 
 # ===== Entradas =====
 col1, col2 = st.columns(2)
-
 with col1:
     monto_solicitado = st.number_input("Monto solicitado (₡)", min_value=0, step=50000, value=0)
-    tasa_opts = ["", 14, 22, 24, 26, 30, 34]
-    tasa_interes_anual = st.selectbox("Tasa de interés anual (%)", tasa_opts, index=0)
-
 with col2:
-    comision_opts = ["", 1.5, 2, 4, 6, 8, 10]
-    comision_pct = st.selectbox("Porcentaje de comisión (%)", comision_opts, index=0)
-    plazo_meses = st.number_input("Plazo (meses)", min_value=0, max_value=120, step=1, value=0)
+    saldo_payoff = st.number_input("Saldo Pay Off (₡)", min_value=0, step=50000, value=0)
+    st.caption("Saldo pay off solo para recréditos")
 
-st.divider()
+col3, col4, col5 = st.columns(3)
+with col3:
+    comision_pct = st.selectbox("Porcentaje de comisión (%)", [1.5, 2, 4, 6, 8, 10], index=None, placeholder="Selecciona...")
+with col4:
+    tasa_interes_anual = st.selectbox("Tasa de interés anual (%)", [14, 22, 24, 26, 30, 34], index=None, placeholder="Selecciona...")
+with col5:
+    plazo_meses = st.number_input("Plazo (meses)", min_value=6, max_value=120, step=1, value=0)
 
-# ===== Validación de campos =====
-if monto_solicitado > 0 and plazo_meses > 0 and comision_pct != "" and tasa_interes_anual != "":
+# ===== Validación =====
+if monto_solicitado > 0 and comision_pct and tasa_interes_anual and plazo_meses > 0:
     # ===== Cálculos =====
     monto_con_comision = monto_solicitado * (1 + comision_pct / 100)
 
@@ -40,23 +41,23 @@ if monto_solicitado > 0 and plazo_meses > 0 and comision_pct != "" and tasa_inte
 
     # ===== Salida =====
     st.subheader("Resultados")
-    col1, col2 = st.columns(2)
-    with col1:
+    colr1, colr2 = st.columns(2)
+    with colr1:
         st.metric("Monto solicitado", f"₡{monto_solicitado:,.0f}")
-        st.metric("Comisión aplicada", f"{comision_pct:.1f}%")
         st.metric("Monto con comisión", f"₡{monto_con_comision:,.0f}")
-    with col2:
+        st.metric("Saldo Pay Off", f"₡{saldo_payoff:,.0f}")
+    with colr2:
+        st.metric("Comisión aplicada", f"{comision_pct:.1f}%")
         st.metric("Tasa de interés anual", f"{tasa_interes_anual:.1f}%")
         st.metric("Plazo", f"{plazo_meses} meses")
         st.metric("Póliza INS (mensual)", f"₡{poliza:,.0f}")
 
     st.divider()
     st.subheader("💰 Cuotas calculadas")
-    col3, col4 = st.columns(2)
-    with col3:
+    colq1, colq2 = st.columns(2)
+    with colq1:
         st.metric("Cuota sin póliza", f"₡{cuota_base:,.0f}")
-    with col4:
+    with colq2:
         st.metric("Cuota con póliza", f"₡{cuota_con_poliza:,.0f}")
-
 else:
-    st.info("⚠️ Complete todos los campos para calcular la cuota.")
+    st.info("Por favor ingresa el monto, comisión, tasa y plazo para calcular las condiciones.")
