@@ -5,13 +5,6 @@ from utils.db import save_balance_general, load_visita   # 👈 agregado load_vi
 
 st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
 
-st.title("📒 Paso 13: Balance General")
-st.caption(
-    "Registre y/o verifique los saldos para construir el Balance General. "
-    "Los pasivos por deudas se toman automáticamente del **Paso 9 – Deudas activas**: "
-    "corto plazo → pasivo circulante; largo plazo → pasivo a largo plazo."
-)
-
 # ========= Helpers =========
 def _as_df(obj, cols=None, placeholder=None):
     """Convierte obj a DataFrame, o devuelve placeholder si está vacío."""
