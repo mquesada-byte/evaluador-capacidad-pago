@@ -63,7 +63,6 @@ bg_saved = st.session_state["reporte"].get("balance_general", {})
 
 
 
-
 # 👇 Ajuste: cargar desde SQL si no hay en session_state
 if not bg_saved:
     cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
