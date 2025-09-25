@@ -4,6 +4,7 @@ import io
 import datetime as dt
 import streamlit as st
 import pandas as pd  # opcional, por si lo necesitás más adelante
+import statistics
 
 st.set_page_config(page_title="Paso 15: Análisis asistido (IA)", page_icon="🤖")
 
@@ -99,6 +100,54 @@ def _perfil_cliente(rep: dict) -> str:
 - Observaciones: {"; ".join(incoherencias) if incoherencias else "Sin incoherencias aparentes"}.
 """
 
+# ====== Análisis de Ventas ======
+def _analisis_ventas(rep: dict) -> str:
+    vtd = (rep.get("ventas_topdown") or {})
+    vbu = (rep.get("ventas_bottomup") or {})
+    vin = (rep.get("ventas_p5") or {})
+    vas = (rep.get("valoracion_asesor") or {})
+
+    # Valores numéricos
+    monto_td = _num(vtd.get("monto_colones"))
+    monto_bu = _num(vbu.get("ventas_estimadas_colones"))
+    monto_in = _num(vin.get("ventas_estimadas_colones"))
+    ventas_list = [m for m in [monto_td, monto_bu, monto_in] if m > 0]
+
+    promedio = statistics.mean(ventas_list) if ventas_list else 0
+    desv = statistics.pstdev(ventas_list) if len(ventas_list) > 1 else 0
+    rango = max(ventas_list) - min(ventas_list) if len(ventas_list) > 1 else 0
+
+    # % verificación según evidencias
+    evidencias = vas.get("evidencia", [])
+    verificados = 0
+    if "Facturación/POS" in evidencias: verificados += 1
+    if "Extractos bancarios" in evidencias: verificados += 1
+    if "Cuaderno/Excel" in evidencias: verificados += 1
+    total_fuentes = 3
+    pct_verificado = verificados / total_fuentes if total_fuentes else 0
+
+    # Factor asesor
+    factor_asesor = float(vas.get("factor_asesor_0a1") or 0.7)
+
+    # Estimación ajustada
+    estimacion_final = promedio * (0.5 + 0.5 * pct_verificado) * factor_asesor
+
+    return f"""
+**Análisis de las Ventas:**
+- Top-down declarado: {_fmt_col(monto_td)}
+- Bottom-up estimado: {_fmt_col(monto_bu)}
+- Insumos/margen: {_fmt_col(monto_in)}
+
+- Promedio simple: {_fmt_col(promedio)}
+- Desviación estándar entre métodos: {_fmt_col(desv)}
+- Rango (máx – mín): {_fmt_col(rango)}
+
+- Porcentaje de verificación documental: {pct_verificado:.0%}
+- Factor de asesor aplicado: {factor_asesor:.2f}
+
+**Estimación ajustada de ventas:** {_fmt_col(estimacion_final)}
+"""
+
 def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     er = rep.get("estado_resultados", {}) or {}
     bg = rep.get("balance_general", {}) or {}
@@ -117,6 +166,7 @@ def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     capital_trabajo = bg.get("capital_trabajo")
 
     perfil = _perfil_cliente(rep)
+    analisis_ventas = _analisis_ventas(rep)
 
     return f"""
 Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago**, **riesgos** y **recomendación**. 
@@ -124,6 +174,10 @@ Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, 
 Primero, incluye la siguiente evaluación inicial:
 
 {perfil}
+
+Segundo, incorpora un análisis específico de las ventas:
+
+{analisis_ventas}
 
 Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en los siguientes reglamentos internos:
 
@@ -147,14 +201,18 @@ Datos del cliente (valores mensuales y totales):
 
 Entrega la respuesta en **Markdown** con estas secciones:
 1) Evaluación del cliente y negocio
-2) Fortalezas del negocio (viñetas)
-3) Riesgos / banderas rojas (viñetas)
-4) Lectura financiera (2–3 párrafos)
-5) Capacidad de pago y holgura (cálculos simples con los datos)
-6) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
-7) Pendientes de verificación (checklist breve)
+2) Análisis de las ventas (comparativo y confiabilidad)
+3) Fortalezas del negocio (viñetas)
+4) Riesgos / banderas rojas (viñetas)
+5) Lectura financiera (2–3 párrafos)
+6) Capacidad de pago y holgura (cálculos simples con los datos)
+7) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
+8) Pendientes de verificación (checklist breve)
 Concluye con un párrafo final de criterio del analista.
     """.strip()
+
+# (el resto del archivo sigue igual, sin cambios)
+
 
 def _fallback_local(rep: dict) -> str:
     er = rep.get("estado_resultados", {}) or {}
