@@ -32,11 +32,7 @@ try:
     conn.close()
 
 except Exception as e:
-    err_msg = str(e)
-    if "40613" in err_msg or "not currently available" in err_msg:
-        st.warning("⚠️ No se ha podido conectar a la base de datos. Intente nuevamente en unos minutos.")
-    else:
-        st.error(f"❌ Error inesperado: {err_msg}")
+    st.error(f"❌ Error: {e}")
 
 
 
