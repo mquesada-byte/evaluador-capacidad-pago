@@ -75,12 +75,20 @@ st.subheader("I. Activo Circulante")
 
 # ========= Helpers =========
 def _normalize_section(data, expected_cols, placeholder, rename_map=None):
+    import pandas as pd
     try:
-        df = pd.DataFrame(data)
+        # Si viene como dict con "data"
+        if isinstance(data, dict) and "data" in data:
+            df = pd.DataFrame(data["data"])
+        # Si viene como string JSON
+        elif isinstance(data, str):
+            import json
+            df = pd.DataFrame(json.loads(data))
+        else:
+            df = pd.DataFrame(data)
     except Exception:
         df = pd.DataFrame()
 
-    # Renombrar columnas si hay un mapeo
     if rename_map:
         df = df.rename(columns=rename_map)
 
@@ -91,6 +99,7 @@ def _normalize_section(data, expected_cols, placeholder, rename_map=None):
     if df.empty:
         return placeholder.copy()
     return df[expected_cols]
+
 
 
 # 1) Caja y Bancos
