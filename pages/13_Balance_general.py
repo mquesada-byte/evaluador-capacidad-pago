@@ -74,17 +74,24 @@ if not bg_saved:
 st.subheader("I. Activo Circulante")
 
 # ========= Helpers =========
-def _normalize_section(data, expected_cols, placeholder):
+def _normalize_section(data, expected_cols, placeholder, rename_map=None):
     try:
         df = pd.DataFrame(data)
     except Exception:
         df = pd.DataFrame()
+
+    # Renombrar columnas si hay un mapeo
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
     for col in expected_cols:
         if col not in df.columns:
             df[col] = None
+
     if df.empty:
         return placeholder.copy()
     return df[expected_cols]
+
 
 # 1) Caja y Bancos
 st.markdown("**Caja y bancos**")
