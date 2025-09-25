@@ -73,55 +73,18 @@ if not bg_saved:
 # ===================== ACTIVO CIRCULANTE =====================
 st.subheader("I. Activo Circulante")
 
-# ========= Helpers =========
-def _normalize_section(data, expected_cols, placeholder, rename_map=None):
-    import pandas as pd
-    try:
-        # Si viene como dict con "data"
-        if isinstance(data, dict) and "data" in data:
-            df = pd.DataFrame(data["data"])
-        # Si viene como string JSON
-        elif isinstance(data, str):
-            import json
-            df = pd.DataFrame(json.loads(data))
-        else:
-            df = pd.DataFrame(data)
-    except Exception:
-        df = pd.DataFrame()
-
-    if rename_map:
-        df = df.rename(columns=rename_map)
-
-    for col in expected_cols:
-        if col not in df.columns:
-            df[col] = None
-
-    if df.empty:
-        return placeholder.copy()
-    return df[expected_cols]
-
-
-
 # 1) Caja y Bancos
 st.markdown("**Caja y bancos**")
 caja_placeholder = pd.DataFrame([{
     "Cuenta/Banco": "", "Saldo (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
-
 caja_df = st.data_editor(
-    _normalize_section(
-        bg_saved.get("caja_bancos", []),
-        caja_placeholder.columns,
-        caja_placeholder,
-        rename_map={
-            "descripcion": "Cuenta/Banco",
-            "monto": "Saldo (₡)",
-            "verificado": "Verificado por asesor",
-            "evidencia": "Tipo de evidencia",
-            "comentario": "Comentario"
-        }
-    ),
+    _as_df(bg_saved.get("caja_bancos"), cols=caja_placeholder.columns, placeholder=caja_placeholder),
+    
+    
+    
+    
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_caja_bancos",
     column_config={
         "Cuenta/Banco": st.column_config.TextColumn("Cuenta/Banco"),
@@ -131,14 +94,9 @@ caja_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-
 caja_total = int(pd.to_numeric(caja_df.get("Saldo (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
-
-
-
-
 
 # 2) Cuentas por cobrar
 st.markdown("**Cuentas por cobrar a clientes**")
