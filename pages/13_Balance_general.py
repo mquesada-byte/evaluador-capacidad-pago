@@ -5,14 +5,14 @@ from utils.db import save_balance_general, load_visita   # 👈 agregado load_vi
 
 
 # 🔹 Inicializar variable de sesión "reporte" si no existe
-if "reporte" not in st.session_state:
-    st.session_state["reporte"] = {
-        "caja_bancos": [],
-        "inventario": [],
-        "propiedades": [],
-        "deudas": [],
-        "otros_activos": []
-    }
+# if "reporte" not in st.session_state:
+#    st.session_state["reporte"] = {
+ #       "caja_bancos": [],
+  #      "inventario": [],
+   #     "propiedades": [],
+    #    "deudas": [],
+     #   "otros_activos": []
+    #}
 
 
 
