@@ -54,13 +54,12 @@ evidencias = [
     "Contrato", "Inventario físico", "Fotos/Video", "Otro", "No aplica"
 ]
 
-# Recuperar datos guardados si existen
-# bg_saved = st.session_state.get("reporte", {}).get("balance_general", {})
-
-
+# Inicializar "reporte" en session_state si no existe
 if "reporte" not in st.session_state:
     st.session_state["reporte"] = {"balance_general": {}}
 
+# Recuperar datos guardados si existen
+bg_saved = st.session_state["reporte"].get("balance_general", {})
 
 
 
