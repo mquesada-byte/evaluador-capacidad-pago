@@ -130,6 +130,7 @@ st.markdown("---")
 
 
 
+
 # 2) Cuentas por cobrar
 st.markdown("**Cuentas por cobrar a clientes**")
 cxc_placeholder = pd.DataFrame([{
