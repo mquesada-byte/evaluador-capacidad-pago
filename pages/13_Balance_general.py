@@ -80,7 +80,12 @@ caja_placeholder = pd.DataFrame([{
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
 caja_df = st.data_editor(
-    _as_df(bg_saved.get("caja_bancos"), cols=caja_placeholder.columns, placeholder=caja_placeholder),
+    # _as_df(bg_saved.get("caja_bancos"), cols=caja_placeholder.columns, placeholder=caja_placeholder),
+
+    _normalize_section(bg_saved.get("caja_bancos", []), caja_placeholder.columns, caja_placeholder)
+
+
+    
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_caja_bancos",
     column_config={
         "Cuenta/Banco": st.column_config.TextColumn("Cuenta/Banco"),
