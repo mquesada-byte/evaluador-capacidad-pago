@@ -94,7 +94,18 @@ caja_placeholder = pd.DataFrame([{
 } for _ in range(3)])
 
 caja_df = st.data_editor(
-    _normalize_section(bg_saved.get("caja_bancos", []), caja_placeholder.columns, caja_placeholder),
+    _normalize_section(
+        bg_saved.get("caja_bancos", []),
+        caja_placeholder.columns,
+        caja_placeholder,
+        rename_map={
+            "descripcion": "Cuenta/Banco",
+            "monto": "Saldo (₡)",
+            "verificado": "Verificado por asesor",
+            "evidencia": "Tipo de evidencia",
+            "comentario": "Comentario"
+        }
+    ),
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_caja_bancos",
     column_config={
         "Cuenta/Banco": st.column_config.TextColumn("Cuenta/Banco"),
@@ -108,6 +119,7 @@ caja_df = st.data_editor(
 caja_total = int(pd.to_numeric(caja_df.get("Saldo (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
+
 
 
 
