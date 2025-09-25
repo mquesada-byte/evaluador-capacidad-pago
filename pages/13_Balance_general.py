@@ -3,17 +3,6 @@ import streamlit as st
 import pandas as pd
 from utils.db import save_balance_general, load_visita   # 👈 agregado load_visita
 
-
-import streamlit as st
-
-# Inicializar la clave 'reporte' si no existe
-if "reporte" not in st.session_state:
-    st.session_state["reporte"] = None  # O cualquier valor por defecto, por ejemplo: {}
-
-# Ahora ya puedes usar st.session_state["reporte"] con seguridad
-
-
-
 st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
 
 st.title("📒 Paso 13: Balance General")
@@ -374,9 +363,3 @@ with c2:
         else:
             st.success("Balance general guardado. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
-
-
-
-
-
-
