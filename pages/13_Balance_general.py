@@ -3,6 +3,20 @@ import streamlit as st
 import pandas as pd
 from utils.db import save_balance_general, load_visita   # 👈 agregado load_visita
 
+
+# 🔹 Inicializar variable de sesión "reporte" si no existe
+if "reporte" not in st.session_state:
+    st.session_state["reporte"] = {
+        "caja_bancos": [],
+        "inventario": [],
+        "propiedades": [],
+        "deudas": [],
+        "otros_activos": []
+    }
+
+
+
+
 st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
 
 st.title("📒 Paso 13: Balance General")
