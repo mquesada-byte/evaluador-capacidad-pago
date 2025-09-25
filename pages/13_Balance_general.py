@@ -73,6 +73,19 @@ if not bg_saved:
 # ===================== ACTIVO CIRCULANTE =====================
 st.subheader("I. Activo Circulante")
 
+# ========= Helpers =========
+def _normalize_section(data, expected_cols, placeholder):
+    try:
+        df = pd.DataFrame(data)
+    except Exception:
+        df = pd.DataFrame()
+    for col in expected_cols:
+        if col not in df.columns:
+            df[col] = None
+    if df.empty:
+        return placeholder.copy()
+    return df[expected_cols]
+
 # 1) Caja y Bancos
 st.markdown("**Caja y bancos**")
 caja_placeholder = pd.DataFrame([{
@@ -95,6 +108,7 @@ caja_df = st.data_editor(
 caja_total = int(pd.to_numeric(caja_df.get("Saldo (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
+
 
 
 # 2) Cuentas por cobrar
