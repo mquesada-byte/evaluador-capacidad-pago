@@ -3,7 +3,7 @@ import os
 import io
 import datetime as dt
 import streamlit as st
-import pandas as pd  # opcional, por si lo necesitás más adelante
+import pandas as pd
 import statistics
 
 st.set_page_config(page_title="Paso 15: Análisis asistido (IA)", page_icon="🤖")
@@ -25,9 +25,8 @@ def _fmt_col(x):
     except Exception:
         return "₡ 0"
 
-# ====== Leer reglamentos (solo una vez) ======
+# ====== Leer reglamentos ======
 def _load_pdf_text(path: str) -> str:
-    """Carga un PDF desde ruta y devuelve texto plano."""
     try:
         from PyPDF2 import PdfReader
         if not os.path.exists(path):
@@ -45,19 +44,17 @@ if "reglamentos_texto" not in st.session_state:
     texto_fondo   = _load_pdf_text(os.path.join("assets", "reglamento_del_fondo_de_utilidad_pública.pdf"))
     st.session_state["reglamentos_texto"] = f"{texto_credito}\n\n{texto_fondo}".strip()
 
-# ====== Perfil inicial del cliente ======
+# ====== Perfil cliente ======
 def _perfil_cliente(rep: dict) -> str:
     cliente = st.session_state.get("cliente", {})
     negocio = st.session_state.get("negocio", {})
 
-    # Formalidad
     faltantes = []
     if not negocio.get("persona_juridica"):
         faltantes.append("carece de personería jurídica")
     if not negocio.get("registros_contables"):
         faltantes.append("no lleva registros contables")
 
-    # Sueldos en gastos operativos
     gastos_tabla = (rep.get("gastos_operativos") or {}).get("tabla", [])
     sueldos = next((r for r in gastos_tabla if str(r.get("Rubro", "")).lower() == "sueldos"), None)
     monto_sueldos = 0
@@ -70,11 +67,8 @@ def _perfil_cliente(rep: dict) -> str:
         faltantes.append("no asigna un salario (sueldos = 0)")
 
     es_informal = len(faltantes) > 0
-
-    # Tipo de negocio
     tipo_local = negocio.get("tipo_local", "N/D")
 
-    # Antigüedad
     anios = negocio.get("antiguedad_anios", 0)
     meses = negocio.get("antiguedad_meses", 0)
     total_meses = anios * 12 + meses
@@ -85,7 +79,6 @@ def _perfil_cliente(rep: dict) -> str:
     else:
         etapa = "fase de consolidación (>5 años)"
 
-    # Patente
     patente = negocio.get("patente_municipal", False)
     incoherencias = []
     if not patente and negocio.get("registros_contables"):
@@ -107,7 +100,6 @@ def _analisis_ventas(rep: dict) -> str:
     vin = (rep.get("ventas_p5") or {})
     vas = (rep.get("valoracion_asesor") or {})
 
-    # Valores numéricos
     monto_td = _num(vtd.get("monto_colones"))
     monto_bu = _num(vbu.get("ventas_estimadas_colones"))
     monto_in = _num(vin.get("ventas_estimadas_colones"))
@@ -117,19 +109,14 @@ def _analisis_ventas(rep: dict) -> str:
     desv = statistics.pstdev(ventas_list) if len(ventas_list) > 1 else 0
     rango = max(ventas_list) - min(ventas_list) if len(ventas_list) > 1 else 0
 
-    # % verificación según evidencias
     evidencias = vas.get("evidencia", [])
     verificados = 0
     if "Facturación/POS" in evidencias: verificados += 1
     if "Extractos bancarios" in evidencias: verificados += 1
     if "Cuaderno/Excel" in evidencias: verificados += 1
-    total_fuentes = 3
-    pct_verificado = verificados / total_fuentes if total_fuentes else 0
+    pct_verificado = verificados / 3 if 3 else 0
 
-    # Factor asesor
     factor_asesor = float(vas.get("factor_asesor_0a1") or 0.7)
-
-    # Estimación ajustada
     estimacion_final = promedio * (0.5 + 0.5 * pct_verificado) * factor_asesor
 
     return f"""
@@ -148,6 +135,65 @@ def _analisis_ventas(rep: dict) -> str:
 **Estimación ajustada de ventas:** {_fmt_col(estimacion_final)}
 """
 
+# ====== Ratios Financieros ======
+def _ratios_financieros(rep: dict) -> str:
+    er = rep.get("estado_resultados", {}) or {}
+    bg = (rep.get("balance_general") or {}).get("totales", {}) or {}
+
+    ventas = _num(er.get("ventas_colones"))
+    utilidad_neta_ope = _num(er.get("utilidad_neta_operativa_colones"))
+    disponible = _num(er.get("disponible_para_prestamo_colones"))
+    gastos_fam = _num(er.get("gastos_familiares_colones"))
+    otros_ing = _num(er.get("otros_ingresos_colones"))
+    deudas = _num(er.get("pago_de_deudas_colones"))
+
+    # --- ratios ER ---
+    margen_operativo = (utilidad_neta_ope / ventas) if ventas > 0 else None
+    dscr = (disponible + deudas) / deudas if deudas > 0 else None
+    gastos_fam_ratio = gastos_fam / (ventas + otros_ing) if (ventas + otros_ing) > 0 else None
+
+    # --- ratios BG ---
+    activo_circ = _num(bg.get("activo_circulante"))
+    pasivo_circ = _num(bg.get("pasivo_circulante"))
+    total_activos = _num(bg.get("total_activos"))
+    total_pasivo = _num(bg.get("total_pasivo"))
+    patrimonio = _num(bg.get("patrimonio"))
+
+    razon_circulante = (activo_circ / pasivo_circ) if pasivo_circ > 0 else None
+    apalancamiento = (total_pasivo / patrimonio) if patrimonio > 0 else None
+    solvencia = (patrimonio / total_activos) if total_activos > 0 else None
+
+    def _fmt_pct(val):
+        return f"{val:.2%}" if val is not None else "N/D"
+
+    def _semaforo_ratio(nombre, val, bueno, medio, invertido=False):
+        """Clasifica un ratio según umbrales"""
+        if val is None:
+            return f"- {nombre}: N/D ⚪"
+        if invertido:
+            if val <= bueno: color = "🟢"
+            elif val <= medio: color = "🟡"
+            else: color = "🔴"
+        else:
+            if val >= bueno: color = "🟢"
+            elif val >= medio: color = "🟡"
+            else: color = "🔴"
+        return f"- {nombre}: {_fmt_pct(val)} {color}"
+
+    return f"""
+**Análisis de Ratios Financieros:**
+
+{_semaforo_ratio("Margen operativo", margen_operativo, 0.20, 0.10)}
+{_semaforo_ratio("DSCR (cobertura deuda)", dscr, 1.5, 1.0)}
+{_semaforo_ratio("Gastos familiares / Ingresos", gastos_fam_ratio, 0.30, 0.40, invertido=True)}
+
+{_semaforo_ratio("Razón circulante (AC/PC)", razon_circulante, 1.5, 1.0)}
+{_semaforo_ratio("Apalancamiento (Deuda/Patrimonio)", apalancamiento, 2.0, 3.0, invertido=True)}
+{_semaforo_ratio("Solvencia (Patrimonio/Activos)", solvencia, 0.40, 0.25)}
+"""
+
+
+# ====== Prompt ======
 def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     er = rep.get("estado_resultados", {}) or {}
     bg = rep.get("balance_general", {}) or {}
@@ -160,29 +206,31 @@ def _mk_prompt(rep: dict, tono: str, reglamento: str) -> str:
     deudas_mens = er.get("pago_de_deudas_colones") or deudas.get("total_pago_mensual_colones")
     disponible = er.get("disponible_para_prestamo_colones")
 
-    pasivo_circ = ((bg.get("pasivo") or {}).get("pasivo_circulante") or {}).get("total_pasivo_circulante")
-    pasivo_largo = (bg.get("pasivo") or {}).get("pasivo_largo_plazo")
-    patrimonio = bg.get("patrimonio")
-    capital_trabajo = bg.get("capital_trabajo")
+    pasivo_circ = ((bg.get("totales") or {}).get("pasivo_circulante"))
+    pasivo_largo = ((bg.get("totales") or {}).get("pasivo_largo"))
+    patrimonio = (bg.get("totales") or {}).get("patrimonio")
+    capital_trabajo = (bg.get("totales") or {}).get("capital_trabajo")
 
     perfil = _perfil_cliente(rep)
     analisis_ventas = _analisis_ventas(rep)
+    ratios_financieros = _ratios_financieros(rep)
 
     return f"""
-Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un **análisis de capacidad de pago**, **riesgos** y **recomendación**. 
+Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, realiza un análisis integral.
 
-Primero, incluye la siguiente evaluación inicial:
-
+1) Evaluación del cliente y negocio:
 {perfil}
 
-Segundo, incorpora un análisis específico de las ventas:
-
+2) Análisis de las ventas:
 {analisis_ventas}
+
+3) Análisis de ratios financieros:
+{ratios_financieros}
 
 Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en los siguientes reglamentos internos:
 
 ---
-{reglamento[:3000]}  # solo primeros 3000 caracteres para no saturar el prompt
+{reglamento[:3000]}
 ---
 
 Datos del cliente (valores mensuales y totales):
@@ -202,14 +250,19 @@ Datos del cliente (valores mensuales y totales):
 Entrega la respuesta en **Markdown** con estas secciones:
 1) Evaluación del cliente y negocio
 2) Análisis de las ventas (comparativo y confiabilidad)
-3) Fortalezas del negocio (viñetas)
-4) Riesgos / banderas rojas (viñetas)
-5) Lectura financiera (2–3 párrafos)
-6) Capacidad de pago y holgura (cálculos simples con los datos)
-7) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
-8) Pendientes de verificación (checklist breve)
+3) Análisis de ratios financieros
+4) Fortalezas del negocio (viñetas)
+5) Riesgos / banderas rojas (viñetas)
+6) Lectura financiera (2–3 párrafos)
+7) Capacidad de pago y holgura (cálculos simples con los datos)
+8) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
+9) Pendientes de verificación (checklist breve)
+
 Concluye con un párrafo final de criterio del analista.
     """.strip()
+
+
+
 
 # (el resto del archivo sigue igual, sin cambios)
 
