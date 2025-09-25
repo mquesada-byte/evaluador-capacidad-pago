@@ -54,12 +54,13 @@ evidencias = [
     "Contrato", "Inventario físico", "Fotos/Video", "Otro", "No aplica"
 ]
 
-# Inicializar "reporte" en session_state si no existe
-if "reporte" not in st.session_state:
+# Inicializar "reporte" en session_state si no existe o si no es dict
+if "reporte" not in st.session_state or not isinstance(st.session_state["reporte"], dict):
     st.session_state["reporte"] = {"balance_general": {}}
 
 # Recuperar datos guardados si existen
 bg_saved = st.session_state["reporte"].get("balance_general", {})
+
 
 
 
