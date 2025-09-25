@@ -55,7 +55,15 @@ evidencias = [
 ]
 
 # Recuperar datos guardados si existen
-bg_saved = st.session_state.get("reporte", {}).get("balance_general", {})
+# bg_saved = st.session_state.get("reporte", {}).get("balance_general", {})
+
+
+if "reporte" not in st.session_state:
+    st.session_state["reporte"] = {"balance_general": {}}
+
+
+
+
 
 # 👇 Ajuste: cargar desde SQL si no hay en session_state
 if not bg_saved:
