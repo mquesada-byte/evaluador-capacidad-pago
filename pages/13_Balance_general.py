@@ -190,14 +190,12 @@ if cliente_id and mes_iso:
     except Exception as e:
         st.warning(f"No se pudieron cargar los datos de Materia Prima: {e}")
 
-
-
 mp_df = st.data_editor(
     mp_df,
     use_container_width=True,
     num_rows="dynamic",
     hide_index=True,
-    key="bg_inv_materia_prima",
+    key="bg_inv_materia_prima",  # misma lógica: key fija como en caja/cxc
     column_config={
         "Descripción": st.column_config.TextColumn("Descripción"),
         "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
@@ -213,6 +211,7 @@ mp_df = st.data_editor(
 mp_total = int(pd.to_numeric(mp_df["Monto (₡)"], errors="coerce").fillna(0).sum())
 st.metric("Subtotal Materia Prima", f"₡{mp_total:,.0f}")
 st.markdown("---")
+
 
 
 
