@@ -294,7 +294,7 @@ with col2:
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
                 WHERE cliente_identificacion = ? AND mes_iso = ? 
-                  AND seccion IN ('caja_bancos','cxc_clientes','inv_materia_prima')
+                  AND seccion IN ('caja_bancos','cxc_clientes','inv_mp')
             """, (cliente_id, mes_iso))
 
             
