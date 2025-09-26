@@ -142,6 +142,85 @@ st.metric("Subtotal Cuentas por Cobrar", f"₡{cxc_total:,.0f}")
 st.markdown("---")
 
 
+
+# --- Sección Inventario ---
+st.markdown("### 3) Inventario")
+
+# --- Sub-sección: Materia Prima ---
+st.markdown("#### a) Materia Prima")
+
+# --- Placeholder de la UI (Materia Prima) ---
+mp_placeholder = pd.DataFrame([{
+    "Descripción": "",
+    "Monto (₡)": 0,
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
+mp_df = mp_placeholder.copy()
+
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT descripcion, monto, verificado, evidencia, comentario
+            FROM balancegeneraldetalles
+            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_materia_prima'
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            mp_df = pd.DataFrame.from_records(
+                rows,
+                columns=[
+                    "Descripción", "Monto (₡)", "Verificado por asesor",
+                    "Tipo de evidencia", "Comentario"
+                ]
+            )
+            # 🔧 Forzar tipos
+            mp_df["Monto (₡)"] = pd.to_numeric(mp_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+            mp_df["Verificado por asesor"] = mp_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1", "True", "true"] else False
+            )
+
+    except Exception as e:
+        st.warning(f"No se pudieron cargar los datos de Materia Prima: {e}")
+
+mp_df = st.data_editor(
+    mp_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="bg_inv_materia_prima",
+    column_config={
+        "Descripción": st.column_config.TextColumn("Descripción"),
+        "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
+            "Factura/Recibo", "Inventario físico", "Fotos/Video", "Contrato",
+            "Otro", "No aplica"
+        ]),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+
+mp_total = int(pd.to_numeric(mp_df["Monto (₡)"], errors="coerce").fillna(0).sum())
+st.metric("Subtotal Materia Prima", f"₡{mp_total:,.0f}")
+st.markdown("---")
+
+
+
+
+
+
+
+
+
+
+
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
@@ -183,6 +262,30 @@ with col2:
                 "comentario": r.get("Comentario", "") or "",
             })
 
+        # --- Inventario: Materia Prima ---
+        for r in mp_df.to_dict(orient="records"):
+            if not any(r.values()):
+                continue
+            registros.append({
+                "cliente_identificacion": cliente_id,
+                "mes_iso": mes_iso,
+                "seccion": "inv_materia_prima",
+                "descripcion": r.get("Descripción", "") or "",
+                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "verificado": 1 if r.get("Verificado por asesor") else 0,
+                "evidencia": r.get("Tipo de evidencia", "") or "",
+                "comentario": r.get("Comentario", "") or "",
+            })
+
+
+
+
+
+
+
+
+
+        
         try:
             conn = get_connection()
             cursor = conn.cursor()
