@@ -108,9 +108,28 @@ cxc_placeholder = pd.DataFrame([{
     "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
+
 cxc_df = _as_df(bg_saved.get("cxc_clientes"), cols=cxc_placeholder.columns, placeholder=cxc_placeholder)
+
+# Renombrar si vienen desde SQL
+cxc_df = cxc_df.rename(columns={
+    "descripcion": "Cliente/Descripción",
+    "monto": "Monto (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+
+# Asegurar columnas faltantes y tipos
+for col in cxc_placeholder.columns:
+    if col not in cxc_df.columns:
+        cxc_df[col] = cxc_placeholder[col]
+
 cxc_df["Monto (₡)"] = pd.to_numeric(cxc_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
-cxc_df["Verificado por asesor"] = cxc_df["Verificado por asesor"].astype(bool)
+cxc_df["Verificado por asesor"] = cxc_df["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
 cxc_df = st.data_editor(
     cxc_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_cxc_clientes",
@@ -122,9 +141,10 @@ cxc_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-cxc_total = int(cxc_df["Monto (₡)"].sum())
+cxc_total = int(pd.to_numeric(cxc_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.metric("Subtotal Cuentas por Cobrar", f"₡{cxc_total:,.0f}")
 st.markdown("---")
+
 
 # 3) Inventarios
 st.markdown("**Inventarios**")
