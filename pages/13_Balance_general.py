@@ -143,6 +143,9 @@ st.markdown("---")
 
 
 
+
+
+
 # --- Sección Inventario ---
 st.markdown("### 3) Inventario")
 
@@ -184,9 +187,10 @@ if cliente_id and mes_iso:
             mp_df["Verificado por asesor"] = mp_df["Verificado por asesor"].apply(
                 lambda v: True if str(v).strip() in ["1", "True", "true"] else False
             )
-
     except Exception as e:
         st.warning(f"No se pudieron cargar los datos de Materia Prima: {e}")
+
+
 
 mp_df = st.data_editor(
     mp_df,
