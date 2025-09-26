@@ -147,14 +147,46 @@ st.markdown("---")
 # --- Sección Inventarios ---
 st.markdown("### 3) Inventarios")
 
-# --- Placeholder de Inventarios ---
-inv_placeholder = pd.DataFrame([{
+# --- Inventario de Materia Prima ---
+inv_mp_placeholder = pd.DataFrame([{
     "Detalle": "",
     "Valor (₡)": 0,
     "Verificado por asesor": False,
     "Tipo de evidencia": "",
     "Comentario": ""
 } for _ in range(3)])
+
+inv_mp_df = inv_mp_placeholder.copy()
+
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT descripcion, monto, verificado, evidencia, comentario
+            FROM balancegeneraldetalles
+            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_mp'
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            # 👉 usar registros de SQL
+            inv_mp_df = pd.DataFrame.from_records(
+                rows,
+                columns=["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
+            )
+            inv_mp_df["Valor (₡)"] = pd.to_numeric(inv_mp_df["Valor (₡)"], errors="coerce").fillna(0).astype(int)
+            inv_mp_df["Verificado por asesor"] = inv_mp_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1", "True", "true"] else False
+            )
+        else:
+            # 👉 usar placeholder si no hay nada en SQL
+            inv_mp_df = inv_mp_placeholder.copy()
+
+    except Exception as e:
+        st.warning(f"No se pudieron cargar los datos de inventario MP: {e}")
+
 
 
 # ===== Materia Prima =====
