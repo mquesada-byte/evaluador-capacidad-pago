@@ -347,6 +347,7 @@ st.divider()
 # ===================== PASIVO =====================
 st.subheader("III. Pasivo")
 
+# Proveedores
 st.markdown("*Cuentas por pagar a proveedores*")
 cpp_placeholder = pd.DataFrame([{
     "Proveedor": "", "Monto (₡)": 0, "Verificado por asesor": False,
@@ -355,6 +356,7 @@ cpp_placeholder = pd.DataFrame([{
 
 cpp_df = _as_df(bg_saved.get("cpp"), cols=cpp_placeholder.columns, placeholder=cpp_placeholder)
 
+# Renombrar si vienen desde SQL
 cpp_df = cpp_df.rename(columns={
     "descripcion": "Proveedor",
     "monto": "Monto (₡)",
@@ -362,6 +364,8 @@ cpp_df = cpp_df.rename(columns={
     "evidencia": "Tipo de evidencia",
     "comentario": "Comentario",
 })
+
+# Asegurar columnas faltantes y tipos
 for col in cpp_placeholder.columns:
     if col not in cpp_df.columns:
         cpp_df[col] = cpp_placeholder[col]
@@ -386,6 +390,8 @@ cpp_total = int(pd.to_numeric(cpp_df.get("Monto (₡)", pd.Series()), errors="co
 st.caption(f"Subtotal CxP Proveedores: **₡{cpp_total:,.0f}**")
 
 
+
+# Anticipos
 st.markdown("*Anticipos de clientes*")
 antic_placeholder = pd.DataFrame([{
     "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
@@ -401,6 +407,7 @@ antic_df = antic_df.rename(columns={
     "evidencia": "Tipo de evidencia",
     "comentario": "Comentario",
 })
+
 for col in antic_placeholder.columns:
     if col not in antic_df.columns:
         antic_df[col] = antic_placeholder[col]
@@ -423,6 +430,7 @@ antic_df = st.data_editor(
 )
 antic_total = int(pd.to_numeric(antic_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Anticipos de clientes: **₡{antic_total:,.0f}**")
+
 
 
 # Deudas de paso 9
