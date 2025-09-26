@@ -124,3 +124,40 @@ if st.button("💾 Guardar Caja y Bancos"):
     except Exception as e:
         st.error(f"❌ Error al guardar: {e}")
 
+# --- Navegación ---
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    if st.button("⬅️ Volver a 10 – Gastos operativos", use_container_width=True):
+        for prev in [
+            "pages/10_Gastos_operativos.py",
+            "pages/10_gastos_operativos.py",
+            "pages/10_Gastos.py",
+        ]:
+            try:
+                st.switch_page(prev)
+                break
+            except Exception:
+                continue
+
+with col2:
+    if st.button("Guardar y continuar ➡️", use_container_width=True):
+        if not cliente_id or not mes_iso:
+            st.error("⚠️ Falta cliente o mes para guardar.")
+            st.stop()
+
+        # (aquí va tu lógica de guardado de caja_bancos)
+
+        st.success("✅ Datos guardados correctamente.")
+        for nxt in [
+            "pages/14_Informe_final.py",
+            "pages/14_informe_final.py",
+            "pages/14_Informe.py",
+        ]:
+            try:
+                st.switch_page(nxt)
+                break
+            except Exception:
+                continue
+
+
