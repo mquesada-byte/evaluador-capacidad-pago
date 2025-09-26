@@ -4,6 +4,10 @@ from utils.db import get_connection
 
 st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
 
+# --- Título principal ---
+st.title("📒 Paso 13: Balance General")
+st.subheader("I. Activo Circulante")
+
 # --- Placeholder de la UI ---
 caja_placeholder = pd.DataFrame([{
     "Cuenta/Banco": "",
@@ -31,14 +35,22 @@ if cliente_id and mes_iso:
         conn.close()
 
         if rows:
-            caja_df = pd.DataFrame.from_records(rows, columns=["Cuenta/Banco", "Saldo (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"])
+            caja_df = pd.DataFrame.from_records(
+                rows,
+                columns=[
+                    "Cuenta/Banco", "Saldo (₡)", "Verificado por asesor",
+                    "Tipo de evidencia", "Comentario"
+                ]
+            )
             caja_df["Saldo (₡)"] = pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
             caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].map({1: True, 0: False}).fillna(False).astype(bool)
 
     except Exception as e:
         st.warning(f"No se pudieron cargar los datos guardados: {e}")
 
-# --- DataFrame editable ---
+# --- Sección Caja y Bancos ---
+st.markdown("### 1) Caja y Bancos")
+
 caja_df = st.data_editor(
     caja_df,
     use_container_width=True,
