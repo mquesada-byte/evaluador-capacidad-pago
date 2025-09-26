@@ -180,7 +180,6 @@ if cliente_id and mes_iso:
                     "Tipo de evidencia", "Comentario"
                 ]
             )
-            # 🔧 Forzar tipos
             mp_df["Monto (₡)"] = pd.to_numeric(mp_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
             mp_df["Verificado por asesor"] = mp_df["Verificado por asesor"].apply(
                 lambda v: True if str(v).strip() in ["1", "True", "true"] else False
@@ -285,18 +284,20 @@ with col2:
 
 
 
+
         
         try:
             conn = get_connection()
             cursor = conn.cursor()
 
-            # 🔥 Borrar previos (solo caja y cxc)
+            # 🔥 Borrar previos (caja, cxc y materia prima)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
                 WHERE cliente_identificacion = ? AND mes_iso = ? 
-                  AND seccion IN ('caja_bancos','cxc_clientes')
+                  AND seccion IN ('caja_bancos','cxc_clientes','inv_materia_prima')
             """, (cliente_id, mes_iso))
 
+            
             # Insertar nuevos
             for reg in registros:
                 cursor.execute("""
