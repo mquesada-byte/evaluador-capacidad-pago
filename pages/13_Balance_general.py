@@ -77,6 +77,74 @@ caja_total = int(pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
 
+
+# --- Sección Cuentas por Cobrar ---
+st.markdown("### 2) Cuentas por Cobrar a Clientes")
+
+cxc_df = cxc_placeholder.copy()
+
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT descripcion, monto, verificado, evidencia, comentario
+            FROM balancegeneraldetalles
+            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cxc_clientes'
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            cxc_df = pd.DataFrame.from_records(
+                rows,
+                columns=[
+                    "Cliente/Descripción", "Monto (₡)", "Verificado por asesor",
+                    "Tipo de evidencia", "Comentario"
+                ]
+            )
+            # 🔧 Forzar tipos
+            cxc_df["Monto (₡)"] = pd.to_numeric(cxc_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+            cxc_df["Verificado por asesor"] = cxc_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1", "True", "true"] else False
+            )
+
+    except Exception as e:
+        st.warning(f"No se pudieron cargar los datos de CxC: {e}")
+
+cxc_df = st.data_editor(
+    cxc_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="bg_cxc_clientes",
+    column_config={
+        "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
+        "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
+            "Factura/Recibo", "Confirmación cliente", "Contrato", "Estado de cuenta",
+            "Inventario físico", "Fotos/Video", "Otro", "No aplica"
+        ]),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+
+cxc_total = int(pd.to_numeric(cxc_df["Monto (₡)"], errors="coerce").fillna(0).sum())
+st.metric("Subtotal Cuentas por Cobrar", f"₡{cxc_total:,.0f}")
+st.markdown("---")
+
+
+
+
+
+
+
+
+
+
+
+
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
