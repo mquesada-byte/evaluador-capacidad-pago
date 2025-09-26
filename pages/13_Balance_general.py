@@ -484,26 +484,32 @@ with c1:
                 continue
 
 with c2:
-    if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
-        # --- Helpers de limpieza para DB ---
         def _clean(df, num_cols=None, bool_cols=None):
+            """
+            Limpia el DataFrame antes de guardarlo en la BD.
+            - Mantiene filas con montos = 0 (ya que pueden ser válidas).
+            - Solo elimina filas 100% vacías (todas las columnas NaN).
+            """
             num_cols = num_cols or []
             bool_cols = bool_cols or []
             if df is None or df.empty:
                 return pd.DataFrame()
             df = df.copy()
-
-            # Quitar filas totalmente vacías (placeholders)
+        
+            # ✅ Solo eliminar filas completamente vacías
             df = df[~df.isna().all(axis=1)]
-            df = df[~(df.astype(str).apply(lambda r: ''.join(r.values), axis=1).str.strip() == "")]
-
-            # Cast numéricos y booleanos
+        
+            # Convertir numéricos y booleanos
             for c in num_cols:
                 if c in df.columns:
                     df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
             for c in bool_cols:
                 if c in df.columns:
-                    df[c] = df[c].map({True: True, False: False, 1: True, 0: False, "1": True, "0": False}).fillna(False).astype(bool)
+                    df[c] = df[c].map({
+                        True: True, False: False,
+                        1: True, 0: False, "1": True, "0": False
+                    }).fillna(False).astype(bool)
+        
             return df
 
         def _records_genericos(df, desc_col, monto_col):
