@@ -81,6 +81,15 @@ st.markdown("---")
 # --- Sección Cuentas por Cobrar ---
 st.markdown("### 2) Cuentas por Cobrar a Clientes")
 
+# --- Placeholder de la UI (Cuentas por Cobrar) ---
+cxc_placeholder = pd.DataFrame([{
+    "Cliente/Descripción": "",
+    "Monto (₡)": 0,
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
 cxc_df = cxc_placeholder.copy()
 
 if cliente_id and mes_iso:
