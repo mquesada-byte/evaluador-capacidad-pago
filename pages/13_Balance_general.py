@@ -146,18 +146,61 @@ with col2:
             st.error("⚠️ Falta cliente o mes para guardar.")
             st.stop()
 
-        # (aquí va tu lógica de guardado de caja_bancos)
-
-        st.success("✅ Datos guardados correctamente.")
-        for nxt in [
-            "pages/14_Informe_final.py",
-            "pages/14_informe_final.py",
-            "pages/14_Informe.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
+        # limpiar y transformar
+        registros = []
+        for r in caja_df.to_dict(orient="records"):
+            if not any(r.values()):
                 continue
+            registros.append({
+                "cliente_identificacion": cliente_id,
+                "mes_iso": mes_iso,
+                "seccion": "caja_bancos",
+                "descripcion": r.get("Cuenta/Banco", "") or "",
+                "monto": int(pd.to_numeric(r.get("Saldo (₡)", 0), errors="coerce") or 0),
+                "verificado": 1 if r.get("Verificado por asesor") else 0,
+                "evidencia": r.get("Tipo de evidencia", "") or "",
+                "comentario": r.get("Comentario", "") or "",
+            })
+
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            # eliminar registros previos del cliente/mes/sección
+            cursor.execute("""
+                DELETE FROM balancegeneraldetalles
+                WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'caja_bancos'
+            """, (cliente_id, mes_iso))
+
+            # insertar nuevos
+            for reg in registros:
+                cursor.execute("""
+                    INSERT INTO balancegeneraldetalles
+                    (cliente_identificacion, mes_iso, seccion, descripcion, monto, verificado, evidencia, comentario, fecha_registro)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                """, (
+                    reg["cliente_identificacion"], reg["mes_iso"], reg["seccion"],
+                    reg["descripcion"], reg["monto"], reg["verificado"],
+                    reg["evidencia"], reg["comentario"]
+                ))
+
+            conn.commit()
+            conn.close()
+            st.success("✅ Datos de Caja y Bancos guardados correctamente.")
+
+            # avanzar al siguiente paso
+            for nxt in [
+                "pages/14_Informe_final.py",
+                "pages/14_informe_final.py",
+                "pages/14_Informe.py",
+            ]:
+                try:
+                    st.switch_page(nxt)
+                    break
+                except Exception:
+                    continue
+
+        except Exception as e:
+            st.error(f"❌ Error al guardar: {e}")
 
 
