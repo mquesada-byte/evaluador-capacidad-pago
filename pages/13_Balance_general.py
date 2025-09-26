@@ -96,12 +96,16 @@ caja_df = caja_df.rename(columns={
     "comentario": "Comentario",
 })
 
-# 🔧 Forzar tipos compatibles
+# 🔧 Forzar tipos correctos
+caja_df["Cuenta/Banco"] = caja_df["Cuenta/Banco"].fillna("").astype(str)
 caja_df["Saldo (₡)"] = pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
 caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].map(
     {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
 ).fillna(False).astype(bool)
+caja_df["Tipo de evidencia"] = caja_df["Tipo de evidencia"].fillna("").astype(str)
+caja_df["Comentario"] = caja_df["Comentario"].fillna("").astype(str)
 
+# 🔧 Editor en Streamlit
 caja_df = st.data_editor(
     caja_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_caja_bancos",
@@ -114,9 +118,11 @@ caja_df = st.data_editor(
     },
 )
 
+# 🔧 Calcular subtotal
 caja_total = int(caja_df["Saldo (₡)"].sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
+
 
 
 # 2) Cuentas por cobrar
