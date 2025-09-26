@@ -2,6 +2,8 @@ import pandas as pd
 import streamlit as st
 from utils.db import get_connection
 
+st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
+
 # --- Placeholder de la UI ---
 caja_placeholder = pd.DataFrame([{
     "Cuenta/Banco": "",
