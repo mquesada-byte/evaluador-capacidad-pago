@@ -157,27 +157,15 @@ st.markdown("---")
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
-with col1:
-    if st.button("⬅️ Volver a 10 – Gastos operativos", use_container_width=True):
-        for prev in [
-            "pages/10_Gastos_operativos.py",
-            "pages/10_gastos_operativos.py",
-            "pages/10_Gastos.py",
-        ]:
-            try:
-                st.switch_page(prev)
-                break
-            except Exception:
-                continue
-
 with col2:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
         if not cliente_id or not mes_iso:
             st.error("⚠️ Falta cliente o mes para guardar.")
             st.stop()
 
-        # limpiar y transformar
         registros = []
+
+        # --- Caja y Bancos ---
         for r in caja_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
@@ -192,14 +180,30 @@ with col2:
                 "comentario": r.get("Comentario", "") or "",
             })
 
+        # --- Cuentas por Cobrar ---
+        for r in cxc_df.to_dict(orient="records"):
+            if not any(r.values()):
+                continue
+            registros.append({
+                "cliente_identificacion": cliente_id,
+                "mes_iso": mes_iso,
+                "seccion": "cxc_clientes",
+                "descripcion": r.get("Cliente/Descripción", "") or "",
+                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "verificado": 1 if r.get("Verificado por asesor") else 0,
+                "evidencia": r.get("Tipo de evidencia", "") or "",
+                "comentario": r.get("Comentario", "") or "",
+            })
+
         try:
             conn = get_connection()
             cursor = conn.cursor()
 
-            # eliminar registros previos del cliente/mes/sección
+            # borrar previos (caja y cxc)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
-                WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'caja_bancos'
+                WHERE cliente_identificacion = ? AND mes_iso = ? 
+                  AND seccion IN ('caja_bancos','cxc_clientes')
             """, (cliente_id, mes_iso))
 
             # insertar nuevos
@@ -216,7 +220,7 @@ with col2:
 
             conn.commit()
             conn.close()
-            st.success("✅ Datos de Caja y Bancos guardados correctamente.")
+            st.success("✅ Datos de Caja y Bancos y CxC guardados correctamente.")
 
             # avanzar al siguiente paso
             for nxt in [
@@ -232,5 +236,4 @@ with col2:
 
         except Exception as e:
             st.error(f"❌ Error al guardar: {e}")
-
 
