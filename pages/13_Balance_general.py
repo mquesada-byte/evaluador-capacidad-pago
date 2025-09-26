@@ -295,10 +295,28 @@ af_placeholder = pd.DataFrame([{
     "Activo": "", "Valor bruto (₡)": 0, "Depreciación acum. (₡)": 0,
     "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(4)])
+
 af_df = _as_df(bg_saved.get("activo_fijo"), cols=af_placeholder.columns, placeholder=af_placeholder)
+
+# Renombrar si llegan en genérico desde SQL
+af_df = af_df.rename(columns={
+    "descripcion": "Activo",
+    "monto": "Valor bruto (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+    "depreciacion": "Depreciación acum. (₡)",
+})
+for col in af_placeholder.columns:
+    if col not in af_df.columns:
+        af_df[col] = af_placeholder[col]
+
 af_df["Valor bruto (₡)"] = pd.to_numeric(af_df["Valor bruto (₡)"], errors="coerce").fillna(0).astype(int)
 af_df["Depreciación acum. (₡)"] = pd.to_numeric(af_df["Depreciación acum. (₡)"], errors="coerce").fillna(0).astype(int)
-af_df["Verificado por asesor"] = af_df["Verificado por asesor"].astype(bool)
+af_df["Verificado por asesor"] = af_df["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
 with st.expander("Agregar/editar activos fijos"):
     af_df = st.data_editor(
         af_df,
@@ -312,12 +330,14 @@ with st.expander("Agregar/editar activos fijos"):
             "Comentario": st.column_config.TextColumn("Comentario"),
         },
     )
-af_bruto = af_df["Valor bruto (₡)"]
-af_depr = af_df["Depreciación acum. (₡)"]
+
+af_bruto = pd.to_numeric(af_df.get("Valor bruto (₡)", pd.Series()), errors="coerce").fillna(0)
+af_depr  = pd.to_numeric(af_df.get("Depreciación acum. (₡)", pd.Series()), errors="coerce").fillna(0)
 af_neto_series = (af_bruto - af_depr).clip(lower=0)
 af_neto_total = int(af_neto_series.sum())
 st.metric("🏭 **Activo Fijo Neto**", f"₡{af_neto_total:,.0f}")
 st.divider()
+
 
 # ===================== TOTALES DE ACTIVO =====================
 total_activos = int(activo_circulante + af_neto_total)
@@ -327,15 +347,30 @@ st.divider()
 # ===================== PASIVO =====================
 st.subheader("III. Pasivo")
 
-# Proveedores
 st.markdown("*Cuentas por pagar a proveedores*")
 cpp_placeholder = pd.DataFrame([{
     "Proveedor": "", "Monto (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
+
 cpp_df = _as_df(bg_saved.get("cpp"), cols=cpp_placeholder.columns, placeholder=cpp_placeholder)
+
+cpp_df = cpp_df.rename(columns={
+    "descripcion": "Proveedor",
+    "monto": "Monto (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+for col in cpp_placeholder.columns:
+    if col not in cpp_df.columns:
+        cpp_df[col] = cpp_placeholder[col]
+
 cpp_df["Monto (₡)"] = pd.to_numeric(cpp_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
-cpp_df["Verificado por asesor"] = cpp_df["Verificado por asesor"].astype(bool)
+cpp_df["Verificado por asesor"] = cpp_df["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
 cpp_df = st.data_editor(
     cpp_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_cpp",
@@ -347,18 +382,34 @@ cpp_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-cpp_total = int(cpp_df["Monto (₡)"].sum())
+cpp_total = int(pd.to_numeric(cpp_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal CxP Proveedores: **₡{cpp_total:,.0f}**")
 
-# Anticipos
+
 st.markdown("*Anticipos de clientes*")
 antic_placeholder = pd.DataFrame([{
     "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(2)])
+
 antic_df = _as_df(bg_saved.get("anticipos"), cols=antic_placeholder.columns, placeholder=antic_placeholder)
+
+antic_df = antic_df.rename(columns={
+    "descripcion": "Cliente/Descripción",
+    "monto": "Monto (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+for col in antic_placeholder.columns:
+    if col not in antic_df.columns:
+        antic_df[col] = antic_placeholder[col]
+
 antic_df["Monto (₡)"] = pd.to_numeric(antic_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
-antic_df["Verificado por asesor"] = antic_df["Verificado por asesor"].astype(bool)
+antic_df["Verificado por asesor"] = antic_df["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
 antic_df = st.data_editor(
     antic_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_anticipos",
@@ -370,8 +421,9 @@ antic_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-antic_total = int(antic_df["Monto (₡)"].sum())
+antic_total = int(pd.to_numeric(antic_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Anticipos de clientes: **₡{antic_total:,.0f}**")
+
 
 # Deudas de paso 9
 st.markdown("*Cuentas por pagar a corto plazo (de Deudas Paso 9)*")
