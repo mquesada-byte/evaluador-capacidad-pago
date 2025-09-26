@@ -191,6 +191,18 @@ if cliente_id and mes_iso:
 
 # ===== Materia Prima =====
 st.markdown("#### a) Materia Prima")
+# --- Placeholder de Inventarios ---
+inv_placeholder = pd.DataFrame([{
+    "Detalle": "",
+    "Valor (₡)": 0,
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
+
+# ===== Materia Prima =====
+st.markdown("#### a) Materia Prima")
 inv_mp_df = inv_placeholder.copy()
 
 if cliente_id and mes_iso:
@@ -350,6 +362,7 @@ st.markdown("---")
 
 
 
+
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
@@ -405,7 +418,7 @@ with col2:
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
             })
-        
+
         # --- Inventario PP ---
         for r in inv_pp_df.to_dict(orient="records"):
             if not (str(r.get("Detalle", "")).strip() or pd.to_numeric(r.get("Valor (₡)", 0), errors="coerce") != 0):
@@ -420,7 +433,7 @@ with col2:
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
             })
-        
+
         # --- Inventario PT ---
         for r in inv_pt_df.to_dict(orient="records"):
             if not (str(r.get("Detalle", "")).strip() or pd.to_numeric(r.get("Valor (₡)", 0), errors="coerce") != 0):
@@ -436,19 +449,18 @@ with col2:
                 "comentario": r.get("Comentario", "") or "",
             })
 
-
         try:
             conn = get_connection()
             cursor = conn.cursor()
 
-            # borrar previos (caja y cxc)
+            # 🔥 Borrar previos (incluye inventarios)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
                 WHERE cliente_identificacion = ? AND mes_iso = ? 
-                  AND seccion IN ('caja_bancos','cxc_clientes')
+                  AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt')
             """, (cliente_id, mes_iso))
 
-            # insertar nuevos
+            # Insertar nuevos
             for reg in registros:
                 cursor.execute("""
                     INSERT INTO balancegeneraldetalles
@@ -462,7 +474,7 @@ with col2:
 
             conn.commit()
             conn.close()
-            st.success("✅ Datos de Caja y Bancos y CxC guardados correctamente.")
+            st.success("✅ Datos de Balance General guardados correctamente.")
 
             # avanzar al siguiente paso
             for nxt in [
