@@ -84,9 +84,24 @@ caja_placeholder = pd.DataFrame([{
     "Cuenta/Banco": "", "Saldo (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
+
 caja_df = _as_df(bg_saved.get("caja_bancos"), cols=caja_placeholder.columns, placeholder=caja_placeholder)
+
+# 🔧 Renombrar si vienen desde SQL
+caja_df = caja_df.rename(columns={
+    "descripcion": "Cuenta/Banco",
+    "monto": "Saldo (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+
+# 🔧 Forzar tipos compatibles
 caja_df["Saldo (₡)"] = pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
-caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].astype(bool)
+caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
 caja_df = st.data_editor(
     caja_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_caja_bancos",
@@ -98,9 +113,11 @@ caja_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
+
 caja_total = int(caja_df["Saldo (₡)"].sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
+
 
 # 2) Cuentas por cobrar
 st.markdown("**Cuentas por cobrar a clientes**")
@@ -565,8 +582,10 @@ with c2:
             "anticipos": _records_genericos(antic_df_clean, "Cliente/Descripción", "Monto (₡)"),
             "totales": {
                 "activo_circulante": int(caja_total + cxc_total + (subtotal_mp + subtotal_pp + subtotal_pt)),
-                "activo_fijo": int((af_df_clean["Valor bruto (₡)"] - af_df_clean["Depreciación acum. (₡)"]).clip(lower=0).sum()) if not af_df_clean.empty else 0,
-                "total_activos": int(activo_circulante + (af_df_clean["Valor bruto (₡)"] - af_df_clean["Depreciación acum. (₡)"]).clip(lower=0).sum()) if not af_df_clean.empty else int(activo_circulante),
+                # "activo_fijo": int((af_df_clean["Valor bruto (₡)"] - af_df_clean["Depreciación acum. (₡)"]).clip(lower=0).sum()) if not af_df_clean.empty else 0,
+                # "total_activos": int(activo_circulante + (af_df_clean["Valor bruto (₡)"] - af_df_clean["Depreciación acum. (₡)"]).clip(lower=0).sum()) if not af_df_clean.empty else int(activo_circulante),
+                "activo_fijo": af_neto_total,
+                "total_activos": total_activos,
                 "pasivo_circulante": int(cpp_total + antic_total + tot_corto),
                 "pasivo_largo": int(tot_largo),
                 "total_pasivo": int((cpp_total + antic_total + tot_corto) + int(tot_largo)),
