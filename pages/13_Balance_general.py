@@ -43,7 +43,11 @@ if cliente_id and mes_iso:
                 ]
             )
             caja_df["Saldo (₡)"] = pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
-            caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].map({1: True, 0: False}).fillna(False).astype(bool)
+            caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1", "True", "true"] else False
+            )
+
+
 
     except Exception as e:
         st.warning(f"No se pudieron cargar los datos guardados: {e}")
