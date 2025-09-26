@@ -147,59 +147,19 @@ st.markdown("---")
 # --- Sección Inventarios ---
 st.markdown("### 3) Inventarios")
 
-# --- Inventario de Materia Prima ---
-inv_mp_placeholder = pd.DataFrame([{
+# 🔹 Placeholder base para todas las tablas de inventarios
+inv_placeholder = pd.DataFrame([{
     "Detalle": "",
     "Valor (₡)": 0,
     "Verificado por asesor": False,
     "Tipo de evidencia": "",
     "Comentario": ""
 } for _ in range(3)])
-
-inv_mp_df = inv_mp_placeholder.copy()
-
-if cliente_id and mes_iso:
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT descripcion, monto, verificado, evidencia, comentario
-            FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_mp'
-        """, (cliente_id, mes_iso))
-        rows = cursor.fetchall()
-        conn.close()
-
-        if rows:
-            # 👉 usar registros de SQL
-            inv_mp_df = pd.DataFrame.from_records(
-                rows,
-                columns=["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
-            )
-            inv_mp_df["Valor (₡)"] = pd.to_numeric(inv_mp_df["Valor (₡)"], errors="coerce").fillna(0).astype(int)
-            inv_mp_df["Verificado por asesor"] = inv_mp_df["Verificado por asesor"].apply(
-                lambda v: True if str(v).strip() in ["1", "True", "true"] else False
-            )
-        else:
-            # 👉 usar placeholder si no hay nada en SQL
-            inv_mp_df = inv_mp_placeholder.copy()
-
-    except Exception as e:
-        st.warning(f"No se pudieron cargar los datos de inventario MP: {e}")
-
 
 
 # ===== Materia Prima =====
 st.markdown("#### a) Materia Prima")
-inv_mp_placeholder = pd.DataFrame([{
-    "Detalle": "",
-    "Valor (₡)": 0,
-    "Verificado por asesor": False,
-    "Tipo de evidencia": "",
-    "Comentario": ""
-} for _ in range(3)])
-
-inv_mp_df = inv_mp_placeholder.copy()
+inv_mp_df = inv_placeholder.copy()
 
 if cliente_id and mes_iso:
     try:
@@ -222,13 +182,29 @@ if cliente_id and mes_iso:
             inv_mp_df["Verificado por asesor"] = inv_mp_df["Verificado por asesor"].apply(
                 lambda v: True if str(v).strip() in ["1", "True", "true"] else False
             )
-        else:
-            # si no hay datos, mantener el placeholder
-            inv_mp_df = inv_mp_placeholder.copy()
 
     except Exception as e:
         st.warning(f"No se pudieron cargar Inventarios MP: {e}")
 
+inv_mp_df = st.data_editor(
+    inv_mp_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="bg_inv_mp",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
+            "Factura/Recibo", "Confirmación cliente", "Contrato", "Estado de cuenta",
+            "Inventario físico", "Fotos/Video", "Otro", "No aplica"
+        ]),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_mp = int(pd.to_numeric(inv_mp_df["Valor (₡)"], errors="coerce").fillna(0).sum())
+st.caption(f"Subtotal Materia Prima: ₡{subtotal_mp:,.0f}")
 
 
 # ===== Producto en Proceso =====
@@ -256,6 +232,7 @@ if cliente_id and mes_iso:
             inv_pp_df["Verificado por asesor"] = inv_pp_df["Verificado por asesor"].apply(
                 lambda v: True if str(v).strip() in ["1", "True", "true"] else False
             )
+
     except Exception as e:
         st.warning(f"No se pudieron cargar Inventarios PP: {e}")
 
@@ -305,6 +282,7 @@ if cliente_id and mes_iso:
             inv_pt_df["Verificado por asesor"] = inv_pt_df["Verificado por asesor"].apply(
                 lambda v: True if str(v).strip() in ["1", "True", "true"] else False
             )
+
     except Exception as e:
         st.warning(f"No se pudieron cargar Inventarios PT: {e}")
 
@@ -333,6 +311,7 @@ st.caption(f"Subtotal Producto Terminado: ₡{subtotal_pt:,.0f}")
 total_inventarios = subtotal_mp + subtotal_pp + subtotal_pt
 st.metric("Total Inventarios", f"₡{total_inventarios:,.0f}")
 st.markdown("---")
+
 
 
 
