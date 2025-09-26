@@ -73,57 +73,6 @@ caja_total = int(pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
 
-# --- Guardar en la base de datos ---
-if st.button("💾 Guardar Caja y Bancos"):
-    if not cliente_id or not mes_iso:
-        st.error("⚠️ Falta cliente o mes para guardar.")
-        st.stop()
-
-    # limpiar y transformar
-    registros = []
-    for r in caja_df.to_dict(orient="records"):
-        if not any(r.values()):
-            continue
-        registros.append({
-            "cliente_identificacion": cliente_id,
-            "mes_iso": mes_iso,
-            "seccion": "caja_bancos",
-            "descripcion": r.get("Cuenta/Banco", "") or "",
-            "monto": int(pd.to_numeric(r.get("Saldo (₡)", 0), errors="coerce") or 0),
-            "verificado": 1 if r.get("Verificado por asesor") else 0,
-            "evidencia": r.get("Tipo de evidencia", "") or "",
-            "comentario": r.get("Comentario", "") or "",
-        })
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # eliminar registros previos del cliente/mes/sección
-        cursor.execute("""
-            DELETE FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'caja_bancos'
-        """, (cliente_id, mes_iso))
-
-        # insertar nuevos
-        for reg in registros:
-            cursor.execute("""
-                INSERT INTO balancegeneraldetalles
-                (cliente_identificacion, mes_iso, seccion, descripcion, monto, verificado, evidencia, comentario, fecha_registro)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-            """, (
-                reg["cliente_identificacion"], reg["mes_iso"], reg["seccion"],
-                reg["descripcion"], reg["monto"], reg["verificado"],
-                reg["evidencia"], reg["comentario"]
-            ))
-
-        conn.commit()
-        conn.close()
-        st.success("✅ Datos de Caja y Bancos guardados correctamente.")
-
-    except Exception as e:
-        st.error(f"❌ Error al guardar: {e}")
-
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
