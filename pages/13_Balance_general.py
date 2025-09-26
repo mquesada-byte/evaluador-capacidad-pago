@@ -172,16 +172,113 @@ def inv_editor(name, key):
     return df, subtotal
 
 st.markdown("*Materia prima*")
-df_inv_mp, subtotal_mp = inv_editor("inv_mp", "bg_inv_mp")
+inv_placeholder = pd.DataFrame([{
+    "Detalle": "", "Valor (₡)": 0, "Verificado por asesor": False,
+    "Tipo de evidencia": "", "Comentario": ""
+} for _ in range(3)])
+
+df_inv_mp = _as_df(bg_saved.get("inv_mp"), cols=inv_placeholder.columns, placeholder=inv_placeholder)
+
+# Renombrar si vienen desde SQL
+df_inv_mp = df_inv_mp.rename(columns={
+    "descripcion": "Detalle",
+    "monto": "Valor (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+
+for col in inv_placeholder.columns:
+    if col not in df_inv_mp.columns:
+        df_inv_mp[col] = inv_placeholder[col]
+
+df_inv_mp["Valor (₡)"] = pd.to_numeric(df_inv_mp["Valor (₡)"], errors="coerce").fillna(0).astype(int)
+df_inv_mp["Verificado por asesor"] = df_inv_mp["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
+df_inv_mp = st.data_editor(
+    df_inv_mp,
+    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_mp",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_mp = int(pd.to_numeric(df_inv_mp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Materia Prima: **₡{subtotal_mp:,.0f}**")
 
+
 st.markdown("*Producto en proceso*")
-df_inv_pp, subtotal_pp = inv_editor("inv_pp", "bg_inv_pp")
+df_inv_pp = _as_df(bg_saved.get("inv_pp"), cols=inv_placeholder.columns, placeholder=inv_placeholder)
+
+df_inv_pp = df_inv_pp.rename(columns={
+    "descripcion": "Detalle",
+    "monto": "Valor (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+for col in inv_placeholder.columns:
+    if col not in df_inv_pp.columns:
+        df_inv_pp[col] = inv_placeholder[col]
+
+df_inv_pp["Valor (₡)"] = pd.to_numeric(df_inv_pp["Valor (₡)"], errors="coerce").fillna(0).astype(int)
+df_inv_pp["Verificado por asesor"] = df_inv_pp["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
+df_inv_pp = st.data_editor(
+    df_inv_pp,
+    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pp",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_pp = int(pd.to_numeric(df_inv_pp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Producto en Proceso: **₡{subtotal_pp:,.0f}**")
 
+
 st.markdown("*Producto terminado*")
-df_inv_pt, subtotal_pt = inv_editor("inv_pt", "bg_inv_pt")
+df_inv_pt = _as_df(bg_saved.get("inv_pt"), cols=inv_placeholder.columns, placeholder=inv_placeholder)
+
+df_inv_pt = df_inv_pt.rename(columns={
+    "descripcion": "Detalle",
+    "monto": "Valor (₡)",
+    "verificado": "Verificado por asesor",
+    "evidencia": "Tipo de evidencia",
+    "comentario": "Comentario",
+})
+for col in inv_placeholder.columns:
+    if col not in df_inv_pt.columns:
+        df_inv_pt[col] = inv_placeholder[col]
+
+df_inv_pt["Valor (₡)"] = pd.to_numeric(df_inv_pt["Valor (₡)"], errors="coerce").fillna(0).astype(int)
+df_inv_pt["Verificado por asesor"] = df_inv_pt["Verificado por asesor"].map(
+    {True: True, False: False, 1: True, 0: False, "1": True, "0": False}
+).fillna(False).astype(bool)
+
+df_inv_pt = st.data_editor(
+    df_inv_pt,
+    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pt",
+    column_config={
+        "Detalle": st.column_config.TextColumn("Detalle"),
+        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+subtotal_pt = int(pd.to_numeric(df_inv_pt.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
 st.caption(f"Subtotal Producto Terminado: **₡{subtotal_pt:,.0f}**")
+
 
 total_inventarios = subtotal_mp + subtotal_pp + subtotal_pt
 st.metric("**Total Inventarios**", f"₡{total_inventarios:,.0f}")
