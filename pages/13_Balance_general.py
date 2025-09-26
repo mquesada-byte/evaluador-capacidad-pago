@@ -272,7 +272,7 @@ with col2:
             registros.append({
                 "cliente_identificacion": cliente_id,
                 "mes_iso": mes_iso,
-                "seccion": "inv_materia_prima",
+                "seccion": "inv_mp",
                 "descripcion": r.get("Descripción", "") or "",
                 "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
