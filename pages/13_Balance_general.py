@@ -159,7 +159,16 @@ inv_placeholder = pd.DataFrame([{
 
 # ===== Materia Prima =====
 st.markdown("#### a) Materia Prima")
-inv_mp_df = inv_placeholder.copy()
+
+inv_mp_placeholder = pd.DataFrame([{
+    "Detalle": "",
+    "Valor (₡)": 0,
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
+inv_mp_df = inv_mp_placeholder.copy()
 
 if cliente_id and mes_iso:
     try:
@@ -186,25 +195,6 @@ if cliente_id and mes_iso:
     except Exception as e:
         st.warning(f"No se pudieron cargar Inventarios MP: {e}")
 
-inv_mp_df = st.data_editor(
-    inv_mp_df,
-    use_container_width=True,
-    num_rows="dynamic",
-    hide_index=True,
-    key="bg_inv_mp",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
-            "Factura/Recibo", "Confirmación cliente", "Contrato", "Estado de cuenta",
-            "Inventario físico", "Fotos/Video", "Otro", "No aplica"
-        ]),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
-)
-subtotal_mp = int(pd.to_numeric(inv_mp_df["Valor (₡)"], errors="coerce").fillna(0).sum())
-st.caption(f"Subtotal Materia Prima: ₡{subtotal_mp:,.0f}")
 
 
 # ===== Producto en Proceso =====
