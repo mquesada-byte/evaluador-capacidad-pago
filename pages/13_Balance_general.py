@@ -485,29 +485,132 @@ with c1:
 
 with c2:
     if st.button("Guardar Balance y continuar ➡️", key="bg_save_next", use_container_width=True):
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["balance_general"] = {
-            "caja_bancos": caja_df.to_dict(orient="records"),
-            "cxc_clientes": cxc_df.to_dict(orient="records"),
-            "inv_mp": df_inv_mp.to_dict(orient="records"),
-            "inv_pp": df_inv_pp.to_dict(orient="records"),
-            "inv_pt": df_inv_pt.to_dict(orient="records"),
-            "activo_fijo": af_df.to_dict(orient="records"),
-            "cpp": cpp_df.to_dict(orient="records"),
-            "anticipos": antic_df.to_dict(orient="records"),
+        # --- Helpers de limpieza para DB ---
+        def _clean(df, num_cols=None, bool_cols=None):
+            num_cols = num_cols or []
+            bool_cols = bool_cols or []
+            if df is None or df.empty:
+                return pd.DataFrame()
+            df = df.copy()
+
+            # Quitar filas totalmente vacías (placeholders)
+            df = df[~df.isna().all(axis=1)]
+            df = df[~(df.astype(str).apply(lambda r: ''.join(r.values), axis=1).str.strip() == "")]
+
+            # Cast numéricos y booleanos
+            for c in num_cols:
+                if c in df.columns:
+                    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+            for c in bool_cols:
+                if c in df.columns:
+                    df[c] = df[c].map({True: True, False: False, 1: True, 0: False, "1": True, "0": False}).fillna(False).astype(bool)
+            return df
+
+        def _records_genericos(df, desc_col, monto_col):
+            """Mapea a la forma generica de la tabla: descripcion, monto, verificado, evidencia, comentario."""
+            if df is None or df.empty:
+                return []
+            out = []
+            for r in df.to_dict(orient="records"):
+                out.append({
+                    "descripcion": r.get(desc_col, "") or "",
+                    "monto": int(pd.to_numeric(r.get(monto_col, 0), errors="coerce") or 0),
+                    "verificado": bool(r.get("Verificado por asesor", False)),
+                    "evidencia": r.get("Tipo de evidencia", "") or "",
+                    "comentario": r.get("Comentario", "") or "",
+                })
+            return out
+
+        def _records_activo_fijo(df):
+            """Activo fijo requiere valor_bruto y depreciacion."""
+            if df is None or df.empty:
+                return []
+            out = []
+            for r in df.to_dict(orient="records"):
+                out.append({
+                    "activo": r.get("Activo", "") or "",
+                    "valor_bruto": int(pd.to_numeric(r.get("Valor bruto (₡)", 0), errors="coerce") or 0),
+                    "depreciacion": int(pd.to_numeric(r.get("Depreciación acum. (₡)", 0), errors="coerce") or 0),
+                    "verificado": bool(r.get("Verificado por asesor", False)),
+                    "evidencia": r.get("Tipo de evidencia", "") or "",
+                    "comentario": r.get("Comentario", "") or "",
+                })
+            return out
+
+        # --- Limpiar DFs que ya tienes en memoria ---
+        caja_df_clean = _clean(caja_df, num_cols=["Saldo (₡)"], bool_cols=["Verificado por asesor"])
+        cxc_df_clean = _clean(cxc_df, num_cols=["Monto (₡)"], bool_cols=["Verificado por asesor"])
+        df_inv_mp_clean = _clean(df_inv_mp, num_cols=["Valor (₡)"], bool_cols=["Verificado por asesor"])
+        df_inv_pp_clean = _clean(df_inv_pp, num_cols=["Valor (₡)"], bool_cols=["Verificado por asesor"])
+        df_inv_pt_clean = _clean(df_inv_pt, num_cols=["Valor (₡)"], bool_cols=["Verificado por asesor"])
+        af_df_clean = _clean(af_df, num_cols=["Valor bruto (₡)", "Depreciación acum. (₡)"], bool_cols=["Verificado por asesor"])
+        cpp_df_clean = _clean(cpp_df, num_cols=["Monto (₡)"], bool_cols=["Verificado por asesor"])
+        antic_df_clean = _clean(antic_df, num_cols=["Monto (₡)"], bool_cols=["Verificado por asesor"])
+
+        # --- Armar payload para DB (genérico + AF) ---
+        payload = {
+            "caja_bancos": _records_genericos(caja_df_clean, "Cuenta/Banco", "Saldo (₡)"),
+            "cxc_clientes": _records_genericos(cxc_df_clean, "Cliente/Descripción", "Monto (₡)"),
+            "inv_mp": _records_genericos(df_inv_mp_clean, "Detalle", "Valor (₡)"),
+            "inv_pp": _records_genericos(df_inv_pp_clean, "Detalle", "Valor (₡)"),
+            "inv_pt": _records_genericos(df_inv_pt_clean, "Detalle", "Valor (₡)"),
+            "activo_fijo": _records_activo_fijo(af_df_clean),
+            "cpp": _records_genericos(cpp_df_clean, "Proveedor", "Monto (₡)"),
+            "anticipos": _records_genericos(antic_df_clean, "Cliente/Descripción", "Monto (₡)"),
             "totales": {
-                "activo_circulante": activo_circulante,
-                "activo_fijo": af_neto_total,
-                "total_activos": total_activos,
-                "pasivo_circulante": pasivo_circulante,
-                "pasivo_largo": pasivo_largo,
-                "total_pasivo": total_pasivo,
-                "patrimonio": patrimonio,
-                "capital_trabajo": capital_trabajo,
+                "activo_circulante": int(caja_total + cxc_total + (subtotal_mp + subtotal_pp + subtotal_pt)),
+                "activo_fijo": int((af_df_clean["Valor bruto (₡)"] - af_df_clean["Depreciación acum. (₡)"]).clip(lower=0).sum()) if not af_df_clean.empty else 0,
+                "total_activos": int(activo_circulante + (af_df_clean["Valor bruto (₡)"] - af_df_clean["Depreciación acum. (₡)"]).clip(lower=0).sum()) if not af_df_clean.empty else int(activo_circulante),
+                "pasivo_circulante": int(cpp_total + antic_total + tot_corto),
+                "pasivo_largo": int(tot_largo),
+                "total_pasivo": int((cpp_total + antic_total + tot_corto) + int(tot_largo)),
+                "patrimonio": int(total_activos - (cpp_total + antic_total + tot_corto + tot_largo)),
+                "capital_trabajo": int(activo_circulante - (cpp_total + antic_total + tot_corto)),
             },
-            "comentarios": comentarios,
+            "comentarios": comentarios or "",
         }
+
+        # También guardamos en session_state por consistencia
+        st.session_state.setdefault("reporte", {})
+        st.session_state["reporte"]["balance_general"] = payload
         st.session_state["done_13"] = True
 
-        # 👇 Guardar en SQL
-        cliente_id = st.session_state.get
+        # --- Validaciones claves ---
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
+        mes_iso = st.session_state.get("mes_iso", "")
+        if not cliente_id or not mes_iso:
+            st.error("Falta `cliente.identificacion` o `mes_iso` en el estado de la sesión. No se puede guardar.")
+            st.stop()
+
+        # --- Guardar en DB: DELETE + INSERT por cliente/mes ---
+        with st.spinner("Guardando balance general en la base de datos…"):
+            try:
+                save_ok = save_balance_general(
+                    cliente_id=cliente_id,
+                    mes_iso=mes_iso,
+                    datos=payload  # La función debe hacer DELETE por (cliente_id, mes_iso) y luego INSERT masivo
+                )
+            except Exception as e:
+                st.error(f"Error guardando balance general en SQL: {e}")
+                st.stop()
+
+        if save_ok:
+            st.success("✅ Balance general guardado/actualizado correctamente.")
+            # Ir al paso 14
+            for nxt in [
+                "pages/14_Informe_final.py",
+                "pages/14_informe_final.py",
+                "pages/14_Informe.py",
+                "pages/14_Resumen_financiero.py",
+                "pages/14_Cierre.py",
+            ]:
+                try:
+                    st.switch_page(nxt)
+                    break
+                except Exception:
+                    continue
+            else:
+                st.info("Abrí el **siguiente paso** desde el menú lateral.")
+                st.stop()
+        else:
+            st.warning("⚠️ No se guardó. Verifica que `save_balance_general` haga DELETE+INSERT por cliente y mes, y que retorne True al éxito.")
