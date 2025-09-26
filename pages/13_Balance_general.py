@@ -216,6 +216,71 @@ st.markdown("---")
 
 
 
+# --- Sub-sección: Producto en Proceso ---
+st.markdown("#### b) Producto en Proceso")
+
+# Placeholder (igual formato que MP)
+pp_placeholder = pd.DataFrame([{
+    "Descripción": "",
+    "Monto (₡)": 0,
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
+pp_df = pp_placeholder.copy()
+
+# Cargar desde SQL
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT descripcion, monto, verificado, evidencia, comentario
+            FROM balancegeneraldetalles
+            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_pp'
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            pp_df = pd.DataFrame.from_records(
+                rows,
+                columns=[
+                    "Descripción", "Monto (₡)", "Verificado por asesor",
+                    "Tipo de evidencia", "Comentario"
+                ]
+            )
+            pp_df["Monto (₡)"] = pd.to_numeric(pp_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+            pp_df["Verificado por asesor"] = pp_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1", "True", "true"] else False
+            )
+    except Exception as e:
+        st.warning(f"No se pudieron cargar los datos de Producto en Proceso: {e}")
+
+# Editor
+pp_df = st.data_editor(
+    pp_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="bg_inv_producto_proceso",
+    column_config={
+        "Descripción": st.column_config.TextColumn("Descripción"),
+        "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
+            "Factura/Recibo", "Inventario físico", "Fotos/Video", "Contrato",
+            "Otro", "No aplica"
+        ]),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+
+# Subtotal
+pp_total = int(pd.to_numeric(pp_df["Monto (₡)"], errors="coerce").fillna(0).sum())
+st.metric("Subtotal Producto en Proceso", f"₡{pp_total:,.0f}")
+st.markdown("---")
 
 
 
@@ -279,9 +344,20 @@ with col2:
                 "comentario": r.get("Comentario", "") or "",
             })
 
-
-
-
+        # --- Inventario: Producto en Proceso ---
+        for r in pp_df.to_dict(orient="records"):
+            if not any(r.values()):
+                continue
+            registros.append({
+                "cliente_identificacion": cliente_id,
+                "mes_iso": mes_iso,
+                "seccion": "inv_pp",
+                "descripcion": r.get("Descripción", "") or "",
+                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "verificado": 1 if r.get("Verificado por asesor") else 0,
+                "evidencia": r.get("Tipo de evidencia", "") or "",
+                "comentario": r.get("Comentario", "") or "",
+            })
 
 
 
@@ -297,7 +373,7 @@ with col2:
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
                 WHERE cliente_identificacion = ? AND mes_iso = ? 
-                  AND seccion IN ('caja_bancos','cxc_clientes','inv_materia_prima')
+                  AND seccion IN ('caja_bancos','cxc_clientes','inv_materia_prima','inv_pp')
             """, (cliente_id, mes_iso))
 
             
