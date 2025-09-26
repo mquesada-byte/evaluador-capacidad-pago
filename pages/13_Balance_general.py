@@ -65,9 +65,41 @@ if not bg_saved:
         datos = load_visita(cliente_id)
         if "balance_general" in datos:
             bg_saved = datos["balance_general"]
+
+            # 🔄 Normalizar columnas SQL → UI
+            col_map = {
+                "descripcion": "Cuenta/Banco",
+                "monto": "Saldo (₡)",
+                "verificado": "Verificado por asesor",
+                "evidencia": "Tipo de evidencia",
+                "comentario": "Comentario"
+            }
+
+            for df_name in ["caja_bancos", "cxc_clientes", "inv_mp", "inv_pp", "inv_pt", "activo_fijo", "cpp", "anticipos"]:
+                if df_name in bg_saved:
+                    df = pd.DataFrame(bg_saved[df_name])
+                    df = df.rename(columns=col_map)
+
+                    # Forzar tipos correctos
+                    if "Saldo (₡)" in df:
+                        df["Saldo (₡)"] = pd.to_numeric(df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
+                    if "Valor (₡)" in df:
+                        df["Valor (₡)"] = pd.to_numeric(df["Valor (₡)"], errors="coerce").fillna(0).astype(int)
+                    if "Valor bruto (₡)" in df:
+                        df["Valor bruto (₡)"] = pd.to_numeric(df["Valor bruto (₡)"], errors="coerce").fillna(0).astype(int)
+                    if "Depreciación acum. (₡)" in df:
+                        df["Depreciación acum. (₡)"] = pd.to_numeric(df["Depreciación acum. (₡)"], errors="coerce").fillna(0).astype(int)
+                    if "Monto (₡)" in df:
+                        df["Monto (₡)"] = pd.to_numeric(df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+                    if "Verificado por asesor" in df:
+                        df["Verificado por asesor"] = df["Verificado por asesor"].astype(bool)
+
+                    bg_saved[df_name] = df.to_dict(orient="records")
+
             st.session_state["reporte"]["balance_general"] = bg_saved
     except Exception as e:
         st.warning(f"No se pudo cargar balance general desde SQL: {e}")
+
 
 
 # ===================== ACTIVO CIRCULANTE =====================
