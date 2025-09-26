@@ -28,6 +28,14 @@ def _as_df(obj, cols=None, placeholder=None):
 
     if df.empty and placeholder is not None:
         return placeholder.copy()
+
+    # Normalizar: asegurar columnas del placeholder
+    if cols is not None:
+        for col in cols:
+            if col not in df.columns:
+                df[col] = placeholder[col] if col in placeholder else None
+        df = df[cols]
+
     return df
 
 
@@ -54,9 +62,6 @@ if "reporte" not in st.session_state or not isinstance(st.session_state["reporte
 # Recuperar datos guardados si existen
 bg_saved = st.session_state["reporte"].get("balance_general", {})
 
-
-
-
 # 👇 Ajuste: cargar desde SQL si no hay en session_state
 if not bg_saved:
     cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
@@ -65,44 +70,9 @@ if not bg_saved:
         datos = load_visita(cliente_id)
         if "balance_general" in datos:
             bg_saved = datos["balance_general"]
-
-            # 🔄 Mapeo de nombres SQL → columnas UI
-            col_map = {
-                "descripcion": "Cuenta/Banco",      # usado en caja_bancos
-                "monto": "Saldo (₡)",              # usado en caja_bancos
-                "verificado": "Verificado por asesor",
-                "evidencia": "Tipo de evidencia",
-                "comentario": "Comentario"
-            }
-
-            for df_name in ["caja_bancos", "cxc_clientes", "inv_mp", "inv_pp", "inv_pt", "activo_fijo", "cpp", "anticipos"]:
-                if df_name in bg_saved:
-                    df = pd.DataFrame(bg_saved[df_name])
-
-                    # Renombrar solo las columnas que existan en df
-                    df = df.rename(columns={k: v for k, v in col_map.items() if k in df.columns})
-
-                    # Forzar tipos según UI
-                    if "Saldo (₡)" in df:
-                        df["Saldo (₡)"] = pd.to_numeric(df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
-                    if "Monto (₡)" in df:
-                        df["Monto (₡)"] = pd.to_numeric(df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
-                    if "Valor (₡)" in df:
-                        df["Valor (₡)"] = pd.to_numeric(df["Valor (₡)"], errors="coerce").fillna(0).astype(int)
-                    if "Valor bruto (₡)" in df:
-                        df["Valor bruto (₡)"] = pd.to_numeric(df["Valor bruto (₡)"], errors="coerce").fillna(0).astype(int)
-                    if "Depreciación acum. (₡)" in df:
-                        df["Depreciación acum. (₡)"] = pd.to_numeric(df["Depreciación acum. (₡)"], errors="coerce").fillna(0).astype(int)
-                    if "Verificado por asesor" in df:
-                        df["Verificado por asesor"] = df["Verificado por asesor"].astype(bool)
-
-                    bg_saved[df_name] = df.to_dict(orient="records")
-
             st.session_state["reporte"]["balance_general"] = bg_saved
     except Exception as e:
         st.warning(f"No se pudo cargar balance general desde SQL: {e}")
-
-
 
 
 # ===================== ACTIVO CIRCULANTE =====================
@@ -114,12 +84,11 @@ caja_placeholder = pd.DataFrame([{
     "Cuenta/Banco": "", "Saldo (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
+caja_df = _as_df(bg_saved.get("caja_bancos"), cols=caja_placeholder.columns, placeholder=caja_placeholder)
+caja_df["Saldo (₡)"] = pd.to_numeric(caja_df["Saldo (₡)"], errors="coerce").fillna(0).astype(int)
+caja_df["Verificado por asesor"] = caja_df["Verificado por asesor"].astype(bool)
 caja_df = st.data_editor(
-    _as_df(bg_saved.get("caja_bancos"), cols=caja_placeholder.columns, placeholder=caja_placeholder),
-    
-    
-    
-    
+    caja_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_caja_bancos",
     column_config={
         "Cuenta/Banco": st.column_config.TextColumn("Cuenta/Banco"),
@@ -129,7 +98,7 @@ caja_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-caja_total = int(pd.to_numeric(caja_df.get("Saldo (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+caja_total = int(caja_df["Saldo (₡)"].sum())
 st.metric("Subtotal Caja y Bancos", f"₡{caja_total:,.0f}")
 st.markdown("---")
 
@@ -139,8 +108,11 @@ cxc_placeholder = pd.DataFrame([{
     "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
+cxc_df = _as_df(bg_saved.get("cxc_clientes"), cols=cxc_placeholder.columns, placeholder=cxc_placeholder)
+cxc_df["Monto (₡)"] = pd.to_numeric(cxc_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+cxc_df["Verificado por asesor"] = cxc_df["Verificado por asesor"].astype(bool)
 cxc_df = st.data_editor(
-    _as_df(bg_saved.get("cxc_clientes"), cols=cxc_placeholder.columns, placeholder=cxc_placeholder),
+    cxc_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_cxc_clientes",
     column_config={
         "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
@@ -150,62 +122,45 @@ cxc_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-cxc_total = int(pd.to_numeric(cxc_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+cxc_total = int(cxc_df["Monto (₡)"].sum())
 st.metric("Subtotal Cuentas por Cobrar", f"₡{cxc_total:,.0f}")
 st.markdown("---")
 
 # 3) Inventarios
 st.markdown("**Inventarios**")
-inv_cols = ["Detalle", "Valor (₡)", "Verificado por asesor", "Tipo de evidencia", "Comentario"]
-
 inv_placeholder = pd.DataFrame([{
     "Detalle": "", "Valor (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
 
+def inv_editor(name, key):
+    df = _as_df(bg_saved.get(name), cols=inv_placeholder.columns, placeholder=inv_placeholder)
+    df["Valor (₡)"] = pd.to_numeric(df["Valor (₡)"], errors="coerce").fillna(0).astype(int)
+    df["Verificado por asesor"] = df["Verificado por asesor"].astype(bool)
+    df = st.data_editor(
+        df,
+        use_container_width=True, num_rows="dynamic", hide_index=True, key=key,
+        column_config={
+            "Detalle": st.column_config.TextColumn("Detalle"),
+            "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
+            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
+            "Comentario": st.column_config.TextColumn("Comentario"),
+        },
+    )
+    subtotal = int(df["Valor (₡)"].sum())
+    return df, subtotal
+
 st.markdown("*Materia prima*")
-df_inv_mp = st.data_editor(
-    _as_df(bg_saved.get("inv_mp"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
-    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_mp",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
-)
-subtotal_mp = int(pd.to_numeric(df_inv_mp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+df_inv_mp, subtotal_mp = inv_editor("inv_mp", "bg_inv_mp")
 st.caption(f"Subtotal Materia Prima: **₡{subtotal_mp:,.0f}**")
 
 st.markdown("*Producto en proceso*")
-df_inv_pp = st.data_editor(
-    _as_df(bg_saved.get("inv_pp"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
-    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pp",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
-)
-subtotal_pp = int(pd.to_numeric(df_inv_pp.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+df_inv_pp, subtotal_pp = inv_editor("inv_pp", "bg_inv_pp")
 st.caption(f"Subtotal Producto en Proceso: **₡{subtotal_pp:,.0f}**")
 
 st.markdown("*Producto terminado*")
-df_inv_pt = st.data_editor(
-    _as_df(bg_saved.get("inv_pt"), cols=inv_placeholder.columns, placeholder=inv_placeholder),
-    use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_inv_pt",
-    column_config={
-        "Detalle": st.column_config.TextColumn("Detalle"),
-        "Valor (₡)": st.column_config.NumberColumn("Valor (₡)", min_value=0, step=10000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
-        "Comentario": st.column_config.TextColumn("Comentario"),
-    },
-)
-subtotal_pt = int(pd.to_numeric(df_inv_pt.get("Valor (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+df_inv_pt, subtotal_pt = inv_editor("inv_pt", "bg_inv_pt")
 st.caption(f"Subtotal Producto Terminado: **₡{subtotal_pt:,.0f}**")
 
 total_inventarios = subtotal_mp + subtotal_pp + subtotal_pt
@@ -223,9 +178,13 @@ af_placeholder = pd.DataFrame([{
     "Activo": "", "Valor bruto (₡)": 0, "Depreciación acum. (₡)": 0,
     "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(4)])
+af_df = _as_df(bg_saved.get("activo_fijo"), cols=af_placeholder.columns, placeholder=af_placeholder)
+af_df["Valor bruto (₡)"] = pd.to_numeric(af_df["Valor bruto (₡)"], errors="coerce").fillna(0).astype(int)
+af_df["Depreciación acum. (₡)"] = pd.to_numeric(af_df["Depreciación acum. (₡)"], errors="coerce").fillna(0).astype(int)
+af_df["Verificado por asesor"] = af_df["Verificado por asesor"].astype(bool)
 with st.expander("Agregar/editar activos fijos"):
     af_df = st.data_editor(
-        _as_df(bg_saved.get("activo_fijo"), cols=af_placeholder.columns, placeholder=af_placeholder),
+        af_df,
         use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_activo_fijo",
         column_config={
             "Activo": st.column_config.TextColumn("Activo"),
@@ -236,8 +195,8 @@ with st.expander("Agregar/editar activos fijos"):
             "Comentario": st.column_config.TextColumn("Comentario"),
         },
     )
-af_bruto = pd.to_numeric(af_df.get("Valor bruto (₡)", pd.Series()), errors="coerce").fillna(0)
-af_depr  = pd.to_numeric(af_df.get("Depreciación acum. (₡)", pd.Series()), errors="coerce").fillna(0)
+af_bruto = af_df["Valor bruto (₡)"]
+af_depr = af_df["Depreciación acum. (₡)"]
 af_neto_series = (af_bruto - af_depr).clip(lower=0)
 af_neto_total = int(af_neto_series.sum())
 st.metric("🏭 **Activo Fijo Neto**", f"₡{af_neto_total:,.0f}")
@@ -257,8 +216,11 @@ cpp_placeholder = pd.DataFrame([{
     "Proveedor": "", "Monto (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(3)])
+cpp_df = _as_df(bg_saved.get("cpp"), cols=cpp_placeholder.columns, placeholder=cpp_placeholder)
+cpp_df["Monto (₡)"] = pd.to_numeric(cpp_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+cpp_df["Verificado por asesor"] = cpp_df["Verificado por asesor"].astype(bool)
 cpp_df = st.data_editor(
-    _as_df(bg_saved.get("cpp"), cols=cpp_placeholder.columns, placeholder=cpp_placeholder),
+    cpp_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_cpp",
     column_config={
         "Proveedor": st.column_config.TextColumn("Proveedor"),
@@ -268,7 +230,7 @@ cpp_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-cpp_total = int(pd.to_numeric(cpp_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+cpp_total = int(cpp_df["Monto (₡)"].sum())
 st.caption(f"Subtotal CxP Proveedores: **₡{cpp_total:,.0f}**")
 
 # Anticipos
@@ -277,8 +239,11 @@ antic_placeholder = pd.DataFrame([{
     "Cliente/Descripción": "", "Monto (₡)": 0, "Verificado por asesor": False,
     "Tipo de evidencia": "", "Comentario": ""
 } for _ in range(2)])
+antic_df = _as_df(bg_saved.get("anticipos"), cols=antic_placeholder.columns, placeholder=antic_placeholder)
+antic_df["Monto (₡)"] = pd.to_numeric(antic_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+antic_df["Verificado por asesor"] = antic_df["Verificado por asesor"].astype(bool)
 antic_df = st.data_editor(
-    _as_df(bg_saved.get("anticipos"), cols=antic_placeholder.columns, placeholder=antic_placeholder),
+    antic_df,
     use_container_width=True, num_rows="dynamic", hide_index=True, key="bg_anticipos",
     column_config={
         "Cliente/Descripción": st.column_config.TextColumn("Cliente/Descripción"),
@@ -288,7 +253,7 @@ antic_df = st.data_editor(
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
-antic_total = int(pd.to_numeric(antic_df.get("Monto (₡)", pd.Series()), errors="coerce").fillna(0).sum())
+antic_total = int(antic_df["Monto (₡)"].sum())
 st.caption(f"Subtotal Anticipos de clientes: **₡{antic_total:,.0f}**")
 
 # Deudas de paso 9
@@ -367,38 +332,5 @@ with c2:
         }
         st.session_state["done_13"] = True
 
-
         # 👇 Guardar en SQL
-        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
-        mes_iso = st.session_state.get("mes_iso", "")
-
-        try:
-            save_ok = save_balance_general(
-                cliente_id=cliente_id,
-                mes_iso=mes_iso,
-                datos=st.session_state["reporte"]["balance_general"]
-            )
-            if save_ok:
-                st.success("✅ Balance general guardado en la base de datos.")
-            else:
-                st.warning("⚠️ No se pudo guardar el balance en la base de datos.")
-        except Exception as e:
-            st.error(f"Error guardando balance general en SQL: {e}")
-
-
-        
-        for nxt in [
-            "pages/14_Informe_final.py",
-            "pages/14_informe_final.py",
-            "pages/14_Informe.py",
-            "pages/14_Resumen_financiero.py",
-            "pages/14_Cierre.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Balance general guardado. Abrí el **siguiente paso** desde el menú lateral.")
-            st.stop()
+        cliente_id = st.session_state.get
