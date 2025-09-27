@@ -427,12 +427,17 @@ af_bruto_total = int(pd.to_numeric(af_df["Monto (₡)"], errors="coerce").fillna
 af_deprec_total = int(pd.to_numeric(af_df["Depreciación (₡)"], errors="coerce").fillna(0).sum())
 af_neto_total = af_bruto_total - af_deprec_total
 
-# === Totales Activo Fijo en dos filas ===
-c1, c2 = st.columns(2)
-with c1:
+# --- Totales Activo Fijo en una sola fila ---
+col_bruto, col_depr, col_neto = st.columns(3, gap="large")
+with col_bruto:
     st.metric("Subtotal Activo Fijo (Bruto)", f"₡{af_bruto_total:,.0f}")
-with c2:
+with col_depr:
     st.metric("Depreciación acumulada", f"₡{af_deprec_total:,.0f}")
+with col_neto:
+    st.metric("Activo Fijo Neto", f"₡{af_neto_total:,.0f}")
+
+st.markdown("---")
+
 
 # Neto centrado en la fila de abajo
 n1, n2, n3 = st.columns([1,1,1])
