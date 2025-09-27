@@ -517,8 +517,6 @@ st.metric("Subtotal Cuentas por Pagar", f"₡{cpp_total:,.0f}")
 st.markdown("---")
 
 
-
-
 # --- Deudas de Paso 9: Préstamos a Corto Plazo ---
 st.markdown("*Cuentas por pagar a corto plazo (de Deudas Paso 9)*")
 
@@ -559,6 +557,36 @@ st.markdown("---")
 
 
 
+# --- Pasivo a Largo Plazo (desde Paso 9) ---
+st.markdown("*Pasivo a largo plazo (de Deudas Paso 9)*")
+
+# 1) Intentar desde session_state (tal como lo guarda el Paso 9)
+try:
+    tot_largo = int(pd.to_numeric(
+        st.session_state.get("reporte", {})
+            .get("deudas_activas", {})
+            .get("totales", {})
+            .get("total_adeudado_largo_plazo_colones", 0)
+    ) or 0)
+except Exception:
+    tot_largo = 0
+
+# 2) Si no hay en sesión, intentar desde SQL (load_visita)
+if (tot_largo == 0) and cliente_id:
+    try:
+        datos_09 = load_visita(cliente_id)
+        if datos_09 and isinstance(datos_09.get("deudas_activas"), dict):
+            tot_largo_sql = int(pd.to_numeric(
+                datos_09["deudas_activas"]
+                      .get("totales", {})
+                      .get("total_adeudado_largo_plazo_colones", 0)
+            ) or 0)
+            if tot_largo_sql > 0:
+                tot_largo = tot_largo_sql
+    except Exception:
+        pass
+
+st.info(f"Total de largo plazo desde Deudas: **₡{tot_largo:,.0f}**")
 
 
 
