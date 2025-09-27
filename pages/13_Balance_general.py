@@ -354,8 +354,6 @@ st.metric("💼 **Total Activo Circulante**", f"₡{activo_circulante:,.0f}")
 st.divider()
 
 
-
-
 # --- II. Activo No Circulante ---
 st.subheader("II. Activo No Circulante")
 
@@ -449,10 +447,6 @@ st.metric("📊 **Total Activos**", f"₡{total_activos:,.0f}")
 st.divider()
 
 
-
-
-
-
 # --- III. Pasivo ---
 st.subheader("III. Pasivo")
 
@@ -525,6 +519,15 @@ st.markdown("---")
 
 
 
+# --- Deudas de Paso 9: Préstamos a Corto Plazo ---
+st.markdown("*Cuentas por pagar a corto plazo (de Deudas Paso 9)*")
+tot_corto = int(pd.to_numeric(st.session_state.get("tot_corto", 0)) or 0)
+st.info(f"Total de corto plazo desde Deudas: **₡{tot_corto:,.0f}**")
+
+# --- Total Pasivo Circulante ---
+pasivo_circulante_total = cpp_total + tot_corto
+st.metric("💳 **Total Pasivo Circulante**", f"₡{pasivo_circulante_total:,.0f}")
+st.markdown("---")
 
 
 
