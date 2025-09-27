@@ -593,19 +593,21 @@ st.info(f"Total de largo plazo desde Deudas: **₡{tot_largo:,.0f}**")
 
 
 
-# --- Total Pasivo (Circulante + Largo Plazo) ---
-pasivo_circulante_total = int(cpp_total + tot_corto)   # CxP + préstamos CP (Paso 9)
-pasivo_total = int(pasivo_circulante_total + tot_largo)
+# --- Totales finales: Pasivo y Patrimonio ---
+# (usa las variables ya calculadas: cpp_total, tot_corto, tot_largo y total_activos)
 
-c1, c2, c3 = st.columns(3, gap="large")
-with c1:
-    st.metric("Pasivo Circulante", f"₡{pasivo_circulante_total:,.0f}")
-with c2:
-    st.metric("Pasivo Largo Plazo", f"₡{tot_largo:,.0f}")
-with c3:
+pasivo_circulante_total = int(cpp_total + tot_corto)
+pasivo_total = int(pasivo_circulante_total + tot_largo)
+patrimonio = int(total_activos - pasivo_total)
+
+col_pas, col_pat = st.columns(2, gap="large")
+with col_pas:
     st.metric("**Total Pasivo**", f"₡{pasivo_total:,.0f}")
+with col_pat:
+    st.metric("📘 Patrimonio", f"₡{patrimonio:,.0f}")
 
 st.markdown("---")
+
 
 
 
