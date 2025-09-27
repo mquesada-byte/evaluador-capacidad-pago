@@ -615,6 +615,20 @@ st.markdown("---")
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
+with col1:
+    if st.button("⬅️ Volver a 12 – Estado de Resultados", use_container_width=True):
+        for prev in [
+            "pages/12_Estado_de_Resultados.py",
+            "pages/12_estado_de_resultados.py",
+            "pages/12_Estado_Resultados.py",
+            "pages/12_ER.py",
+        ]:
+            try:
+                st.switch_page(prev)
+                break
+            except Exception:
+                continue
+
 with col2:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
         if not cliente_id or not mes_iso:
@@ -622,6 +636,8 @@ with col2:
             st.stop()
 
         registros = []
+        # (continúa aquí tu lógica de guardado)
+
 
         # --- Caja y Bancos ---
         for r in caja_df.to_dict(orient="records"):
