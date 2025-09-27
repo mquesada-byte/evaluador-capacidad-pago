@@ -453,6 +453,87 @@ st.divider()
 
 
 
+# --- III. Pasivo ---
+st.subheader("III. Pasivo")
+
+# --- Sección: Pasivo Circulante ---
+st.markdown("### 5) Cuentas por Pagar a Proveedores")
+
+# Placeholder
+cpp_placeholder = pd.DataFrame([{
+    "Proveedor/Descripción": "",
+    "Monto (₡)": 0,
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
+cpp_df = cpp_placeholder.copy()
+
+# Cargar desde SQL (seccion = 'cpp')
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT descripcion, monto, verificado, evidencia, comentario
+            FROM balancegeneraldetalles
+            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cpp'
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            cpp_df = pd.DataFrame.from_records(
+                rows,
+                columns=[
+                    "Proveedor/Descripción", "Monto (₡)", "Verificado por asesor",
+                    "Tipo de evidencia", "Comentario"
+                ]
+            )
+            cpp_df["Monto (₡)"] = pd.to_numeric(cpp_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+            cpp_df["Verificado por asesor"] = cpp_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1","True","true"] else False
+            )
+    except Exception as e:
+        st.warning(f"No se pudieron cargar las Cuentas por Pagar: {e}")
+
+# Editor
+cpp_df = st.data_editor(
+    cpp_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="bg_cpp",
+    column_config={
+        "Proveedor/Descripción": st.column_config.TextColumn("Proveedor/Descripción"),
+        "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
+            "Factura de proveedor", "Estado de cuenta", "Confirmación proveedor",
+            "Contrato", "Otro", "No aplica"
+        ]),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+
+# Subtotal Pasivo Circulante - CxP
+cpp_total = int(pd.to_numeric(cpp_df["Monto (₡)"], errors="coerce").fillna(0).sum())
+st.metric("Subtotal Cuentas por Pagar", f"₡{cpp_total:,.0f}")
+st.markdown("---")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
@@ -561,6 +642,31 @@ with col2:
         
 
 
+        # --- Pasivo Circulante: Cuentas por Pagar ---
+        for r in cpp_df.to_dict(orient="records"):
+            if not any(r.values()):
+                continue
+            registros.append({
+                "cliente_identificacion": cliente_id,
+                "mes_iso": mes_iso,
+                "seccion": "cpp",
+                "descripcion": r.get("Proveedor/Descripción", "") or "",
+                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                # monto_secundario no aplica aquí
+                "verificado": 1 if r.get("Verificado por asesor") else 0,
+                "evidencia": r.get("Tipo de evidencia", "") or "",
+                "comentario": r.get("Comentario", "") or "",
+            })
+
+
+
+
+
+
+
+
+        
+
         
         try:
             conn = get_connection()
@@ -570,7 +676,7 @@ with col2:
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
                 WHERE cliente_identificacion = ? AND mes_iso = ? 
-                  AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo')
+                  AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo','cpp')
             """, (cliente_id, mes_iso))
 
             
