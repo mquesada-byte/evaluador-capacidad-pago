@@ -457,7 +457,7 @@ st.divider()
 st.subheader("III. Pasivo")
 
 # --- Sección: Pasivo Circulante ---
-st.markdown("### 5) Cuentas por Pagar a Proveedores")
+st.markdown("### 5) Cuentas por Pagar")
 
 # Placeholder
 cpp_placeholder = pd.DataFrame([{
