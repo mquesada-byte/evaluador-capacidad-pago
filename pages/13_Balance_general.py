@@ -786,8 +786,37 @@ with col2:
                 ))
 
 
+            # --- Guardar TOTALES en balancegeneral ---
+            # Requiere: activo_circulante, af_neto_total, total_activos,
+            # pasivo_circulante_total, tot_largo, pasivo_total, patrimonio
+            capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
 
-            
+            # 1) Borrar registro previo del mismo cliente/mes
+            cursor.execute("""
+                DELETE FROM balancegeneral
+                WHERE cliente_identificacion = ? AND mes_iso = ?
+            """, (cliente_id, mes_iso))
+
+            # 2) Insertar totales actuales
+            cursor.execute("""
+                INSERT INTO balancegeneral (
+                    cliente_identificacion, mes_iso,
+                    activo_circulante, activo_fijo, total_activos,
+                    pasivo_circulante, pasivo_largo, total_pasivo,
+                    patrimonio, capital_trabajo, comentarios, fecha_registro
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            """, (
+                cliente_id, mes_iso,
+                int(activo_circulante),         # AC
+                int(af_neto_total),             # Activo fijo neto
+                int(total_activos),             # Total activos
+                int(pasivo_circulante_total),   # Pasivo CP
+                int(tot_largo),                 # Pasivo LP
+                int(pasivo_total),              # Total pasivo
+                int(patrimonio),                # Patrimonio
+                int(capital_trabajo),           # AC - Pasivo CP
+                "",                             # comentarios
+            ))
 
             conn.commit()
             conn.close()
@@ -805,5 +834,3 @@ with col2:
                 except Exception:
                     continue
 
-        except Exception as e:
-            st.error(f"❌ Error al guardar: {e}")
