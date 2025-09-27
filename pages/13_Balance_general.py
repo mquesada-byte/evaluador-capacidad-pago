@@ -438,14 +438,6 @@ with col_neto:
 
 st.markdown("---")
 
-
-# Neto centrado en la fila de abajo
-n1, n2, n3 = st.columns([1,1,1])
-with n2:
-    st.metric("Activo Fijo Neto", f"₡{af_neto_total:,.0f}")
-
-st.markdown("---")
-
 # Total Activos = Activo Circulante + Activo Fijo Neto
 total_activos = int((caja_total + cxc_total) + (  # ya los traes
                     int(pd.to_numeric(mp_df["Monto (₡)"], errors="coerce").fillna(0).sum()) +
