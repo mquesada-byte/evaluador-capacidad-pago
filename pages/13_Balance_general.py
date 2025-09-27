@@ -273,8 +273,6 @@ pp_total = int(pd.to_numeric(pp_df["Monto (₡)"], errors="coerce").fillna(0).su
 st.metric("Subtotal Producto en Proceso", f"₡{pp_total:,.0f}")
 st.markdown("---")
 
-
-
 # --- Sub-sección: Producto Terminado ---
 st.markdown("#### c) Producto Terminado")
 
@@ -355,6 +353,94 @@ activo_circulante = caja_total + cxc_total + total_inventarios
 st.metric("💼 **Total Activo Circulante**", f"₡{activo_circulante:,.0f}")
 st.divider()
 
+
+
+
+# --- II. Activo No Circulante ---
+st.subheader("II. Activo No Circulante")
+
+# --- Sección: Activo Fijo ---
+st.markdown("### 4) Activo Fijo")
+
+# Placeholder (mismo formato)
+af_placeholder = pd.DataFrame([{
+    "Descripción": "",
+    "Monto (₡)": 0,
+    "Depreciación (₡)": 0,       # -> mapeado a monto_secundario
+    "Verificado por asesor": False,
+    "Tipo de evidencia": "",
+    "Comentario": ""
+} for _ in range(3)])
+
+af_df = af_placeholder.copy()
+
+# Cargar desde SQL
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT descripcion, monto, monto_secundario, verificado, evidencia, comentario
+            FROM balancegeneraldetalles
+            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'activo_fijo'
+        """, (cliente_id, mes_iso))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            af_df = pd.DataFrame.from_records(
+                rows,
+                columns=[
+                    "Descripción", "Monto (₡)", "Depreciación (₡)",
+                    "Verificado por asesor", "Tipo de evidencia", "Comentario"
+                ]
+            )
+            af_df["Monto (₡)"] = pd.to_numeric(af_df["Monto (₡)"], errors="coerce").fillna(0).astype(int)
+            af_df["Depreciación (₡)"] = pd.to_numeric(af_df["Depreciación (₡)"], errors="coerce").fillna(0).astype(int)
+            af_df["Verificado por asesor"] = af_df["Verificado por asesor"].apply(
+                lambda v: True if str(v).strip() in ["1","True","true"] else False
+            )
+    except Exception as e:
+        st.warning(f"No se pudieron cargar los datos de Activo Fijo: {e}")
+
+# Editor
+af_df = st.data_editor(
+    af_df,
+    use_container_width=True,
+    num_rows="dynamic",
+    hide_index=True,
+    key="bg_activo_fijo",
+    column_config={
+        "Descripción": st.column_config.TextColumn("Descripción"),
+        "Monto (₡)": st.column_config.NumberColumn("Monto (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Depreciación (₡)": st.column_config.NumberColumn("Depreciación (₡)", min_value=0, step=10000, format="₡ %d"),
+        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor"),
+        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=[
+            "Factura/Recibo","Inventario físico","Fotos/Video","Contrato","Otro","No aplica"
+        ]),
+        "Comentario": st.column_config.TextColumn("Comentario"),
+    },
+)
+
+# Subtotales y Neto
+af_bruto_total = int(pd.to_numeric(af_df["Monto (₡)"], errors="coerce").fillna(0).sum())
+af_deprec_total = int(pd.to_numeric(af_df["Depreciación (₡)"], errors="coerce").fillna(0).sum())
+af_neto_total = af_bruto_total - af_deprec_total
+
+st.metric("Subtotal Activo Fijo (Bruto)", f"₡{af_bruto_total:,.0f}")
+st.metric("Depreciación acumulada", f"₡{af_deprec_total:,.0f}")
+st.metric("**Activo Fijo Neto**", f"₡{af_neto_total:,.0f}")
+st.markdown("---")
+
+# Total Activos = Activo Circulante + Activo Fijo Neto
+total_activos = int((caja_total + cxc_total) + (  # ya los traes
+                    int(pd.to_numeric(mp_df["Monto (₡)"], errors="coerce").fillna(0).sum()) +
+                    int(pd.to_numeric(pp_df["Monto (₡)"], errors="coerce").fillna(0).sum()) +
+                    int(pd.to_numeric(pt_df["Monto (₡)"], errors="coerce").fillna(0).sum())
+                ) + af_neto_total)
+
+st.metric("📊 **Total Activos**", f"₡{total_activos:,.0f}")
+st.divider()
 
 
 
@@ -449,6 +535,21 @@ with col2:
             })
 
 
+        # --- Activo Fijo ---
+        for r in af_df.to_dict(orient="records"):
+            if not any(r.values()):
+                continue
+            registros.append({
+                "cliente_identificacion": cliente_id,
+                "mes_iso": mes_iso,
+                "seccion": "activo_fijo",
+                "descripcion": r.get("Descripción", "") or "",
+                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "monto_secundario": int(pd.to_numeric(r.get("Depreciación (₡)", 0), errors="coerce") or 0),
+                "verificado": 1 if r.get("Verificado por asesor") else 0,
+                "evidencia": r.get("Tipo de evidencia", "") or "",
+                "comentario": r.get("Comentario", "") or "",
+            })
 
 
         
@@ -463,7 +564,7 @@ with col2:
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
                 WHERE cliente_identificacion = ? AND mes_iso = ? 
-                  AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt')
+                  AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo')
             """, (cliente_id, mes_iso))
 
             
