@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from utils.db import get_connection
+from utils.db import get_connection, load_visita
 
 st.set_page_config(page_title="Paso 13: Balance General", page_icon="📒")
 
@@ -521,13 +521,40 @@ st.markdown("---")
 
 # --- Deudas de Paso 9: Préstamos a Corto Plazo ---
 st.markdown("*Cuentas por pagar a corto plazo (de Deudas Paso 9)*")
-tot_corto = int(pd.to_numeric(st.session_state.get("tot_corto", 0)) or 0)
+
+# 1) Primero desde session_state (como lo guarda Paso 9)
+try:
+    tot_corto = int(pd.to_numeric(
+        st.session_state.get("reporte", {})
+            .get("deudas_activas", {})
+            .get("totales", {})
+            .get("total_adeudado_corto_plazo_colones", 0)
+    ) or 0)
+except Exception:
+    tot_corto = 0
+
+# 2) Si no hay en sesión, intenta traerlo desde SQL (load_visita)
+if (tot_corto == 0) and cliente_id:
+    try:
+        datos_09 = load_visita(cliente_id)
+        if datos_09 and isinstance(datos_09.get("deudas_activas"), dict):
+            tot_corto_sql = int(pd.to_numeric(
+                datos_09["deudas_activas"]
+                     .get("totales", {})
+                     .get("total_adeudado_corto_plazo_colones", 0)
+            ) or 0)
+            if tot_corto_sql > 0:
+                tot_corto = tot_corto_sql
+    except Exception:
+        pass
+
 st.info(f"Total de corto plazo desde Deudas: **₡{tot_corto:,.0f}**")
 
-# --- Total Pasivo Circulante ---
+# --- Total Pasivo Circulante (CxP + Préstamos CP Paso 9) ---
 pasivo_circulante_total = cpp_total + tot_corto
 st.metric("💳 **Total Pasivo Circulante**", f"₡{pasivo_circulante_total:,.0f}")
 st.markdown("---")
+
 
 
 
