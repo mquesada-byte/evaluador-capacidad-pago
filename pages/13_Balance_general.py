@@ -620,27 +620,31 @@ if cliente_id and mes_iso:
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT TOP 1 comentarios
             FROM BalanceGeneralTotales
             WHERE cliente_identificacion = ? AND mes_iso = ?
             ORDER BY fecha_registro DESC
-        """, (cliente_id, mes_iso))
+            """,
+            (cliente_id, mes_iso),
+        )
         row = cur.fetchone()
         conn.close()
-        if row and row[0]:
+        if row and row[0] is not None:
             comentario_default = str(row[0])
     except Exception:
-        pass  # si falla la lectura, dejamos vacío
+        pass  # si falla, dejamos vacío
 
 comentarios_totales = st.text_area(
     "Comentario general del balance",
     value=comentario_default,
-    key=f"bg_comentarios_{cliente_id}_{mes_iso}",
     height=120,
-    placeholder="Observaciones del asesor (supuestos, validaciones, riesgos, etc.)"
+    key=f"bg_comentarios_{cliente_id}_{mes_iso}",
+    placeholder="Observaciones del asesor (supuestos, validaciones, riesgos, etc.)",
 )
 st.markdown("---")
+
 
 
 
@@ -820,47 +824,48 @@ with col2:
                 ))
 
 
-            # --- Guardar TOTALES en balancegeneral ---
-            # Requiere: activo_circulante, af_neto_total, total_activos,
-            # pasivo_circulante_total, tot_largo, pasivo_total, patrimonio
-            capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
-
-            # 1) Borrar registro previo del mismo cliente/mes
-            cursor.execute("""
-                DELETE FROM balancegeneral
-                WHERE cliente_identificacion = ? AND mes_iso = ?
-            """, (cliente_id, mes_iso))
 
 
-            # Texto de comentarios a guardar
-            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}_{mes_iso}", "") or "").strip()
+
             
-            # 1) Borrar registro previo del mismo cliente/mes
-            cursor.execute("""
+            # --- Guardar TOTALES en BalanceGeneralTotales ---
+            capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
+            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}_{mes_iso}", "") or "").strip()
+
+            # Borrar registro previo del mismo cliente/mes
+            cursor.execute(
+                """
                 DELETE FROM BalanceGeneralTotales
                 WHERE cliente_identificacion = ? AND mes_iso = ?
-            """, (cliente_id, mes_iso))
-            
-            # 2) Insertar totales actuales (incluye comentarios)
-            cursor.execute("""
+                """,
+                (cliente_id, mes_iso),
+            )
+
+            # Insertar totales actuales (incluye comentarios)
+            cursor.execute(
+                """
                 INSERT INTO BalanceGeneralTotales (
                     cliente_identificacion, mes_iso,
                     activo_circulante, activo_fijo, total_activos,
                     pasivo_circulante, pasivo_largo, total_pasivo,
                     patrimonio, capital_trabajo, comentarios, fecha_registro
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-            """, (
-                cliente_id, mes_iso,
-                int(activo_circulante),
-                int(af_neto_total),          # Activo fijo neto
-                int(total_activos),
-                int(pasivo_circulante_total),
-                int(tot_largo),
-                int(pasivo_total),
-                int(patrimonio),
-                int(activo_circulante - pasivo_circulante_total),  # capital_trabajo
-                comentarios_totales
-            ))
+                """,
+                (
+                    cliente_id,
+                    mes_iso,
+                    int(activo_circulante),
+                    int(af_neto_total),            # Activo fijo NETO
+                    int(total_activos),
+                    int(pasivo_circulante_total),
+                    int(tot_largo),
+                    int(pasivo_total),
+                    int(patrimonio),
+                    int(capital_trabajo),
+                    comentarios_totales,
+                ),
+            )
+
 
 
 
