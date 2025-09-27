@@ -342,6 +342,19 @@ st.metric("Subtotal Producto Terminado", f"₡{pt_total:,.0f}")
 st.markdown("---")
 
 
+# --- Totales de Inventario y Activo Circulante ---
+subtotal_mp = mp_total
+subtotal_pp = pp_total
+subtotal_pt = pt_total
+
+total_inventarios = subtotal_mp + subtotal_pp + subtotal_pt
+st.metric("**Total Inventarios**", f"₡{total_inventarios:,.0f}")
+st.markdown("---")
+
+activo_circulante = caja_total + cxc_total + total_inventarios
+st.metric("💼 **Total Activo Circulante**", f"₡{activo_circulante:,.0f}")
+st.divider()
+
 
 
 
