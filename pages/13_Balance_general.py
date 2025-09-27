@@ -568,17 +568,22 @@ with col2:
             """, (cliente_id, mes_iso))
 
             
-            # Insertar nuevos
+            # Insertar nuevos (incluye monto_secundario)
             for reg in registros:
                 cursor.execute("""
                     INSERT INTO balancegeneraldetalles
-                    (cliente_identificacion, mes_iso, seccion, descripcion, monto, verificado, evidencia, comentario, fecha_registro)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    (cliente_identificacion, mes_iso, seccion, descripcion, monto, monto_secundario, verificado, evidencia, comentario, fecha_registro)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
                 """, (
                     reg["cliente_identificacion"], reg["mes_iso"], reg["seccion"],
-                    reg["descripcion"], reg["monto"], reg["verificado"],
-                    reg["evidencia"], reg["comentario"]
+                    reg["descripcion"], reg["monto"],
+                    reg.get("monto_secundario", None),  # <- aquí va la depreciación (o NULL para otras secciones)
+                    reg["verificado"], reg["evidencia"], reg["comentario"]
                 ))
+
+
+
+            
 
             conn.commit()
             conn.close()
