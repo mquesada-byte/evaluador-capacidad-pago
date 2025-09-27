@@ -612,6 +612,40 @@ st.markdown("---")
 
 
 
+# --- Comentarios del asesor (Balance General) ---
+st.markdown("### 📝 Comentarios del asesor")
+
+comentario_default = ""
+if cliente_id and mes_iso:
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT TOP 1 comentarios
+            FROM BalanceGeneralTotales
+            WHERE cliente_identificacion = ? AND mes_iso = ?
+            ORDER BY fecha_registro DESC
+        """, (cliente_id, mes_iso))
+        row = cur.fetchone()
+        conn.close()
+        if row and row[0]:
+            comentario_default = str(row[0])
+    except Exception:
+        pass  # si falla la lectura, dejamos vacío
+
+comentarios_totales = st.text_area(
+    "Comentario general del balance",
+    value=comentario_default,
+    key=f"bg_comentarios_{cliente_id}_{mes_iso}",
+    height=120,
+    placeholder="Observaciones del asesor (supuestos, validaciones, riesgos, etc.)"
+)
+st.markdown("---")
+
+
+
+
+
 
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
@@ -797,9 +831,19 @@ with col2:
                 WHERE cliente_identificacion = ? AND mes_iso = ?
             """, (cliente_id, mes_iso))
 
-            # 2) Insertar totales actuales
+
+            # Texto de comentarios a guardar
+            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}_{mes_iso}", "") or "").strip()
+            
+            # 1) Borrar registro previo del mismo cliente/mes
             cursor.execute("""
-                INSERT INTO balancegeneral (
+                DELETE FROM BalanceGeneralTotales
+                WHERE cliente_identificacion = ? AND mes_iso = ?
+            """, (cliente_id, mes_iso))
+            
+            # 2) Insertar totales actuales (incluye comentarios)
+            cursor.execute("""
+                INSERT INTO BalanceGeneralTotales (
                     cliente_identificacion, mes_iso,
                     activo_circulante, activo_fijo, total_activos,
                     pasivo_circulante, pasivo_largo, total_pasivo,
@@ -807,17 +851,23 @@ with col2:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
             """, (
                 cliente_id, mes_iso,
-                int(activo_circulante),         # AC
-                int(af_neto_total),             # Activo fijo neto
-                int(total_activos),             # Total activos
-                int(pasivo_circulante_total),   # Pasivo CP
-                int(tot_largo),                 # Pasivo LP
-                int(pasivo_total),              # Total pasivo
-                int(patrimonio),                # Patrimonio
-                int(capital_trabajo),           # AC - Pasivo CP
-                "",                             # comentarios
+                int(activo_circulante),
+                int(af_neto_total),          # Activo fijo neto
+                int(total_activos),
+                int(pasivo_circulante_total),
+                int(tot_largo),
+                int(pasivo_total),
+                int(patrimonio),
+                int(activo_circulante - pasivo_circulante_total),  # capital_trabajo
+                comentarios_totales
             ))
 
+
+
+
+
+
+            
             conn.commit()
             conn.close()
             st.success("✅ Datos de Balance General guardados correctamente.")
