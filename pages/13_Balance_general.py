@@ -877,6 +877,7 @@ with col2:
             conn.close()
             st.success("✅ Datos de Balance General guardados correctamente.")
 
+
             # avanzar al siguiente paso
             for nxt in [
                 "pages/14_Informe_final.py",
@@ -888,4 +889,24 @@ with col2:
                     break
                 except Exception:
                     continue
+
+        # 🔽🔽🔽 CERRAR EL try EXTERNO 🔽🔽🔽
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            st.error(f"❌ Error al guardar: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+
+
+
+
+
 
