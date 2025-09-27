@@ -615,19 +615,23 @@ st.markdown("---")
 # --- Navegación ---
 col1, col2 = st.columns([1, 1])
 
+# Botón regresar a Paso 12
 with col1:
     if st.button("⬅️ Volver a 12 – Estado de Resultados", use_container_width=True):
-        for prev in [
-            "pages/12_Estado_de_Resultados.py",
-            "pages/12_estado_de_resultados.py",
-            "pages/12_Estado_Resultados.py",
-            "pages/12_ER.py",
+        # Intentos por ruta y por nombre de página (según cómo esté registrada)
+        for target in [
+            "pages/12_Estado_de_Resultados.py",  # ruta típica en 'pages/'
+            "12_Estado_de_Resultados.py",        # raíz del proyecto
+            "12_Estado_de_Resultados",           # nombre de página (sin .py)
+            "12 Estado de Resultados",           # etiqueta derivada del filename
         ]:
             try:
-                st.switch_page(prev)
+                st.switch_page(target)
                 break
             except Exception:
                 continue
+        else:
+            st.warning("No se encontró la página 'Paso 12: Estado de Resultados'. Verifica el nombre/ubicación en la carpeta 'pages/'.")
 
 with col2:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
@@ -636,7 +640,8 @@ with col2:
             st.stop()
 
         registros = []
-        # (continúa aquí tu lógica de guardado)
+        # (sigue tu lógica de guardado aquí)
+
 
 
         # --- Caja y Bancos ---
