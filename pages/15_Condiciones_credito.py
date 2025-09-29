@@ -51,7 +51,8 @@ with col6:
         help="Monto único que nos cotiza el abogado"
     )
 with col7:
-    tir_placeholder = st.empty()  # 👈 aquí pondremos la TIR anualizada
+    with col7:
+    tita_placeholder = st.empty()  # 👈 aquí pondremos la TITA
 
 # ===== Botón y alerta en la misma fila =====
 col_boton, col_alerta = st.columns([1, 3])  # botón pequeño a la izquierda, alerta a la derecha
