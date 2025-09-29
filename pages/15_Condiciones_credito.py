@@ -76,19 +76,40 @@ if calcular:
         poliza = (monto_total / 100000) * 100
         cuota_con_poliza = cuota_base + poliza
 
-        # ===== Cálculo de la TIR =====
-        flujos = [monto_solicitado + saldo_payoff] + [-cuota_con_poliza for _ in range(plazo_meses)]
+        # ===== Cálculo de la TITA =====
+        plazo_anios = plazo_meses / 12 if plazo_meses > 0 else 1
+        comision_anual = comision_pct / plazo_anios
+        tita = tasa_interes_anual + comision_anual
 
-        try:
-            tir_mensual = npf.irr(flujos)
-            if tir_mensual is not None and not np.isnan(tir_mensual):
-                tir_anual = (1 + tir_mensual)**12 - 1
-            else:
-                tir_anual = None
-        except Exception:
-            tir_anual = None
+        # Mostrar la TITA en el espacio junto a honorarios
+        with col7:
+            tita_placeholder.metric("Tasa de Interés Total Anual (TITA)", f"{tita:.2f}%")
 
-        # Mostrar la TIR en el espacio junto a honorarios
+            # 🚨 Verificación contra la ley de usura (alerta ahora va junto al botón)
+            with col_alerta:
+                if monto_total <= MONTO_MAX_MICROCREDITO:
+                    # Caso 1: Microcrédito
+                    if tita > TASA_MAX_MICROCREDITO:
+                        st.warning(
+                            f"⚠️ ALERTA: La TITA ({tita:.2f}%) supera el límite legal para microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
+                        )
+                    else:
+                        st.success(
+                            f"🟢 OK: La TITA ({tita:.2f}%) está dentro del límite de microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
+                        )
+                else:
+                    # Caso 2: Crédito normal
+                    if tita > TASA_MAX_CREDITO:
+                        st.warning(
+                            f"⚠️ ALERTA: La TITA ({tita:.2f}%) supera el límite legal para crédito ({TASA_MAX_CREDITO:.2f}%)"
+                        )
+                    else:
+                        st.success(
+                            f"🟢 OK: La TITA ({tita:.2f}%) está dentro del límite de crédito ({TASA_MAX_CREDITO:.2f}%)"
+                        )
+
+
+        # Mostrar la TITA en el espacio junto a honorarios
         with col7:
             if tir_anual is not None and tir_anual > 0:
                 tir_placeholder.metric("Tasa de Interés Total Anual (TITA)", f"{tir_anual*100:.2f}%")
