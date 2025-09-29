@@ -81,9 +81,9 @@ if calcular:
         plazo_anios = plazo_meses / 12 if plazo_meses > 0 else 1
         comision_anual = comision_pct / plazo_anios
         poliza_anual = (poliza * 12) / monto_total
-        tita = tasa_interes_anual + comision_anual + (poliza_anual * 100)
-
-        
+        honorarios_anual = (honorarios_timbres / monto_total) / plazo_anios
+        tita = tasa_interes_anual + comision_anual + (poliza_anual * 100) + (honorarios_anual * 100)
+    
 
         # Mostrar la TITA en el espacio junto a honorarios
         with col7:
