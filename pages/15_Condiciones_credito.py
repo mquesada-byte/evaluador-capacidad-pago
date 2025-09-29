@@ -111,14 +111,14 @@ if calcular:
 
         # Mostrar la TITA en el espacio junto a honorarios
         with col7:
-            if tir_anual is not None and tir_anual > 0:
-                tir_placeholder.metric("Tasa de Interés Total Anual (TITA)", f"{tir_anual*100:.2f}%")
+            if tita_anual is not None and tita_anual > 0:
+                tita_placeholder.metric("Tasa de Interés Total Anual (TITA)", f"{tita_anual*100:.2f}%")
 
                 # 🚨 Verificación contra la ley de usura (alerta ahora va junto al botón)
                 with col_alerta:
                     if monto_total <= MONTO_MAX_MICROCREDITO:
                         # Caso 1: Microcrédito
-                        if tir_anual * 100 > TASA_MAX_MICROCREDITO:
+                        if tita_anual * 100 > TASA_MAX_MICROCREDITO:
                             st.warning(
                                 f"⚠️ ALERTA: La TITA ({tir_anual*100:.2f}%) supera el límite legal para microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
                             )
@@ -128,17 +128,17 @@ if calcular:
                             )
                     else:
                         # Caso 2: Crédito normal
-                        if tir_anual * 100 > TASA_MAX_CREDITO:
+                        if tita_anual * 100 > TASA_MAX_CREDITO:
                             st.warning(
-                                f"⚠️ ALERTA: La TITA ({tir_anual*100:.2f}%) supera el límite legal para crédito ({TASA_MAX_CREDITO:.2f}%)"
+                                f"⚠️ ALERTA: La TITA ({tita_anual*100:.2f}%) supera el límite legal para crédito ({TASA_MAX_CREDITO:.2f}%)"
                             )
                         else:
                             st.success(
-                                f"🟢 OK: La TITA ({tir_anual*100:.2f}%) está dentro del límite de crédito ({TASA_MAX_CREDITO:.2f}%)"
+                                f"🟢 OK: La TITA ({tita_anual*100:.2f}%) está dentro del límite de crédito ({TASA_MAX_CREDITO:.2f}%)"
                             )
 
             else:
-                tir_placeholder.metric("Tasa de Interés Total Anual (TITA)", "—")
+                tita_placeholder.metric("Tasa de Interés Total Anual (TITA)", "—")
 
         # ===== Salida =====
         st.subheader("Resultados")
