@@ -43,7 +43,7 @@ with col4:
 with col5:
     plazo_meses = st.number_input("Plazo (meses)", min_value=0, max_value=120, step=1, value=0)
 
-# Honorarios + espacio para TIR
+# Honorarios + espacio para TITA
 col6, col7 = st.columns(2)
 with col6:
     honorarios_timbres = st.number_input(
@@ -107,38 +107,6 @@ if calcular:
                         st.success(
                             f"🟢 OK: La TITA ({tita:.2f}%) está dentro del límite de crédito ({TASA_MAX_CREDITO:.2f}%)"
                         )
-
-
-        # Mostrar la TITA en el espacio junto a honorarios
-        with col7:
-            if tita_anual is not None and tita_anual > 0:
-                tita_placeholder.metric("Tasa de Interés Total Anual (TITA)", f"{tita_anual*100:.2f}%")
-
-                # 🚨 Verificación contra la ley de usura (alerta ahora va junto al botón)
-                with col_alerta:
-                    if monto_total <= MONTO_MAX_MICROCREDITO:
-                        # Caso 1: Microcrédito
-                        if tita_anual * 100 > TASA_MAX_MICROCREDITO:
-                            st.warning(
-                                f"⚠️ ALERTA: La TITA ({tir_anual*100:.2f}%) supera el límite legal para microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
-                            )
-                        else:
-                            st.success(
-                                f"🟢 OK: La TITA ({tir_anual*100:.2f}%) está dentro del límite de microcrédito ({TASA_MAX_MICROCREDITO:.2f}%)"
-                            )
-                    else:
-                        # Caso 2: Crédito normal
-                        if tita_anual * 100 > TASA_MAX_CREDITO:
-                            st.warning(
-                                f"⚠️ ALERTA: La TITA ({tita_anual*100:.2f}%) supera el límite legal para crédito ({TASA_MAX_CREDITO:.2f}%)"
-                            )
-                        else:
-                            st.success(
-                                f"🟢 OK: La TITA ({tita_anual*100:.2f}%) está dentro del límite de crédito ({TASA_MAX_CREDITO:.2f}%)"
-                            )
-
-            else:
-                tita_placeholder.metric("Tasa de Interés Total Anual (TITA)", "—")
 
         # ===== Salida =====
         st.subheader("Resultados")
