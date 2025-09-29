@@ -51,7 +51,6 @@ with col6:
         help="Monto único que nos cotiza el abogado"
     )
 with col7:
-    with col7:
     tita_placeholder = st.empty()  # 👈 aquí pondremos la TITA
 
 # ===== Botón y alerta en la misma fila =====
