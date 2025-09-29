@@ -76,10 +76,14 @@ if calcular:
         poliza = (monto_total / 100000) * 100
         cuota_con_poliza = cuota_base + poliza
 
+
         # ===== Cálculo de la TITA =====
         plazo_anios = plazo_meses / 12 if plazo_meses > 0 else 1
         comision_anual = comision_pct / plazo_anios
-        tita = tasa_interes_anual + comision_anual
+        poliza_anual = (poliza * 12) / monto_total
+        tita = tasa_interes_anual + comision_anual + (poliza_anual * 100)
+
+        
 
         # Mostrar la TITA en el espacio junto a honorarios
         with col7:
