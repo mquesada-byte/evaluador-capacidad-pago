@@ -83,8 +83,8 @@ if calcular:
         poliza_anual = (poliza * 12) / monto_total
         honorarios_anual = (honorarios_timbres / monto_total) / plazo_anios
         tita = tasa_interes_anual + comision_anual + (poliza_anual * 100) + (honorarios_anual * 100)
+  
     
-
         # Mostrar la TITA en el espacio junto a honorarios
         with col7:
             tita_placeholder.metric("Tasa de Interés Total Anual (TITA)", f"{tita:.2f}%")
