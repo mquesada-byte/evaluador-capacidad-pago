@@ -20,10 +20,22 @@ def get_connection():
                  "Verifique credenciales, firewall o disponibilidad del servidor.")
         return None
 
-def load_visita(cliente_id: str) -> dict | None:
-    conn = get_connection()
-    cursor = conn.cursor()
+############################### CORRECCION 1 OCT 25 ###########################################################
+#def load_visita(cliente_id: str) -> dict | None:
+#    conn = get_connection()
+#    cursor = conn.cursor()
 
+def load_visita(cliente_id: str) -> dict | None:
+    if not cliente_id:                       # evita llamar con vacío
+        return None
+    conn = get_connection()
+    if conn is None:                         # maneja fallas de conexión
+        return None
+    try:
+        cursor = conn.cursor()
+
+################################################################################################################
+    
     # Cliente/negocio/asesor
     cursor.execute("SELECT * FROM visitas_credito WHERE cliente_identificacion=?", (cliente_id,))
     row1 = cursor.fetchone()
