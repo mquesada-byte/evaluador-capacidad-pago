@@ -2,6 +2,8 @@ import pyodbc
 import streamlit as st
 import pandas as pd
 
+from typing import Optional        # ajuste 1Oct25
+
 
 def get_connection():
     """Devuelve una conexión a Azure SQL Database usando los secrets."""
@@ -25,7 +27,7 @@ def get_connection():
 #    conn = get_connection()
 #    cursor = conn.cursor()
 
-def load_visita(cliente_id: str) -> dict | None:
+def load_visita(cliente_id: str) -> Optional[dict]:
     if not cliente_id:                       # evita llamar con vacío
         return None
     conn = get_connection()
