@@ -19,33 +19,9 @@ def get_connection():
                  "Verifique credenciales, firewall o disponibilidad del servidor.")
         return None
 
-############################### CORRECCION 1 OCT 25 ###########################################################
-#def load_visita(cliente_id: str) -> dict | None:
-#    conn = get_connection()
-#    cursor = conn.cursor()
-
-from typing import Optional
-
-def load_visita(cliente_id: str) -> Optional[dict]:
-    if not cliente_id:                       # evita llamar con vacío
-        return None
+def load_visita(cliente_id: str) -> dict | None:
     conn = get_connection()
-    if conn is None:                         # maneja fallas de conexión
-        return None
-    try:
-        cursor = conn.cursor()
-        # 👇 aquí va todo tu código original de SELECTs, DataFrames, etc.
-        # ...
-        conn.close()
-        return datos
-    except Exception as e:
-        st.error(f"Error cargando datos del cliente: {e}")
-        return None
-
-
-
-    
-################################################################################################################
+    cursor = conn.cursor()
     
     # Cliente/negocio/asesor
     cursor.execute("SELECT * FROM visitas_credito WHERE cliente_identificacion=?", (cliente_id,))
