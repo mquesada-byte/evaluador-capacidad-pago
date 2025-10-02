@@ -178,8 +178,8 @@ with c2:
 
 
         # 👇 Guardar en SQL
-        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
-
+        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+        
         try:
             save_ok = save_gastos_operativos(
                 cliente_id=cliente_id,
@@ -193,8 +193,6 @@ with c2:
                 st.warning("⚠️ No se pudieron guardar los gastos en la base de datos.")
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
-
-
 
         
 
