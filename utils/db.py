@@ -580,7 +580,7 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         return False
 
 # ==========================================================
-# GUARDAR PASO 9 – DEUDAS ACTIVAS
+# GUARDAR PASO 9 – DEUDAS ACTIVAS (un balance por cliente)
 # ==========================================================
 def save_deudas_activas(cliente_id: str, df, totales: dict, sin_deudas: bool) -> bool:
     """
@@ -665,6 +665,7 @@ def save_deudas_activas(cliente_id: str, df, totales: dict, sin_deudas: bool) ->
     except Exception as e:
         st.error(f"Error guardando deudas_activas: {e}")
         return False
+
 
 
 
