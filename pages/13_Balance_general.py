@@ -99,7 +99,7 @@ if cliente_id:
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cxc_clientes'
+            WHERE cliente_identificacion = ? AND seccion = 'cxc_clientes'
         """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
