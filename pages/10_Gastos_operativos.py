@@ -150,7 +150,22 @@ st.divider()
 
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
-sin_gastos = st.checkbox("El hogar o negocio no tiene gastos operativos que reportar.", key="sin_gastos")
+
+sin_gastos_val = bool(
+    datos.get("gastos_operativos", {})
+         .get("totales", {})
+         .get("sin_gastos", False)
+) if datos else False
+
+sin_gastos = st.checkbox(
+    "El hogar o negocio no tiene gastos operativos que reportar.",
+    key="sin_gastos",
+    value=sin_gastos_val
+)
+
+
+
+
 puede_continuar = (valid_mask.sum() > 0) or sin_gastos
 
 # Navegación / Guardar
@@ -167,7 +182,7 @@ with c2:
         st.session_state.setdefault("reporte", {})
 
         if sin_gastos:
-            # 🔄 Limpiar completamente cuando no hay gastos
+            # 🔄 Guardar snapshot vacío en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
                 "tabla": [],
                 "totales": {
@@ -177,7 +192,11 @@ with c2:
                     "sin_gastos": True
                 }
             }
+            # 🔄 Limpiar también dataframes en memoria para evitar que se recarguen al volver
+            st.session_state["de_gastos_operativos"] = pd.DataFrame(columns=base_cols)
+            st.session_state["de_gastos_operativos_calc"] = pd.DataFrame(columns=base_cols)
         else:
+            # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
                 "tabla": df.fillna("").to_dict(orient="records"),
                 "totales": {
@@ -190,7 +209,7 @@ with c2:
 
         st.session_state["done_10"] = True
 
-        # 👇 Guardar en SQL (patrón igual que deudas)
+        # 👇 Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
         try:
             save_ok = save_gastos_operativos(
@@ -212,4 +231,5 @@ with c2:
         except Exception:
             st.success("Gastos operativos guardados. Abrí **11 – Gastos familiares** desde el menú lateral.")
             st.stop()
+
 
