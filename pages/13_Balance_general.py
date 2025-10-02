@@ -793,76 +793,66 @@ with col2:
             conn = get_connection()
             cursor = conn.cursor()
 
-           # 🔥 Borrar previos (caja, cxc y materia prima)
+            # 🔥 Borrar previos (caja, cxc y materia prima, etc.)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
-                WHERE cliente_identificacion = ? AND mes_iso = ? 
+                WHERE cliente_identificacion = ? AND mes_iso = ?
                   AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo','cpp')
             """, (cliente_id, mes_iso))
-
             
-            # Insertar nuevos (incluye monto_secundario)
+            # Insertar nuevos (incluye monto_secundario si aplica)
             for reg in registros:
                 cursor.execute("""
                     INSERT INTO balancegeneraldetalles
                     (cliente_identificacion, mes_iso, seccion, descripcion, monto, monto_secundario, verificado, evidencia, comentario, fecha_registro)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
                 """, (
-                    reg["cliente_identificacion"], reg["mes_iso"], reg["seccion"],
-                    reg["descripcion"], reg["monto"],
-                    reg.get("monto_secundario", None),  # <- aquí va la depreciación (o NULL para otras secciones)
-                    reg["verificado"], reg["evidencia"], reg["comentario"]
+                    reg["cliente_identificacion"], 
+                    reg["mes_iso"], 
+                    reg["seccion"],
+                    reg["descripcion"], 
+                    reg["monto"],
+                    reg.get("monto_secundario", None),  # <- depreciación o NULL
+                    reg["verificado"], 
+                    reg["evidencia"], 
+                    reg["comentario"]
                 ))
-
-
-
-
-
             
             # --- Guardar TOTALES en BalanceGeneralTotales ---
             capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
             comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}_{mes_iso}", "") or "").strip()
-
+            
             # Borrar registro previo del mismo cliente/mes
-            cursor.execute(
-                """
+            cursor.execute("""
                 DELETE FROM BalanceGeneralTotales
                 WHERE cliente_identificacion = ? AND mes_iso = ?
-                """,
-                (cliente_id, mes_iso),
-            )
-
+            """, (cliente_id, mes_iso))
+            
             # Insertar totales actuales (incluye comentarios)
-            cursor.execute(
-                """
+            cursor.execute("""
                 INSERT INTO BalanceGeneralTotales (
                     cliente_identificacion, mes_iso,
                     activo_circulante, activo_fijo, total_activos,
                     pasivo_circulante, pasivo_largo, total_pasivo,
                     patrimonio, capital_trabajo, comentarios, fecha_registro
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-                """,
-                (
-                    cliente_id,
-                    mes_iso,
-                    int(activo_circulante),
-                    int(af_neto_total),            # Activo fijo NETO
-                    int(total_activos),
-                    int(pasivo_circulante_total),
-                    int(tot_largo),
-                    int(pasivo_total),
-                    int(patrimonio),
-                    int(capital_trabajo),
-                    comentarios_totales,
-                ),
-            )
-
+            """, (
+                cliente_id,
+                mes_iso,
+                int(activo_circulante or 0),
+                int(af_neto_total or 0),      # Activo fijo NETO
+                int(total_activos or 0),
+                int(pasivo_circulante_total or 0),
+                int(tot_largo or 0),
+                int(pasivo_total or 0),
+                int(patrimonio or 0),
+                int(capital_trabajo or 0),
+                comentarios_totales,
+            ))
             
             conn.commit()
-            conn.close()
             st.success("✅ Datos de Balance General guardados correctamente.")
-
-
+            
             # avanzar al siguiente paso
             for nxt in [
                 "pages/14_Informe_final.py",
@@ -874,6 +864,7 @@ with col2:
                     break
                 except Exception:
                     continue
+
 
         # 🔽🔽🔽 CERRAR EL try EXTERNO 🔽🔽🔽
         except Exception as e:
