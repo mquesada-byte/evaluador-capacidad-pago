@@ -642,15 +642,12 @@ comentarios_totales = st.text_area(
     "Comentario general del balance",
     value=comentario_default,
     height=120,
-    key=f"bg_comentarios_{cliente_id}_{mes_iso}",
+    key=f"bg_comentarios_{cliente_id}",
     placeholder="Observaciones del asesor (supuestos, validaciones, riesgos, etc.)",
 )
+
+
 st.markdown("---")
-
-
-
-
-
 
 
 # --- Navegación ---
