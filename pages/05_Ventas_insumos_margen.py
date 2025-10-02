@@ -44,18 +44,21 @@ def init_paso5_state(cliente_id: str, mes_iso: str):
     datos = load_visita(cliente_id)
     if datos and "ventas_p5" in datos:
         db_row = datos["ventas_p5"]
-        if db_row.get("mes_iso") == mes_iso:
-            st.session_state.no_data_p5 = (db_row.get("no_data") == 1)
-            # Precargar valores
-            for k in [
-                "modo", "tiene_registros", "compras_mes_colones", "tipo_margen",
-                "margen_pct", "facturacion_bruta_mes_colones", "comision_pct",
-                "ventas_reportadas_mes_colones", "costo_pct_sobre_ventas",
-                "costo_estimado_colones", "ventas_estimadas_colones", "comentario"
-            ]:
-                vin[k] = db_row.get(k) or ("" if isinstance(db_row.get(k), str) else 0)
-        else:
-            _init_defaults(vin)
+
+        # 👇 Antes se validaba mes_iso, ahora siempre se cargan los datos
+        st.session_state.no_data_p5 = (db_row.get("no_data") == 1)
+
+        for k in [
+            "modo", "tiene_registros", "compras_mes_colones", "tipo_margen",
+            "margen_pct", "facturacion_bruta_mes_colones", "comision_pct",
+            "ventas_reportadas_mes_colones", "costo_pct_sobre_ventas",
+            "costo_estimado_colones", "ventas_estimadas_colones", "comentario"
+        ]:
+            vin[k] = db_row.get(k) or ("" if isinstance(db_row.get(k), str) else 0)
+
+    else:
+        _init_defaults(vin)
+
     else:
         _init_defaults(vin)
 
