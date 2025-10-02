@@ -798,9 +798,9 @@ with col2:
             # 🔥 Borrar previos (caja, cxc y materia prima)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
-                WHERE cliente_identificacion = ? AND mes_iso = ? 
+                WHERE cliente_identificacion = ? 
                   AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo','cpp')
-            """, (cliente_id, mes_iso))
+            """, (cliente_id,))
 
             
             # Insertar nuevos (incluye monto_secundario)
