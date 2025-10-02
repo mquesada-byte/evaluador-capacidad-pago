@@ -192,9 +192,9 @@ with c2:
                     "sin_gastos": True
                 }
             }
-            # 🔄 Limpiar también dataframes en memoria para evitar que se recarguen al volver
-            st.session_state["de_gastos_operativos"] = pd.DataFrame(columns=base_cols)
-            st.session_state["de_gastos_operativos_calc"] = pd.DataFrame(columns=base_cols)
+            # 🔄 Limpiar también editores en memoria (listas vacías en lugar de DataFrames)
+            st.session_state["de_gastos_operativos"] = []
+            st.session_state["de_gastos_operativos_calc"] = []
         else:
             # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
@@ -231,5 +231,6 @@ with c2:
         except Exception:
             st.success("Gastos operativos guardados. Abrí **11 – Gastos familiares** desde el menú lateral.")
             st.stop()
+
 
 
