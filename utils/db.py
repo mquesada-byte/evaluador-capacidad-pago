@@ -178,38 +178,28 @@ def load_visita(cliente_id: str) -> dict | None:
 
     # === Paso 11: Gastos familiares (ajustado) ===
     cursor.execute("""
-        SELECT TOP 1 mes_iso
+        SELECT *
         FROM GastosFamiliares
         WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
     """, (cliente_id,))
-    mes_row = cursor.fetchone()
-    mes_iso_gf = mes_row[0] if mes_row else None
+    rows = cursor.fetchall()
+    if rows:
+        cols = [col[0] for col in cursor.description]
+        df_gf = pd.DataFrame.from_records(rows, columns=cols)
+        df_gf = df_gf.rename(columns={
+            "rubro": "Rubro",
+            "detalle": "Detalle",
+            "monto_periodo": "Monto por período (₡)",
+            "periodicidad": "Periodicidad",
+            "verificado": "Verificado por asesor",
+            "tipo_evidencia": "Tipo de evidencia",
+            "comentario": "Comentario",
+            "gasto_mensualizado": "Gasto mensualizado (₡)"
+        })
+        if "Verificado por asesor" in df_gf.columns:
+            df_gf["Verificado por asesor"] = df_gf["Verificado por asesor"].astype(bool)
+        datos["gastos_familiares"] = df_gf.to_dict(orient="records")
 
-    if mes_iso_gf:
-        cursor.execute("""
-            SELECT rubro, detalle, monto_periodo, periodicidad,
-                   verificado, tipo_evidencia, comentario, gasto_mensualizado
-            FROM GastosFamiliares
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso_gf))
-        rows = cursor.fetchall()
-        if rows:
-            cols = [col[0] for col in cursor.description]
-            df_gf = pd.DataFrame.from_records(rows, columns=cols)
-            df_gf = df_gf.rename(columns={
-                "rubro": "Rubro",
-                "detalle": "Detalle",
-                "monto_periodo": "Monto por período (₡)",
-                "periodicidad": "Periodicidad",
-                "verificado": "Verificado por asesor",
-                "tipo_evidencia": "Tipo de evidencia",
-                "comentario": "Comentario",
-                "gasto_mensualizado": "Gasto mensualizado (₡)"
-            })
-            if "Verificado por asesor" in df_gf.columns:
-                df_gf["Verificado por asesor"] = df_gf["Verificado por asesor"].astype(bool)
-            datos["gastos_familiares"] = df_gf.to_dict(orient="records")
 
 
 
@@ -712,22 +702,22 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
 
 
 # ==========================================================
-# GUARDAR PASO 11 – GASTOS FAMILIARES
+# GUARDAR PASO 11 – GASTOS FAMILIARES (ajustado)
 # ==========================================================
-def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin_gastos: bool = False) -> bool:
+def save_gastos_familiares(cliente_id: str, df, totales: dict, sin_gastos: bool = False) -> bool:
     """
     Inserta los registros de gastos familiares en la tabla GastosFamiliares.
-    Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
+    Antes de insertar, elimina los registros existentes del mismo cliente.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 Borrar registros previos del cliente y mes
+        # 🔄 Borrar registros previos del cliente
         cursor.execute("""
             DELETE FROM GastosFamiliares
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
 
         # Si no hay registros válidos o se marcó "sin gastos", salir
         if df is None or df.empty or sin_gastos:
@@ -737,7 +727,7 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
 
         insert_sql = """
             INSERT INTO GastosFamiliares (
-                cliente_identificacion, mes_iso,
+                cliente_identificacion,
                 rubro, detalle, monto_periodo, periodicidad,
                 verificado, tipo_evidencia, comentario, gasto_mensualizado,
                 total_gastos_familiares_mensualizado_colones,
@@ -745,13 +735,12 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
                 registros_validos,
                 fecha_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """
 
         for _, row in df.iterrows():
             cursor.execute(insert_sql, (
                 cliente_id,
-                mes_iso,
                 row.get("Rubro", ""),
                 row.get("Detalle", ""),
                 float(row.get("Monto por período (₡)", 0) or 0),
@@ -772,6 +761,7 @@ def save_gastos_familiares(cliente_id: str, mes_iso: str, df, totales: dict, sin
     except Exception as e:
         print(f"❌ Error guardando gastos familiares: {e}")
         return False
+
 
 
 # ==========================================================
