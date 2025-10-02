@@ -56,8 +56,8 @@ def init_paso5_state(cliente_id: str, mes_iso: str):
         ]:
             vin[k] = db_row.get(k) or ("" if isinstance(db_row.get(k), str) else 0)
 
-    else:
-        _init_defaults(vin)
+        else:
+            _init_defaults(vin)
 
     else:
         _init_defaults(vin)
