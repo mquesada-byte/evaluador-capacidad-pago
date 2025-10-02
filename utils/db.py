@@ -153,10 +153,13 @@ def load_visita(cliente_id: str) -> dict | None:
 
 
     
-       # === Paso 10: Gastos operativos ===
+    # === Paso 10: Gastos operativos ===
     cursor.execute("""
         SELECT Rubro, Detalle, MontoPorPeriodo, Periodicidad,
-               VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado
+               VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
+               total_gasto_operativo_mensualizado_colones,
+               total_gasto_operativo_verificado_colones,
+               registros_validos, sin_gastos
         FROM GastosOperativos
         WHERE cliente_identificacion=?
     """, (cliente_id,))
@@ -164,6 +167,7 @@ def load_visita(cliente_id: str) -> dict | None:
     if rows:
         cols = [col[0] for col in cursor.description]
         df_go = pd.DataFrame.from_records(rows, columns=cols)
+
         df_go = df_go.rename(columns={
             "Rubro": "Rubro",
             "Detalle": "Detalle",
@@ -174,9 +178,31 @@ def load_visita(cliente_id: str) -> dict | None:
             "Comentario": "Comentario",
             "GastoMensualizado": "Gasto mensualizado (₡)"
         })
+
         if "Verificado por asesor" in df_go.columns:
             df_go["Verificado por asesor"] = df_go["Verificado por asesor"].astype(bool)
-        datos["gastos_operativos"] = df_go.to_dict(orient="records")
+
+        # separar tabla vs totales
+        totales = {
+            "total_gasto_operativo_mensualizado_colones": int(df_go["total_gasto_operativo_mensualizado_colones"].iloc[0] or 0),
+            "total_gasto_operativo_verificado_colones": int(df_go["total_gasto_operativo_verificado_colones"].iloc[0] or 0),
+            "registros_validos": int(df_go["registros_validos"].iloc[0] or 0),
+            "sin_gastos": bool(df_go["sin_gastos"].iloc[0])
+        }
+
+        # quitar columnas de totales para que queden solo los registros
+        df_tabla = df_go.drop(columns=[
+            "total_gasto_operativo_mensualizado_colones",
+            "total_gasto_operativo_verificado_colones",
+            "registros_validos",
+            "sin_gastos"
+        ], errors="ignore")
+
+        datos["gastos_operativos"] = {
+            "tabla": df_tabla.to_dict(orient="records"),
+            "totales": totales
+        }
+
 
 
     # === Paso 11: Gastos familiares (ajustado) ===
