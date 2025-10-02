@@ -228,10 +228,29 @@ st.write({
 
 st.divider()
 
+
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
-sin_deudas = st.checkbox("El hogar no tiene deudas activas que reportar.", key="sin_deudas")
+
+# Recuperar valor previo de sin_deudas si existe
+sin_deudas_val = bool(
+    st.session_state.get("reporte", {})
+    .get("deudas_activas", {})
+    .get("totales", {})
+    .get("sin_deudas", False)
+)
+
+sin_deudas = st.checkbox(
+    "El hogar no tiene deudas activas que reportar.",
+    key="sin_deudas",
+    value=sin_deudas_val
+)
+
 puede_continuar = (valid_mask.sum() > 0) or sin_deudas
+
+
+
+
 
 # Navegación / Guardar
 c1, c2 = st.columns([0.5, 0.5])
