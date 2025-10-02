@@ -192,9 +192,8 @@ with c2:
                     "sin_gastos": True
                 }
             }
-            # 🔄 Limpiar también editores en memoria (listas vacías en lugar de DataFrames)
-            st.session_state["de_gastos_operativos"] = []
-            st.session_state["de_gastos_operativos_calc"] = []
+            # 🔄 Forzar que el editor arranque vacío
+            df = pd.DataFrame(columns=base_cols)
         else:
             # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
