@@ -182,7 +182,7 @@ def load_visita(cliente_id: str) -> dict | None:
         if "Verificado por asesor" in df_go.columns:
             df_go["Verificado por asesor"] = df_go["Verificado por asesor"].astype(bool)
 
-        # separar tabla vs totales
+        # separar totales (solo tomamos la primera fila porque son iguales en todo el snapshot)
         totales = {
             "total_gasto_operativo_mensualizado_colones": int(df_go["total_gasto_operativo_mensualizado_colones"].iloc[0] or 0),
             "total_gasto_operativo_verificado_colones": int(df_go["total_gasto_operativo_verificado_colones"].iloc[0] or 0),
@@ -190,7 +190,7 @@ def load_visita(cliente_id: str) -> dict | None:
             "sin_gastos": bool(df_go["sin_gastos"].iloc[0])
         }
 
-        # quitar columnas de totales para que queden solo los registros
+        # quitamos columnas de totales para que quede solo la tabla de gastos
         df_tabla = df_go.drop(columns=[
             "total_gasto_operativo_mensualizado_colones",
             "total_gasto_operativo_verificado_colones",
@@ -202,6 +202,7 @@ def load_visita(cliente_id: str) -> dict | None:
             "tabla": df_tabla.to_dict(orient="records"),
             "totales": totales
         }
+
 
 
 
@@ -621,22 +622,23 @@ def save_deudas_activas(cliente_id: str, df, totales: dict, sin_deudas: bool) ->
 # ====================================
 # GUARDAR PASO 10 – GASTOS OPERATIVOS
 # ====================================
-def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin_gastos: bool = False) -> bool:
+def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin_gastos: bool) -> bool:
     """
     Guarda los gastos operativos en la tabla GastosOperativos.
-    - Si sin_gastos=True, guarda solo los totales con bandera sin_gastos=1.
-    - Si hay registros, borra los anteriores y guarda el snapshot actualizado.
+    Si sin_gastos=True, solo guarda los totales con bandera sin_gastos=1.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 Borrar registros previos
-        cursor.execute("DELETE FROM GastosOperativos WHERE cliente_identificacion=?", (cliente_id,))
+        # 🔄 Borrar registros previos de este cliente
+        cursor.execute("""
+            DELETE FROM GastosOperativos
+            WHERE cliente_identificacion = ?
+        """, (cliente_id,))
 
-        if sin_gastos:
-            # Guardar snapshot vacío con totales en cero
-            cursor.execute("""
+        if not sin_gastos and not df.empty:
+            insert_sql = """
                 INSERT INTO GastosOperativos (
                     cliente_identificacion,
                     Rubro, Detalle, MontoPorPeriodo, Periodicidad,
@@ -645,44 +647,48 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
                     total_gasto_operativo_verificado_colones,
                     registros_validos, sin_gastos, creado_en
                 )
-                VALUES (?, '', '', 0, '', 0, '', '', 0, 0, 0, 0, 1, GETDATE())
-            """, (cliente_id,))
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, GETDATE())
+            """
+            for _, row in df.iterrows():
+                cursor.execute(
+                    insert_sql,
+                    cliente_id,
+                    row.get("Rubro", ""),
+                    row.get("Detalle", ""),
+                    float(row.get("Monto por período (₡)", 0) or 0),
+                    row.get("Periodicidad", ""),
+                    1 if row.get("Verificado por asesor", False) else 0,
+                    row.get("Tipo de evidencia", ""),
+                    row.get("Comentario", ""),
+                    float(row.get("Gasto mensualizado (₡)", 0) or 0),
+                    float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
+                    float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
+                    int(totales.get("registros_validos", 0) or 0)
+                )
         else:
-            # Guardar registros válidos
-            if not df.empty:
-                for _, row in df.iterrows():
-                    cursor.execute("""
-                        INSERT INTO GastosOperativos (
-                            cliente_identificacion,
-                            Rubro, Detalle, MontoPorPeriodo, Periodicidad,
-                            VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
-                            total_gasto_operativo_mensualizado_colones,
-                            total_gasto_operativo_verificado_colones,
-                            registros_validos, sin_gastos, creado_en
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, GETDATE())
-                    """, (
-                        cliente_id,
-                        row.get("Rubro", ""),
-                        row.get("Detalle", ""),
-                        float(row.get("Monto por período (₡)", 0) or 0),
-                        row.get("Periodicidad", ""),
-                        1 if row.get("Verificado por asesor", False) else 0,
-                        row.get("Tipo de evidencia", ""),
-                        row.get("Comentario", ""),
-                        float(row.get("Gasto mensualizado (₡)", 0) or 0),
-                        float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
-                        float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
-                        int(totales.get("registros_validos", 0) or 0)
-                    ))
+            # Guardar solo snapshot vacío con bandera sin_gastos=1
+            cursor.execute("""
+                INSERT INTO GastosOperativos (
+                    cliente_identificacion,
+                    total_gasto_operativo_mensualizado_colones,
+                    total_gasto_operativo_verificado_colones,
+                    registros_validos, sin_gastos, creado_en
+                )
+                VALUES (?, ?, ?, ?, 1, GETDATE())
+            """, (
+                cliente_id,
+                float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
+                float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
+                int(totales.get("registros_validos", 0) or 0)
+            ))
 
         conn.commit()
         conn.close()
         return True
-
     except Exception as e:
-        print(f"[save_gastos_operativos] Error: {e}")
+        print(f"❌ Error guardando gastos operativos: {e}")
         return False
+
 
 
 
