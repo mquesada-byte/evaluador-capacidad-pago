@@ -141,7 +141,15 @@ for _, r in df.iterrows():
     cuota = float(r.get("Cuota por período (₡)") or 0)
     per = r.get("Periodicidad de pago") or ""
     cuotas_mens.append(_mensualizar_pago(cuota, per))
-df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
+df["Cuota mensualizada (₡)"] = (
+    pd.to_numeric(pd.Series(cuotas_mens), errors="coerce")
+    .fillna(0)
+    .round(0)
+    .astype(int)
+)
+
+
+
 
 # Editor con cálculos bloqueados
 with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
