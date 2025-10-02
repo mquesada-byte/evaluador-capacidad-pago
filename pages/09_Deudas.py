@@ -247,11 +247,9 @@ with c2:
 
         # 👇 NUEVO: Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
-        mes_iso = st.session_state.get("mes_iso", "")
         try:
             save_ok = save_deudas_activas(
                 cliente_id=cliente_id,
-                mes_iso=mes_iso,
                 df=df if not sin_deudas else pd.DataFrame(),
                 totales=st.session_state["reporte"]["deudas_activas"]["totales"],
                 sin_deudas=sin_deudas
@@ -262,6 +260,7 @@ with c2:
                 st.warning("⚠️ No se pudieron guardar las deudas en la base de datos.")
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
+
 
         # Ir directamente al paso 10: Gastos operativos
         try:
