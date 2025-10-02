@@ -92,7 +92,7 @@ cxc_placeholder = pd.DataFrame([{
 
 cxc_df = cxc_placeholder.copy()
 
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -100,7 +100,7 @@ if cliente_id and mes_iso:
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
             WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cxc_clientes'
-        """, (cliente_id, mes_iso))
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
