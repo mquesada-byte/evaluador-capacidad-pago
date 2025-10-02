@@ -31,41 +31,43 @@ def load_visita(cliente_id: str) -> dict | None:
         return None
     datos = dict(zip([col[0] for col in cursor.description], row1))
 
-    # Ventas Top-down
-    cursor.execute("""
-        SELECT TOP 1 *
-        FROM ventas_topdown
-        WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
-    """, (cliente_id,))
-    row2 = cursor.fetchone()
-    if row2:
-        cols2 = [col[0] for col in cursor.description]
-        datos["ventas_topdown"] = dict(zip(cols2, row2))
+# Ventas Top-down
+cursor.execute("""
+    SELECT TOP 1 *
+    FROM ventas_topdown
+    WHERE cliente_identificacion=?
+    ORDER BY fecha_registro DESC
+""", (cliente_id,))
+row2 = cursor.fetchone()
+if row2:
+    cols2 = [col[0] for col in cursor.description]
+    datos["ventas_topdown"] = dict(zip(cols2, row2))
 
-    # Ventas Bottom-up
+    # Ventas Bottom-up (ajustado)
     cursor.execute("""
-        SELECT TOP 1 *
+        SELECT mes_referencia, unidad_clientes, clientes_valor, dias_abiertos, semanas_abiertas,
+               ticket_promedio_colones, ventas_estimadas_colones, comentario, no_data
         FROM ventas_bottomup
         WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
     """, (cliente_id,))
     row3 = cursor.fetchone()
     if row3:
         cols3 = [col[0] for col in cursor.description]
         datos["ventas_bottomup"] = dict(zip(cols3, row3))
 
-    # Ventas Paso 5
+    # Ventas Paso 5 (ajustado)
     cursor.execute("""
-        SELECT TOP 1 *
+        SELECT mes_referencia, modo, tiene_registros, compras_mes_colones, tipo_margen, margen_pct,
+               facturacion_bruta_mes_colones, comision_pct, ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
+               costo_estimado_colones, ventas_estimadas_colones, comentario, no_data
         FROM ventas_p5
         WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
     """, (cliente_id,))
     row4 = cursor.fetchone()
     if row4:
         cols4 = [col[0] for col in cursor.description]
         datos["ventas_p5"] = dict(zip(cols4, row4))
+
 
     # Valoración asesor (ajustado)
     cursor.execute("""
@@ -261,39 +263,41 @@ def load_visita(cliente_id: str) -> dict | None:
 
 
 # ==========================================================
-# GUARDAR PASO 3 – TOP-DOWN
+# GUARDAR PASO 3 – TOP-DOWN (sin mes_iso)
 # ==========================================================
 def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
+    """
+    Guarda los datos de ventas top-down de un cliente.
+    - Se elimina cualquier registro previo del cliente.
+    - Se inserta siempre un snapshot único.
+    """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
+        # 🔄 Borrar registros previos del cliente
         cursor.execute("""
-            UPDATE ventas_topdown
-            SET mes_referencia=?, monto_colones=?, tipicidad=?, fuente=?,
-                confianza_cliente_0a10=?, comentario=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (
-            data.get("mes_referencia"), data.get("monto_colones"),
-            data.get("tipicidad"), data.get("fuente"),
-            data.get("confianza_cliente_0a10"), data.get("comentario"),
-            cliente_id, data.get("mes_iso")
-        ))
+            DELETE FROM ventas_topdown
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
 
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO ventas_topdown (
-                    cliente_identificacion, mes_referencia, mes_iso,
-                    monto_colones, tipicidad, fuente,
-                    confianza_cliente_0a10, comentario
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
-                data.get("monto_colones"), data.get("tipicidad"),
-                data.get("fuente"), data.get("confianza_cliente_0a10"),
-                data.get("comentario")
-            ))
+        # Insertar nuevo snapshot
+        cursor.execute("""
+            INSERT INTO ventas_topdown (
+                cliente_identificacion, mes_referencia, monto_colones,
+                tipicidad, fuente, confianza_cliente_0a10, comentario,
+                fecha_registro
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE())
+        """, (
+            cliente_id,
+            data.get("mes_referencia"),
+            float(data.get("monto_colones", 0) or 0),
+            data.get("tipicidad", ""),
+            data.get("fuente", ""),
+            int(data.get("confianza_cliente_0a10", 0) or 0),
+            data.get("comentario", "")
+        ))
 
         conn.commit()
         conn.close()
@@ -303,58 +307,37 @@ def save_ventas_topdown(cliente_id: str, data: dict) -> bool:
         return False
 
 
+
 # ==========================================================
-# GUARDAR PASO 4 – BOTTOM-UP
+# GUARDAR PASO 4 – BOTTOM-UP (ajustado)
 # ==========================================================
 def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        if data.get("no_data") == 1:
-            unidad_clientes = None
-            clientes_valor = None
-            dias_abiertos = None
-            semanas_abiertas = None
-            ticket_promedio_colones = None
-            ventas_estimadas_colones = None
-            comentario = data.get("comentario")
-        else:
-            unidad_clientes = data.get("unidad_clientes")
-            clientes_valor = data.get("clientes_valor")
-            dias_abiertos = data.get("dias_abiertos")
-            semanas_abiertas = data.get("semanas_abiertas")
-            ticket_promedio_colones = data.get("ticket_promedio_colones")
-            ventas_estimadas_colones = data.get("ventas_estimadas_colones")
-            comentario = data.get("comentario")
+        # 🔄 Borrar previos
+        cursor.execute("DELETE FROM ventas_bottomup WHERE cliente_identificacion=?", (cliente_id,))
 
+        # 🔽 Insertar snapshot
         cursor.execute("""
-            UPDATE ventas_bottomup
-            SET mes_referencia=?, unidad_clientes=?, clientes_valor=?, dias_abiertos=?, semanas_abiertas=?,
-                ticket_promedio_colones=?, ventas_estimadas_colones=?, comentario=?, no_data=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
+            INSERT INTO ventas_bottomup (
+                cliente_identificacion, mes_referencia, unidad_clientes, clientes_valor, dias_abiertos, semanas_abiertos,
+                ticket_promedio_colones, ventas_estimadas_colones, comentario, no_data, fecha_registro
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """, (
-            data.get("mes_referencia"), unidad_clientes, clientes_valor,
-            dias_abiertos, semanas_abiertas, ticket_promedio_colones,
-            ventas_estimadas_colones, comentario, data.get("no_data"),
-            cliente_id, data.get("mes_iso")
+            cliente_id,
+            data.get("mes_referencia"),
+            data.get("unidad_clientes"),
+            data.get("clientes_valor"),
+            data.get("dias_abiertos"),
+            data.get("semanas_abiertas"),
+            data.get("ticket_promedio_colones"),
+            data.get("ventas_estimadas_colones"),
+            data.get("comentario"),
+            data.get("no_data")
         ))
-
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO ventas_bottomup (
-                    cliente_identificacion, mes_referencia, mes_iso, unidad_clientes,
-                    clientes_valor, dias_abiertos, semanas_abiertas,
-                    ticket_promedio_colones, ventas_estimadas_colones,
-                    comentario, no_data
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
-                unidad_clientes, clientes_valor, dias_abiertos,
-                semanas_abiertas, ticket_promedio_colones,
-                ventas_estimadas_colones, comentario, data.get("no_data")
-            ))
 
         conn.commit()
         conn.close()
@@ -364,74 +347,44 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         return False
 
 
+
 # ==========================================================
-# GUARDAR PASO 5 – INSUMOS
+# GUARDAR PASO 5 – INSUMOS (ajustado)
 # ==========================================================
 def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        if data.get("no_data") == 1:
-            modo = None
-            tiene_registros = None
-            compras_mes_colones = None
-            tipo_margen = None
-            margen_pct = None
-            facturacion_bruta_mes_colones = None
-            comision_pct = None
-            ventas_reportadas_mes_colones = None
-            costo_pct_sobre_ventas = None
-            costo_estimado_colones = None
-            ventas_estimadas_colones = None
-            comentario = data.get("comentario")
-        else:
-            modo = data.get("modo")
-            tiene_registros = data.get("tiene_registros")
-            compras_mes_colones = data.get("compras_mes_colones")
-            tipo_margen = data.get("tipo_margen")
-            margen_pct = data.get("margen_pct")
-            facturacion_bruta_mes_colones = data.get("facturacion_bruta_mes_colones")
-            comision_pct = data.get("comision_pct")
-            ventas_reportadas_mes_colones = data.get("ventas_reportadas_mes_colones")
-            costo_pct_sobre_ventas = data.get("costo_pct_sobre_ventas")
-            costo_estimado_colones = data.get("costo_estimado_colones")
-            ventas_estimadas_colones = data.get("ventas_estimadas_colones")
-            comentario = data.get("comentario")
+        # 🔄 Borrar previos
+        cursor.execute("DELETE FROM ventas_p5 WHERE cliente_identificacion=?", (cliente_id,))
 
+        # 🔽 Insertar snapshot
         cursor.execute("""
-            UPDATE ventas_p5
-            SET mes_referencia=?, modo=?, tiene_registros=?, compras_mes_colones=?, tipo_margen=?, margen_pct=?,
-                facturacion_bruta_mes_colones=?, comision_pct=?, ventas_reportadas_mes_colones=?, costo_pct_sobre_ventas=?,
-                costo_estimado_colones=?, ventas_estimadas_colones=?, comentario=?, no_data=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
+            INSERT INTO ventas_p5 (
+                cliente_identificacion, mes_referencia, modo, tiene_registros, compras_mes_colones,
+                tipo_margen, margen_pct, facturacion_bruta_mes_colones, comision_pct,
+                ventas_reportadas_mes_colones, costo_pct_sobre_ventas, costo_estimado_colones,
+                ventas_estimadas_colones, comentario, no_data, fecha_registro
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """, (
-            data.get("mes_referencia"), modo, tiene_registros, compras_mes_colones,
-            tipo_margen, margen_pct, facturacion_bruta_mes_colones, comision_pct,
-            ventas_reportadas_mes_colones, costo_pct_sobre_ventas, costo_estimado_colones,
-            ventas_estimadas_colones, comentario, data.get("no_data"),
-            cliente_id, data.get("mes_iso")
+            cliente_id,
+            data.get("mes_referencia"),
+            data.get("modo"),
+            data.get("tiene_registros"),
+            data.get("compras_mes_colones"),
+            data.get("tipo_margen"),
+            data.get("margen_pct"),
+            data.get("facturacion_bruta_mes_colones"),
+            data.get("comision_pct"),
+            data.get("ventas_reportadas_mes_colones"),
+            data.get("costo_pct_sobre_ventas"),
+            data.get("costo_estimado_colones"),
+            data.get("ventas_estimadas_colones"),
+            data.get("comentario"),
+            data.get("no_data")
         ))
-
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO ventas_p5 (
-                    cliente_identificacion, mes_referencia, mes_iso, modo,
-                    tiene_registros, compras_mes_colones, tipo_margen, margen_pct,
-                    facturacion_bruta_mes_colones, comision_pct,
-                    ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
-                    costo_estimado_colones, ventas_estimadas_colones,
-                    comentario, no_data
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_referencia"), data.get("mes_iso"),
-                modo, tiene_registros, compras_mes_colones, tipo_margen,
-                margen_pct, facturacion_bruta_mes_colones, comision_pct,
-                ventas_reportadas_mes_colones, costo_pct_sobre_ventas,
-                costo_estimado_colones, ventas_estimadas_colones,
-                comentario, data.get("no_data")
-            ))
 
         conn.commit()
         conn.close()
@@ -439,6 +392,7 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
     except Exception as e:
         st.error(f"Error guardando ventas_p5: {e}")
         return False
+
 
 
 # ==========================================================
