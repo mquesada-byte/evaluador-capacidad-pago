@@ -160,15 +160,15 @@ mp_placeholder = pd.DataFrame([{
 
 mp_df = mp_placeholder.copy()
 
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_mp'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'inv_mp'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
