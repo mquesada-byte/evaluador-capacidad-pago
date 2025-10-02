@@ -683,7 +683,7 @@ with col2:
                 "mes_iso": mes_iso,
                 "seccion": "caja_bancos",
                 "descripcion": r.get("Cuenta/Banco", "") or "",
-                "monto": int(pd.to_numeric(r.get("Saldo (₡)", 0), errors="coerce").fillna(0))
+                "monto": int(pd.to_numeric(r.get("Saldo (₡)", 0), errors="coerce").fillna(0)),
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
