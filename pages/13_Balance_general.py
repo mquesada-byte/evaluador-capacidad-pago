@@ -290,15 +290,15 @@ pt_placeholder = pd.DataFrame([{
 pt_df = pt_placeholder.copy()
 
 # Cargar desde SQL
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_pt'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'inv_pt'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
