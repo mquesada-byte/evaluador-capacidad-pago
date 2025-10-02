@@ -159,27 +159,35 @@ with c1:
             st.stop()
 
 with c2:
-    if st.button(
-        "Guardar y continuar ➡️",
-        key="gastos_save_next",
-        use_container_width=True,
-        disabled=not puede_continuar
-    ):
+    if st.button("Guardar y continuar ➡️", key="gastos_save_next", use_container_width=True, disabled=not puede_continuar):
         st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["gastos_operativos"] = {
-            "tabla": df.fillna("").to_dict(orient="records") if valid_mask.sum() > 0 else [],
-            "totales": {
-                "total_gasto_operativo_mensualizado_colones": total_gasto_mensual if not sin_gastos else 0,
-                "total_gasto_operativo_verificado_colones": total_gasto_verificado if not sin_gastos else 0,
-                "registros_validos": int(valid_mask.sum()) if not sin_gastos else 0,
+
+        if sin_gastos:
+            # 🔄 Limpiar completamente cuando no hay gastos
+            st.session_state["reporte"]["gastos_operativos"] = {
+                "tabla": [],
+                "totales": {
+                    "total_gasto_operativo_mensualizado_colones": 0,
+                    "total_gasto_operativo_verificado_colones": 0,
+                    "registros_validos": 0,
+                    "sin_gastos": True
+                }
             }
-        }
+        else:
+            st.session_state["reporte"]["gastos_operativos"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_gasto_operativo_mensualizado_colones": total_gasto_mensual,
+                    "total_gasto_operativo_verificado_colones": total_gasto_verificado,
+                    "registros_validos": int(valid_mask.sum()),
+                    "sin_gastos": False
+                }
+            }
+
         st.session_state["done_10"] = True
 
-
-        # 👇 Guardar en SQL
+        # 👇 Guardar en SQL (patrón igual que deudas)
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
-        
         try:
             save_ok = save_gastos_operativos(
                 cliente_id=cliente_id,
@@ -194,9 +202,7 @@ with c2:
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
 
-        
-
-        # Ir al próximo paso: 11_Gastos_familiares.py
+        # Ir al próximo paso
         try:
             st.switch_page("pages/11_Gastos_familiares.py")
         except Exception:
