@@ -22,7 +22,7 @@ def init_valoracion_asesor_state(cliente_id: str, mes_iso: str):
     v = st.session_state.valoracion_asesor
 
     datos = load_visita(cliente_id)
-    if datos and "valoracion_asesor" in datos and datos["valoracion_asesor"].get("mes_iso") == mes_iso:
+    if datos and "valoracion_asesor" in datos:
         db_row = datos["valoracion_asesor"]
         v["conocimiento_0a10"] = db_row.get("conocimiento_0a10") or 5
         v["credibilidad_0a10"] = db_row.get("credibilidad_0a10") or 5
@@ -37,6 +37,7 @@ def init_valoracion_asesor_state(cliente_id: str, mes_iso: str):
         v.setdefault("clasificacion", "Microempresario/a")
         v.setdefault("evidencia", [])
         v.setdefault("comentario", "")
+
 
 def _factor_asesor(v: dict) -> float:
     know = float(v.get("conocimiento_0a10") or 0)
