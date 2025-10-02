@@ -266,19 +266,37 @@ with c1:
 with c2:
     if st.button("Guardar y continuar ➡️", key="deudas_save_next", use_container_width=True, disabled=not puede_continuar):
         st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["deudas_activas"] = {
-            "tabla": df.fillna("").to_dict(orient="records") if valid_mask.sum() > 0 else [],
-            "totales": {
-                "total_pago_mensual_colones": total_pago_mensual if not sin_deudas else 0,
-                "total_pago_mensual_verificado_colones": total_pago_verificado if not sin_deudas else 0,
-                "total_adeudado_colones": total_adeudado if not sin_deudas else 0,
-                "total_adeudado_corto_plazo_colones": total_adeudado_corto if not sin_deudas else 0,
-                "total_adeudado_largo_plazo_colones": total_adeudado_largo if not sin_deudas else 0,
-                "registros_validos": int(valid_mask.sum()) if not sin_deudas else 0,
-                "sin_deudas": bool(sin_deudas)
+
+        if sin_deudas:
+            # 🔄 Limpiar completamente cuando no hay deudas
+            st.session_state["reporte"]["deudas_activas"] = {
+                "tabla": [],
+                "totales": {
+                    "total_pago_mensual_colones": 0,
+                    "total_pago_mensual_verificado_colones": 0,
+                    "total_adeudado_colones": 0,
+                    "total_adeudado_corto_plazo_colones": 0,
+                    "total_adeudado_largo_plazo_colones": 0,
+                    "registros_validos": 0,
+                    "sin_deudas": True
+                }
             }
-        }
+        else:
+            st.session_state["reporte"]["deudas_activas"] = {
+                "tabla": df.fillna("").to_dict(orient="records"),
+                "totales": {
+                    "total_pago_mensual_colones": total_pago_mensual,
+                    "total_pago_mensual_verificado_colones": total_pago_verificado,
+                    "total_adeudado_colones": total_adeudado,
+                    "total_adeudado_corto_plazo_colones": total_adeudado_corto,
+                    "total_adeudado_largo_plazo_colones": total_adeudado_largo,
+                    "registros_validos": int(valid_mask.sum()),
+                    "sin_deudas": False
+                }
+            }
+
         st.session_state["done_09"] = True
+
 
         # 👇 NUEVO: Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
