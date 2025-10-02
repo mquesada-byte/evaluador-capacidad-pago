@@ -375,15 +375,15 @@ af_placeholder = pd.DataFrame([{
 af_df = af_placeholder.copy()
 
 # Cargar desde SQL
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, monto_secundario, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'activo_fijo'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'activo_fijo'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -467,15 +467,15 @@ cpp_placeholder = pd.DataFrame([{
 cpp_df = cpp_placeholder.copy()
 
 # Cargar desde SQL (seccion = 'cpp')
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cpp'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'cpp'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
