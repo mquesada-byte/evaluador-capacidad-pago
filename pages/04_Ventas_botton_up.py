@@ -56,21 +56,28 @@ def init_paso4_state(cliente_id: str, mes_iso: str):
     #else:
     #    _init_defaults(vbu)
 
+
     datos = load_visita(cliente_id)
-    if datos:
-        db_vbu = datos.get("ventas_bottomup")
-        if isinstance(db_vbu, dict) and db_vbu.get("mes_iso") == mes_iso:
+    if datos and "ventas_bottomup" in datos:
+        db_vbu = datos["ventas_bottomup"]
+    
+        if db_vbu.get("mes_iso") == mes_iso:
             st.session_state.no_data = (db_vbu.get("no_data") == 1)
+    
             vbu["unidad_clientes"] = db_vbu.get("unidad_clientes") or "Mes"
-            vbu["clientes"] = db_vbu.get("clientes_valor") or 0
-            vbu["dias_abiertos"] = db_vbu.get("dias_abiertos") or 0
-            vbu["semanas_abiertas"] = db_vbu.get("semanas_abiertas") or 0
-            vbu["ticket_promedio"] = db_vbu.get("ticket_promedio_colones") or 0
+            vbu["clientes"] = int(db_vbu.get("clientes_valor") or 0)
+            vbu["dias_abiertos"] = int(db_vbu.get("dias_abiertos") or 0)
+            vbu["semanas_abiertas"] = int(db_vbu.get("semanas_abiertas") or 0)
+            vbu["ticket_promedio"] = int(db_vbu.get("ticket_promedio_colones") or 0)
             vbu["comentario"] = db_vbu.get("comentario") or ""
         else:
             _init_defaults(vbu)
     else:
         _init_defaults(vbu)
+
+
+
+
 
 
 
