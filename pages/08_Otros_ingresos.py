@@ -159,17 +159,35 @@ st.divider()
 # =========================
 # Botones navegación/guardar
 # =========================
+st.subheader("Finalizar este paso")
+
+# Recuperar valor previo de sin_ingresos si existe
+sin_ingresos_val = bool(
+    st.session_state.get("reporte", {})
+    .get("otros_ingresos", {})
+    .get("totales", {})
+    .get("sin_ingresos", False)
+)
+
+sin_ingresos = st.checkbox(
+    "El hogar no tiene otros ingresos que reportar.",
+    key="sin_ingresos",
+    value=sin_ingresos_val
+)
+
+puede_continuar = (len(df_valid) > 0) or sin_ingresos
+
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
     if st.button("⬅️ Volver a 07 – Conciliación", use_container_width=True):
         st.switch_page("pages/07_Conciliacion_de_ventas.py")
 
 with c2:
-    if st.button("Guardar y continuar ➡️", use_container_width=True, disabled=df_valid.empty):
+    if st.button("Guardar y continuar ➡️", use_container_width=True, disabled=not puede_continuar):
         ok = save_otros_ingresos(
             cliente_id=st.session_state["cliente"]["identificacion"],
             mes_iso=st.session_state["mes_iso"],
-            df=df_valid
+            df=df_valid if not sin_ingresos else pd.DataFrame()
         )
         if ok:
             st.success("✅ Otros ingresos guardados en la base de datos")
@@ -177,11 +195,12 @@ with c2:
             # ✅ Guardar también en session_state["reporte"]
             st.session_state.setdefault("reporte", {})
             st.session_state["reporte"]["otros_ingresos"] = {
-                "tabla": df_valid.fillna("").to_dict(orient="records"),
+                "tabla": df_valid.fillna("").to_dict(orient="records") if not sin_ingresos else [],
                 "totales": {
-                    "total_mensualizado": int(total_mensual),
-                    "total_ponderado": int(total_ponderado),
-                    "registros_validos": len(df_valid),
+                    "total_mensualizado": int(total_mensual) if not sin_ingresos else 0,
+                    "total_ponderado": int(total_ponderado) if not sin_ingresos else 0,
+                    "registros_validos": len(df_valid) if not sin_ingresos else 0,
+                    "sin_ingresos": bool(sin_ingresos)
                 }
             }
 
