@@ -620,7 +620,7 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
                         total_gasto_operativo_mensualizado_colones,
                         total_gasto_operativo_verificado_colones,
                         registros_validos,
-                        fecha_registro
+                        creado_en
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
                 """, (
@@ -644,6 +644,7 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
     except Exception as e:
         print(f"[save_gastos_operativos] Error: {e}")
         return False
+
 
 
 
