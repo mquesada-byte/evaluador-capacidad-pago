@@ -33,29 +33,27 @@ def init_paso4_state(cliente_id: str, mes_iso: str):
     st.session_state.setdefault("no_data", False)
     vbu = st.session_state.ventas_bottomup
 
-
     # Buscar registro existente en la BD
     datos = load_visita(cliente_id)
     if datos and "ventas_bottomup" in datos:
         db_row = datos["ventas_bottomup"]
-    
-        if db_row.get("mes_iso") == mes_iso:
-            if db_row.get("no_data") == 1:
-                st.session_state.no_data = True
-            else:
-                st.session_state.no_data = False
-    
-            vbu["unidad_clientes"] = db_row.get("unidad_clientes") or "Mes"
-            vbu["clientes"] = db_row.get("clientes_valor") or 0
-            vbu["dias_abiertos"] = db_row.get("dias_abiertos") or 0
-            vbu["semanas_abiertas"] = db_row.get("semanas_abiertas") or 0
-            vbu["ticket_promedio"] = db_row.get("ticket_promedio_colones") or 0
-            vbu["comentario"] = db_row.get("comentario") or ""
+
+        # 👇 Ahora carga siempre los datos, sin chequear mes_iso
+        if db_row.get("no_data") == 1:
+            st.session_state.no_data = True
         else:
-            # Inicializar por defecto
-            _init_defaults(vbu)
+            st.session_state.no_data = False
+
+        vbu["unidad_clientes"] = db_row.get("unidad_clientes") or "Mes"
+        vbu["clientes"] = db_row.get("clientes_valor") or 0
+        vbu["dias_abiertos"] = db_row.get("dias_abiertos") or 0
+        vbu["semanas_abiertas"] = db_row.get("semanas_abiertas") or 0
+        vbu["ticket_promedio"] = db_row.get("ticket_promedio_colones") or 0
+        vbu["comentario"] = db_row.get("comentario") or ""
     else:
+        # Inicializar por defecto
         _init_defaults(vbu)
+
 
 
 def _init_defaults(vbu: dict):
