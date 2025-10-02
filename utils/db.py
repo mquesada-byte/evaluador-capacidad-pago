@@ -604,39 +604,55 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Eliminar registros previos (para evitar duplicados)
+        # 🔄 Eliminar registros previos (para evitar duplicados)
         cursor.execute("""
             DELETE FROM GastosOperativos 
             WHERE cliente_identificacion=?
         """, (cliente_id,))
 
-        if not sin_gastos and not df.empty:
-            for _, row in df.iterrows():
-                cursor.execute("""
-                    INSERT INTO GastosOperativos (
-                        cliente_identificacion,
-                        Rubro, Detalle, MontoPorPeriodo, Periodicidad,
-                        VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
-                        total_gasto_operativo_mensualizado_colones,
-                        total_gasto_operativo_verificado_colones,
-                        registros_validos,
-                        creado_en
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-                """, (
-                    cliente_id,
-                    row.get("Rubro", ""),
-                    row.get("Detalle", ""),
-                    float(row.get("Monto por período (₡)", 0) or 0),
-                    row.get("Periodicidad", ""),
-                    1 if row.get("Verificado por asesor", False) else 0,
-                    row.get("Tipo de evidencia", ""),
-                    row.get("Comentario", ""),
-                    float(row.get("Gasto mensualizado (₡)", 0) or 0),
-                    float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
-                    float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
-                    int(totales.get("registros_validos", 0) or 0)
-                ))
+        # Si no hay gastos (checkbox marcado), solo guardar una fila con totales en cero
+        if sin_gastos:
+            cursor.execute("""
+                INSERT INTO GastosOperativos (
+                    cliente_identificacion,
+                    Rubro, Detalle, MontoPorPeriodo, Periodicidad,
+                    VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
+                    total_gasto_operativo_mensualizado_colones,
+                    total_gasto_operativo_verificado_colones,
+                    registros_validos,
+                    creado_en
+                )
+                VALUES (?, '', '', 0, '', 0, '', '', 0, 0, 0, 0, GETDATE())
+            """, (cliente_id,))
+        else:
+            # Guardar registros si existen
+            if not df.empty:
+                for _, row in df.iterrows():
+                    cursor.execute("""
+                        INSERT INTO GastosOperativos (
+                            cliente_identificacion,
+                            Rubro, Detalle, MontoPorPeriodo, Periodicidad,
+                            VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
+                            total_gasto_operativo_mensualizado_colones,
+                            total_gasto_operativo_verificado_colones,
+                            registros_validos,
+                            creado_en
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    """, (
+                        cliente_id,
+                        row.get("Rubro", ""),
+                        row.get("Detalle", ""),
+                        float(row.get("Monto por período (₡)", 0) or 0),
+                        row.get("Periodicidad", ""),
+                        1 if row.get("Verificado por asesor", False) else 0,
+                        row.get("Tipo de evidencia", ""),
+                        row.get("Comentario", ""),
+                        float(row.get("Gasto mensualizado (₡)", 0) or 0),
+                        float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
+                        float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
+                        int(totales.get("registros_validos", 0) or 0)
+                    ))
 
         conn.commit()
         conn.close()
@@ -644,6 +660,7 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
     except Exception as e:
         print(f"[save_gastos_operativos] Error: {e}")
         return False
+
 
 
 
