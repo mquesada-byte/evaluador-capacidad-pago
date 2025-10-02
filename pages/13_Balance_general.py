@@ -22,15 +22,15 @@ cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
 mes_iso = st.session_state.get("mes_iso", "")
 caja_df = caja_placeholder.copy()
 
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'caja_bancos'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'caja_bancos'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -90,15 +90,15 @@ cxc_placeholder = pd.DataFrame([{
 
 cxc_df = cxc_placeholder.copy()
 
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cxc_clientes'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'cxc_clientes'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -158,15 +158,15 @@ mp_placeholder = pd.DataFrame([{
 
 mp_df = mp_placeholder.copy()
 
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_mp'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'inv_mp'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -222,15 +222,15 @@ pp_placeholder = pd.DataFrame([{
 pp_df = pp_placeholder.copy()
 
 # Cargar desde SQL
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_pp'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'inv_pp'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -288,15 +288,15 @@ pt_placeholder = pd.DataFrame([{
 pt_df = pt_placeholder.copy()
 
 # Cargar desde SQL
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'inv_pt'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'inv_pt'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -373,15 +373,15 @@ af_placeholder = pd.DataFrame([{
 af_df = af_placeholder.copy()
 
 # Cargar desde SQL
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, monto_secundario, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'activo_fijo'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'activo_fijo'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -465,15 +465,15 @@ cpp_placeholder = pd.DataFrame([{
 cpp_df = cpp_placeholder.copy()
 
 # Cargar desde SQL (seccion = 'cpp')
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT descripcion, monto, verificado, evidencia, comentario
             FROM balancegeneraldetalles
-            WHERE cliente_identificacion = ? AND mes_iso = ? AND seccion = 'cpp'
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion = ? AND seccion = 'cpp'
+        """, (cliente_id,))
         rows = cursor.fetchall()
         conn.close()
 
@@ -616,7 +616,7 @@ st.markdown("---")
 st.markdown("### 📝 Comentarios del asesor")
 
 comentario_default = ""
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cur = conn.cursor()
@@ -624,10 +624,10 @@ if cliente_id and mes_iso:
             """
             SELECT TOP 1 comentarios
             FROM BalanceGeneralTotales
-            WHERE cliente_identificacion = ? AND mes_iso = ?
+            WHERE cliente_identificacion = ?
             ORDER BY fecha_registro DESC
             """,
-            (cliente_id, mes_iso),
+            (cliente_id,),
         )
         row = cur.fetchone()
         conn.close()
@@ -805,7 +805,7 @@ with col2:
             # 🔥 Borrar previos (caja, cxc y materia prima)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
-                WHERE cliente_identificacion = ? AND mes_iso = ? 
+                WHERE cliente_identificacion = ? 
                   AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo','cpp')
             """, (cliente_id, mes_iso))
 
@@ -836,9 +836,9 @@ with col2:
             cursor.execute(
                 """
                 DELETE FROM BalanceGeneralTotales
-                WHERE cliente_identificacion = ? AND mes_iso = ?
+                WHERE cliente_identificacion = ?
                 """,
-                (cliente_id, mes_iso),
+                (cliente_id,),
             )
 
             # Insertar totales actuales (incluye comentarios)
