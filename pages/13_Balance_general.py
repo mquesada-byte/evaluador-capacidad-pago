@@ -793,26 +793,25 @@ with col2:
             conn = get_connection()
             cursor = conn.cursor()
 
-            # 🔥 Borrar previos (caja, cxc y materia prima, etc.)
+            # 🔥 Borrar previos (caja, cxc, inventarios, activo fijo, cpp)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
-                WHERE cliente_identificacion = ? AND mes_iso = ?
+                WHERE cliente_identificacion = ?
                   AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo','cpp')
-            """, (cliente_id, mes_iso))
+            """, (cliente_id,))
             
-            # Insertar nuevos (incluye monto_secundario si aplica)
+            # Insertar nuevos
             for reg in registros:
                 cursor.execute("""
                     INSERT INTO balancegeneraldetalles
-                    (cliente_identificacion, mes_iso, seccion, descripcion, monto, monto_secundario, verificado, evidencia, comentario, fecha_registro)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    (cliente_identificacion, seccion, descripcion, monto, monto_secundario, verificado, evidencia, comentario, fecha_registro)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
                 """, (
                     reg["cliente_identificacion"], 
-                    reg["mes_iso"], 
                     reg["seccion"],
                     reg["descripcion"], 
                     reg["monto"],
-                    reg.get("monto_secundario", None),  # <- depreciación o NULL
+                    reg.get("monto_secundario", None),  # depreciación o NULL
                     reg["verificado"], 
                     reg["evidencia"], 
                     reg["comentario"]
@@ -820,27 +819,26 @@ with col2:
             
             # --- Guardar TOTALES en BalanceGeneralTotales ---
             capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
-            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}_{mes_iso}", "") or "").strip()
+            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}", "") or "").strip()
             
-            # Borrar registro previo del mismo cliente/mes
+            # Borrar registro previo del mismo cliente
             cursor.execute("""
                 DELETE FROM BalanceGeneralTotales
-                WHERE cliente_identificacion = ? AND mes_iso = ?
-            """, (cliente_id, mes_iso))
+                WHERE cliente_identificacion = ?
+            """, (cliente_id,))
             
-            # Insertar totales actuales (incluye comentarios)
+            # Insertar totales
             cursor.execute("""
                 INSERT INTO BalanceGeneralTotales (
-                    cliente_identificacion, mes_iso,
+                    cliente_identificacion,
                     activo_circulante, activo_fijo, total_activos,
                     pasivo_circulante, pasivo_largo, total_pasivo,
                     patrimonio, capital_trabajo, comentarios, fecha_registro
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
             """, (
                 cliente_id,
-                mes_iso,
                 int(activo_circulante or 0),
-                int(af_neto_total or 0),      # Activo fijo NETO
+                int(af_neto_total or 0),
                 int(total_activos or 0),
                 int(pasivo_circulante_total or 0),
                 int(tot_largo or 0),
@@ -849,6 +847,7 @@ with col2:
                 int(capital_trabajo or 0),
                 comentarios_totales,
             ))
+
             
             conn.commit()
             st.success("✅ Datos de Balance General guardados correctamente.")
