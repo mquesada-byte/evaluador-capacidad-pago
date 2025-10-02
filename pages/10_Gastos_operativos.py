@@ -151,11 +151,17 @@ st.divider()
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
 
+# Recuperar valor previo de sin_gastos desde SQL o memoria
 sin_gastos_val = bool(
     datos.get("gastos_operativos", {})
          .get("totales", {})
          .get("sin_gastos", False)
-) if datos else False
+) if datos else bool(
+    st.session_state.get("reporte", {})
+        .get("gastos_operativos", {})
+        .get("totales", {})
+        .get("sin_gastos", False)
+)
 
 sin_gastos = st.checkbox(
     "El hogar o negocio no tiene gastos operativos que reportar.",
@@ -163,10 +169,11 @@ sin_gastos = st.checkbox(
     value=sin_gastos_val
 )
 
-
-
-
 puede_continuar = (valid_mask.sum() > 0) or sin_gastos
+
+
+
+
 
 # Navegación / Guardar
 c1, c2 = st.columns([0.5, 0.5])
