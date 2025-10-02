@@ -593,25 +593,23 @@ def save_deudas_activas(cliente_id: str, df, totales: dict, sin_deudas: bool) ->
 
 
 # ====================================
-# Guardar Gastos Operativos
+# GUARDAR PASO 10 – GASTOS OPERATIVOS
 # ====================================
 def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin_gastos: bool = False) -> bool:
     """
     Guarda los gastos operativos en la tabla GastosOperativos.
-    Si ya existen registros para cliente_id, se eliminan y se insertan de nuevo.
+    - Si sin_gastos=True, guarda solo los totales con bandera sin_gastos=1.
+    - Si hay registros, borra los anteriores y guarda el snapshot actualizado.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 Eliminar registros previos (para evitar duplicados)
-        cursor.execute("""
-            DELETE FROM GastosOperativos 
-            WHERE cliente_identificacion=?
-        """, (cliente_id,))
+        # 🔄 Borrar registros previos
+        cursor.execute("DELETE FROM GastosOperativos WHERE cliente_identificacion=?", (cliente_id,))
 
-        # Si no hay gastos (checkbox marcado), solo guardar una fila con totales en cero
         if sin_gastos:
+            # Guardar snapshot vacío con totales en cero
             cursor.execute("""
                 INSERT INTO GastosOperativos (
                     cliente_identificacion,
@@ -619,13 +617,12 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
                     VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
                     total_gasto_operativo_mensualizado_colones,
                     total_gasto_operativo_verificado_colones,
-                    registros_validos,
-                    creado_en
+                    registros_validos, sin_gastos, creado_en
                 )
-                VALUES (?, '', '', 0, '', 0, '', '', 0, 0, 0, 0, GETDATE())
+                VALUES (?, '', '', 0, '', 0, '', '', 0, 0, 0, 0, 1, GETDATE())
             """, (cliente_id,))
         else:
-            # Guardar registros si existen
+            # Guardar registros válidos
             if not df.empty:
                 for _, row in df.iterrows():
                     cursor.execute("""
@@ -635,10 +632,9 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
                             VerificadoAsesor, TipoEvidencia, Comentario, GastoMensualizado,
                             total_gasto_operativo_mensualizado_colones,
                             total_gasto_operativo_verificado_colones,
-                            registros_validos,
-                            creado_en
+                            registros_validos, sin_gastos, creado_en
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, GETDATE())
                     """, (
                         cliente_id,
                         row.get("Rubro", ""),
@@ -657,9 +653,11 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
         conn.commit()
         conn.close()
         return True
+
     except Exception as e:
         print(f"[save_gastos_operativos] Error: {e}")
         return False
+
 
 
 
