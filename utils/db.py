@@ -598,13 +598,13 @@ def save_deudas_activas(cliente_id: str, mes_iso: str, df, totales: dict, sin_de
         # 🔄 Borrar registros previos
         cursor.execute("""
             DELETE FROM DeudasActivas
-            WHERE cliente_identificacion=? AND mes_iso=?
+            WHERE cliente_identificacion=?
         """, (cliente_id, mes_iso))
 
         if not sin_deudas and not df.empty:
             insert_sql = """
                 INSERT INTO DeudasActivas (
-                    cliente_identificacion, mes_iso,
+                    cliente_identificacion, 
                     titular, acreedor, tipo_deuda, saldo_adeudado,
                     cuota_periodo, periodicidad, verificado, evidencia,
                     estado, dias_atraso, comentario, meses_restantes,
