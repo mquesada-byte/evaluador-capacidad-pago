@@ -31,17 +31,17 @@ def load_visita(cliente_id: str) -> dict | None:
         return None
     datos = dict(zip([col[0] for col in cursor.description], row1))
 
-# Ventas Top-down
-cursor.execute("""
-    SELECT TOP 1 *
-    FROM ventas_topdown
-    WHERE cliente_identificacion=?
-    ORDER BY fecha_registro DESC
-""", (cliente_id,))
-row2 = cursor.fetchone()
-if row2:
-    cols2 = [col[0] for col in cursor.description]
-    datos["ventas_topdown"] = dict(zip(cols2, row2))
+    # Ventas Top-down
+    cursor.execute("""
+        SELECT TOP 1 *
+        FROM ventas_topdown
+        WHERE cliente_identificacion=?
+        ORDER BY fecha_registro DESC
+    """, (cliente_id,))
+    row2 = cursor.fetchone()
+    if row2:
+        cols2 = [col[0] for col in cursor.description]
+        datos["ventas_topdown"] = dict(zip(cols2, row2))
 
     # Ventas Bottom-up (ajustado)
     cursor.execute("""
