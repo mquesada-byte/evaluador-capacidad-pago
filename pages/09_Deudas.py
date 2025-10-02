@@ -151,6 +151,7 @@ df["Cuota mensualizada (₡)"] = (
 
 
 
+
 # Editor con cálculos bloqueados
 with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
     df_edit = st.data_editor(
