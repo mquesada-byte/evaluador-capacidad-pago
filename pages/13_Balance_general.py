@@ -665,44 +665,39 @@ with col1:
 
 with col2:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
-        if not cliente_id or not mes_iso:
-            st.error("⚠️ Falta cliente o mes para guardar.")
+        if not cliente_id:
+            st.error("⚠️ Falta cliente para guardar.")
             st.stop()
+
         registros = []
-        # ... tu guardado
-
-
-
 
         # --- Caja y Bancos ---
         for r in caja_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            valor = pd.to_numeric(r.get("Saldo (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "caja_bancos",
                 "descripcion": r.get("Cuenta/Banco", "") or "",
-                "monto": int(pd.to_numeric(r.get("Saldo (₡)", 0), errors="coerce") or 0),
+                "monto": int(0 if pd.isna(valor) else valor),
+                "monto_secundario": None,
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
             })
 
-
-
-        
-
         # --- Cuentas por Cobrar ---
         for r in cxc_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            valor = pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "cxc_clientes",
                 "descripcion": r.get("Cliente/Descripción", "") or "",
-                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "monto": int(0 if pd.isna(valor) else valor),
+                "monto_secundario": None,
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
@@ -712,12 +707,13 @@ with col2:
         for r in mp_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            valor = pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "inv_mp",
                 "descripcion": r.get("Descripción", "") or "",
-                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "monto": int(0 if pd.isna(valor) else valor),
+                "monto_secundario": None,
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
@@ -727,12 +723,13 @@ with col2:
         for r in pp_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            valor = pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "inv_pp",
                 "descripcion": r.get("Descripción", "") or "",
-                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "monto": int(0 if pd.isna(valor) else valor),
+                "monto_secundario": None,
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
@@ -742,128 +739,107 @@ with col2:
         for r in pt_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            valor = pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "inv_pt",
                 "descripcion": r.get("Descripción", "") or "",
-                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
+                "monto": int(0 if pd.isna(valor) else valor),
+                "monto_secundario": None,
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
             })
-
 
         # --- Activo Fijo ---
         for r in af_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            val_monto = pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce")
+            val_deprec = pd.to_numeric(r.get("Depreciación (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "activo_fijo",
                 "descripcion": r.get("Descripción", "") or "",
-                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
-                "monto_secundario": int(pd.to_numeric(r.get("Depreciación (₡)", 0), errors="coerce") or 0),
+                "monto": int(0 if pd.isna(val_monto) else val_monto),
+                "monto_secundario": int(0 if pd.isna(val_deprec) else val_deprec),
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
             })
-
-
-        
-
 
         # --- Pasivo Circulante: Cuentas por Pagar ---
         for r in cpp_df.to_dict(orient="records"):
             if not any(r.values()):
                 continue
+            valor = pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce")
             registros.append({
                 "cliente_identificacion": cliente_id,
-                "mes_iso": mes_iso,
                 "seccion": "cpp",
                 "descripcion": r.get("Proveedor/Descripción", "") or "",
-                "monto": int(pd.to_numeric(r.get("Monto (₡)", 0), errors="coerce") or 0),
-                # monto_secundario no aplica aquí
+                "monto": int(0 if pd.isna(valor) else valor),
+                "monto_secundario": None,
                 "verificado": 1 if r.get("Verificado por asesor") else 0,
                 "evidencia": r.get("Tipo de evidencia", "") or "",
                 "comentario": r.get("Comentario", "") or "",
             })
 
-
         try:
             conn = get_connection()
             cursor = conn.cursor()
 
-            # 🔥 Borrar previos (caja, cxc y materia prima)
+            # Borrar previos (TODO el balance del cliente)
             cursor.execute("""
                 DELETE FROM balancegeneraldetalles
-                WHERE cliente_identificacion = ? 
+                WHERE cliente_identificacion = ?
                   AND seccion IN ('caja_bancos','cxc_clientes','inv_mp','inv_pp','inv_pt','activo_fijo','cpp')
             """, (cliente_id,))
 
-            
-            # Insertar nuevos (incluye monto_secundario)
+            # Insertar nuevos
             for reg in registros:
                 cursor.execute("""
                     INSERT INTO balancegeneraldetalles
-                    (cliente_identificacion, mes_iso, seccion, descripcion, monto, monto_secundario, verificado, evidencia, comentario, fecha_registro)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    (cliente_identificacion, seccion, descripcion, monto, monto_secundario,
+                     verificado, evidencia, comentario, fecha_registro)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
                 """, (
-                    reg["cliente_identificacion"], reg["mes_iso"], reg["seccion"],
-                    reg["descripcion"], reg["monto"],
-                    reg.get("monto_secundario", None),  # <- aquí va la depreciación (o NULL para otras secciones)
+                    reg["cliente_identificacion"], reg["seccion"], reg["descripcion"],
+                    reg["monto"], reg.get("monto_secundario", None),
                     reg["verificado"], reg["evidencia"], reg["comentario"]
                 ))
 
-
-
-
-
-            
-            # --- Guardar TOTALES en BalanceGeneralTotales ---
+            # Guardar TOTALES
             capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
-            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}_{mes_iso}", "") or "").strip()
+            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}", "") or "").strip()
 
-            # Borrar registro previo del mismo cliente/mes
-            cursor.execute(
-                """
+            cursor.execute("""
                 DELETE FROM BalanceGeneralTotales
-                WHERE cliente_identificacion = ? AND mes_iso = ?
-                """,
-                (cliente_id, mes_iso),
-            )
+                WHERE cliente_identificacion = ?
+            """, (cliente_id,))
 
-            # Insertar totales actuales (incluye comentarios)
-            cursor.execute(
-                """
+            cursor.execute("""
                 INSERT INTO BalanceGeneralTotales (
-                    cliente_identificacion, mes_iso,
+                    cliente_identificacion,
                     activo_circulante, activo_fijo, total_activos,
                     pasivo_circulante, pasivo_largo, total_pasivo,
                     patrimonio, capital_trabajo, comentarios, fecha_registro
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-                """,
-                (
-                    cliente_id,
-                    mes_iso,
-                    int(activo_circulante),
-                    int(af_neto_total),            # Activo fijo NETO
-                    int(total_activos),
-                    int(pasivo_circulante_total),
-                    int(tot_largo),
-                    int(pasivo_total),
-                    int(patrimonio),
-                    int(capital_trabajo),
-                    comentarios_totales,
-                ),
-            )
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            """, (
+                cliente_id,
+                int(activo_circulante),
+                int(af_neto_total),
+                int(total_activos),
+                int(pasivo_circulante_total),
+                int(tot_largo),
+                int(pasivo_total),
+                int(patrimonio),
+                int(capital_trabajo),
+                comentarios_totales,
+            ))
 
-            
             conn.commit()
             conn.close()
             st.success("✅ Datos de Balance General guardados correctamente.")
-
 
             # avanzar al siguiente paso
             for nxt in [
@@ -877,7 +853,6 @@ with col2:
                 except Exception:
                     continue
 
-        # 🔽🔽🔽 CERRAR EL try EXTERNO 🔽🔽🔽
         except Exception as e:
             try:
                 conn.rollback()
