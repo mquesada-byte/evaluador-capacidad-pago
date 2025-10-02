@@ -67,17 +67,18 @@ def load_visita(cliente_id: str) -> dict | None:
         cols4 = [col[0] for col in cursor.description]
         datos["ventas_p5"] = dict(zip(cols4, row4))
 
-    # Valoración asesor
+    # Valoración asesor (ajustado)
     cursor.execute("""
-        SELECT TOP 1 *
+        SELECT conocimiento_0a10, credibilidad_0a10, dudas_declaracion, clasificacion,
+               evidencia, comentario, factor_asesor_0a1
         FROM valoracion_asesor
         WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
     """, (cliente_id,))
     row5 = cursor.fetchone()
     if row5:
         cols5 = [col[0] for col in cursor.description]
         datos["valoracion_asesor"] = dict(zip(cols5, row5))
+
 
     # Otros ingresos
     cursor.execute("""
@@ -441,47 +442,49 @@ def save_ventas_p5(cliente_id: str, data: dict) -> bool:
 
 
 # ==========================================================
-# GUARDAR PASO 6 – VALORACIÓN ASESOR
+# GUARDAR PASO 6 – VALORACIÓN ASESOR (ajustado)
 # ==========================================================
 def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
+    """
+    Guarda la valoración del asesor como snapshot único por cliente.
+    Se elimina lo anterior y se inserta el nuevo registro.
+    """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
+        # 🔄 Borrar previos
         cursor.execute("""
-            UPDATE valoracion_asesor
-            SET conocimiento_0a10=?, credibilidad_0a10=?, dudas_declaracion=?, clasificacion=?,
-                evidencia=?, comentario=?, factor_asesor_0a1=?, fecha_registro=GETDATE()
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (
-            data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
-            data.get("dudas_declaracion"), data.get("clasificacion"),
-            ",".join(data.get("evidencia", [])),
-            data.get("comentario"), data.get("factor_asesor_0a1"),
-            cliente_id, data.get("mes_iso")
-        ))
+            DELETE FROM valoracion_asesor
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
 
-        if cursor.rowcount == 0:
-            cursor.execute("""
-                INSERT INTO valoracion_asesor (
-                    cliente_identificacion, mes_iso, conocimiento_0a10, credibilidad_0a10,
-                    dudas_declaracion, clasificacion, evidencia, comentario, factor_asesor_0a1
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                cliente_id, data.get("mes_iso"),
-                data.get("conocimiento_0a10"), data.get("credibilidad_0a10"),
-                data.get("dudas_declaracion"), data.get("clasificacion"),
-                ",".join(data.get("evidencia", [])), data.get("comentario"),
-                data.get("factor_asesor_0a1")
-            ))
+        # 🔽 Insertar el snapshot
+        cursor.execute("""
+            INSERT INTO valoracion_asesor (
+                cliente_identificacion,
+                conocimiento_0a10, credibilidad_0a10, dudas_declaracion, clasificacion,
+                evidencia, comentario, factor_asesor_0a1, fecha_registro
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+        """, (
+            cliente_id,
+            data.get("conocimiento_0a10"),
+            data.get("credibilidad_0a10"),
+            data.get("dudas_declaracion"),
+            data.get("clasificacion"),
+            ",".join(data.get("evidencia", [])),
+            data.get("comentario"),
+            data.get("factor_asesor_0a1")
+        ))
 
         conn.commit()
         conn.close()
         return True
+
     except Exception as e:
         st.error(f"Error guardando valoracion_asesor: {e}")
         return False
+
 
 
 # ==========================================================
