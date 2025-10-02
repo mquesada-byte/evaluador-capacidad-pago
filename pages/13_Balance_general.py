@@ -618,7 +618,7 @@ st.markdown("---")
 st.markdown("### 📝 Comentarios del asesor")
 
 comentario_default = ""
-if cliente_id and mes_iso:
+if cliente_id:
     try:
         conn = get_connection()
         cur = conn.cursor()
@@ -626,10 +626,10 @@ if cliente_id and mes_iso:
             """
             SELECT TOP 1 comentarios
             FROM BalanceGeneralTotales
-            WHERE cliente_identificacion = ? AND mes_iso = ?
+            WHERE cliente_identificacion = ?
             ORDER BY fecha_registro DESC
             """,
-            (cliente_id, mes_iso),
+            (cliente_id,),
         )
         row = cur.fetchone()
         conn.close()
