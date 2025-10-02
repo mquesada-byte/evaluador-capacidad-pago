@@ -81,40 +81,35 @@ def load_visita(cliente_id: str) -> dict | None:
 
     # Otros ingresos
     cursor.execute("""
-        SELECT TOP 1 mes_iso 
+        SELECT titular, relacion, fuente, periodicidad, monto_periodo,
+               verificado, evidencia, meses_cont, prob_cont, comentario,
+               ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado
         FROM OtrosIngresos
         WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
     """, (cliente_id,))
-    mes_row = cursor.fetchone()
-    mes_iso = mes_row[0] if mes_row else None
+    rows = cursor.fetchall()
+    if rows:
+        cols = [col[0] for col in cursor.description]
+        df_oi = pd.DataFrame.from_records(rows, columns=cols)
 
-    if mes_iso:
-        cursor.execute("""
-            SELECT titular, relacion, fuente, periodicidad, monto_periodo,
-                   verificado, evidencia, meses_cont, prob_cont, comentario
-            FROM OtrosIngresos
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
-        rows = cursor.fetchall()
-        if rows:
-            cols = [col[0] for col in cursor.description]
-            df_oi = pd.DataFrame.from_records(rows, columns=cols)
+        df_oi = df_oi.rename(columns={
+            "titular": "Titular (nombre)",
+            "relacion": "Relación",
+            "fuente": "Fuente de ingreso",
+            "periodicidad": "Periodicidad",
+            "monto_periodo": "Monto por período (₡)",
+            "verificado": "Verificado por asesor",
+            "evidencia": "Tipo de evidencia",
+            "meses_cont": "Meses de continuidad",
+            "prob_cont": "Prob. continuidad (0–10)",
+            "comentario": "Comentario",
+            "ingreso_mensualizado": "Ingreso mensualizado (₡)",
+            "factor_confiabilidad": "Factor confiabilidad (0.2–1.0)",
+            "ingreso_ponderado": "Ingreso ponderado (₡)"
+        })
 
-            df_oi = df_oi.rename(columns={
-                "titular": "Titular (nombre)",
-                "relacion": "Relación",
-                "fuente": "Fuente de ingreso",
-                "periodicidad": "Periodicidad",
-                "monto_periodo": "Monto por período (₡)",
-                "verificado": "Verificado por asesor",
-                "evidencia": "Tipo de evidencia",
-                "meses_cont": "Meses de continuidad",
-                "prob_cont": "Prob. continuidad (0–10)",
-                "comentario": "Comentario"
-            })
+        datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
-            datos["otros_ingresos"] = df_oi.to_dict(orient="records")
 
 
     # Deudas Activas (un solo balance por cliente)
@@ -519,22 +514,23 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 
 
 # ==========================================================
-# GUARDAR PASO 8 – OTROS INGRESOS
+# GUARDAR PASO 8 – OTROS INGRESOS (ajustado sin mes_iso)
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
+def save_otros_ingresos(cliente_id: str, df) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
-    Antes de insertar, elimina los registros existentes del mismo cliente y mes_iso.
+    Se maneja como snapshot único por cliente (sin mes_iso).
+    Antes de insertar, elimina los registros existentes del mismo cliente.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 Borrar registros previos del cliente y mes
+        # 🔄 Borrar registros previos del cliente
         cursor.execute("""
             DELETE FROM OtrosIngresos
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
 
         if df.empty:
             conn.commit()
@@ -543,20 +539,19 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
-                cliente_identificacion, mes_iso,
+                cliente_identificacion,
                 titular, relacion, fuente, periodicidad,
                 monto_periodo, verificado, evidencia, meses_cont, prob_cont,
                 ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
                 comentario, fecha_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """
 
         for _, row in df.iterrows():
             cursor.execute(
                 insert_sql,
                 cliente_id,
-                mes_iso,
                 row.get("Titular (nombre)", ""),
                 row.get("Relación", ""),
                 row.get("Fuente de ingreso", ""),
@@ -575,9 +570,11 @@ def save_otros_ingresos(cliente_id: str, mes_iso: str, df) -> bool:
         conn.commit()
         conn.close()
         return True
+
     except Exception as e:
         st.error(f"Error guardando otros_ingresos: {e}")
         return False
+
 
 # ==========================================================
 # GUARDAR PASO 9 – DEUDAS ACTIVAS (un balance por cliente)
