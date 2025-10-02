@@ -193,7 +193,14 @@ for _, r in df_edit.iterrows():
     per = r.get("Periodicidad de pago") or ""
     cuotas_mens.append(_mensualizar_pago(cuota, per))
 df = df_edit.copy()
-df["Cuota mensualizada (₡)"] = pd.Series(cuotas_mens).round(0).astype(int)
+df["Cuota mensualizada (₡)"] = (
+    pd.to_numeric(pd.Series(cuotas_mens), errors="coerce")
+    .fillna(0)
+    .round(0)
+    .astype(int)
+)
+
+
 
 # --- Resumen ---
 valid_mask = (df["Periodicidad de pago"].isin(periodicidades_pago)) & \
