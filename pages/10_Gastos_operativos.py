@@ -45,9 +45,13 @@ if cliente_id:
     datos = load_visita(cliente_id)
     if datos and "gastos_operativos" in datos:
         try:
-            df_base = pd.DataFrame(datos["gastos_operativos"])
+            # ahora "gastos_operativos" es un dict con tabla + totales
+            gastos_data = datos["gastos_operativos"]
+            df_base = pd.DataFrame(gastos_data.get("tabla", []))
+            totales_guardados = gastos_data.get("totales", {})
         except Exception:
             df_base = None
+            totales_guardados = {}
 
 if df_base is None or df_base.empty:
     # Placeholders iniciales (una fila por rubro)
