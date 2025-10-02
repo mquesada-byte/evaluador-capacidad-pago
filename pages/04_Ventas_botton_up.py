@@ -44,7 +44,7 @@ def init_paso4_state(cliente_id: str, mes_iso: str):
                 st.session_state.no_data = True
             else:
                 st.session_state.no_data = False
-
+    
             vbu["unidad_clientes"] = db_row.get("unidad_clientes") or "Mes"
             vbu["clientes"] = db_row.get("clientes_valor") or 0
             vbu["dias_abiertos"] = db_row.get("dias_abiertos") or 0
@@ -56,7 +56,6 @@ def init_paso4_state(cliente_id: str, mes_iso: str):
             _init_defaults(vbu)
     else:
         _init_defaults(vbu)
-
 
 
 def _init_defaults(vbu: dict):
