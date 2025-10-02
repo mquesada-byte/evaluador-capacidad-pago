@@ -203,39 +203,29 @@ def load_visita(cliente_id: str) -> dict | None:
 
 
 
-    # === Paso 13: Balance General ===
+    # === Paso 13: Balance General (ajustado) ===
+    # Totales
     cursor.execute("""
-        SELECT TOP 1 mes_iso
+        SELECT activo_circulante, activo_fijo, total_activos,
+               pasivo_circulante, pasivo_largo, total_pasivo,
+               patrimonio, capital_trabajo, comentarios
         FROM BalanceGeneralTotales
         WHERE cliente_identificacion=?
-        ORDER BY mes_iso DESC
     """, (cliente_id,))
-    mes_row = cursor.fetchone()
-    mes_iso_bg = mes_row[0] if mes_row else None
-
-    if mes_iso_bg:
-        # Totales
-        cursor.execute("""
-            SELECT activo_circulante, activo_fijo, total_activos,
-                   pasivo_circulante, pasivo_largo, total_pasivo,
-                   patrimonio, capital_trabajo, comentarios
-            FROM BalanceGeneralTotales
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso_bg))
-        row_tot = cursor.fetchone()
-        if row_tot:
-            cols_tot = [col[0] for col in cursor.description]
-            datos["balance_general"] = {
-                "totales": dict(zip(cols_tot, row_tot))
-            }
+    row_tot = cursor.fetchone()
+    if row_tot:
+        cols_tot = [col[0] for col in cursor.description]
+        datos["balance_general"] = {
+            "totales": dict(zip(cols_tot, row_tot))
+        }
 
         # Detalles
         cursor.execute("""
             SELECT seccion, descripcion, monto, monto_secundario,
                    verificado, evidencia, comentario
             FROM BalanceGeneralDetalles
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso_bg))
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
         rows_det = cursor.fetchall()
         if rows_det:
             cols_det = [col[0] for col in cursor.description]
@@ -254,7 +244,7 @@ def load_visita(cliente_id: str) -> dict | None:
                 })
                 if "Verificado por asesor" in sub_df.columns:
                     sub_df["Verificado por asesor"] = sub_df["Verificado por asesor"].astype(bool)
-                datos["balance_general"][seccion] = sub_df  # 👈 ahora queda DataFrame
+                datos["balance_general"][seccion] = sub_df
 
     
     conn.close()
@@ -765,42 +755,39 @@ def save_gastos_familiares(cliente_id: str, df, totales: dict, sin_gastos: bool 
 
 
 # ==========================================================
-# GUARDAR PASO 13 – BALANCE GENERAL
+# GUARDAR PASO 13 – BALANCE GENERAL (ajustado)
 # ==========================================================
-def save_balance_general(cliente_id: str, mes_iso: str, datos: dict) -> bool:
+def save_balance_general(cliente_id: str, datos: dict) -> bool:
     """
-    Guarda la información del Balance General.
-    - datos["totales"]: diccionario con los totales
-    - datos["comentarios"]: string
-    - datos["caja_bancos"], datos["cxc_clientes"], datos["inv_mp"], datos["inv_pp"],
-      datos["inv_pt"], datos["activo_fijo"], datos["cpp"], datos["anticipos"]: listas de dicts
+    Guarda la información del Balance General por cliente.
+    Se borra todo lo anterior y se inserta el nuevo snapshot.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 1) Borrar registros previos
+        # 🔄 Borrar registros previos del cliente
         cursor.execute("""
             DELETE FROM BalanceGeneralTotales
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
         cursor.execute("""
             DELETE FROM BalanceGeneralDetalles
-            WHERE cliente_identificacion=? AND mes_iso=?
-        """, (cliente_id, mes_iso))
+            WHERE cliente_identificacion=?
+        """, (cliente_id,))
 
-        # 🔽 2) Insertar totales
+        # 🔽 Insertar totales
         tot = datos.get("totales", {})
         cursor.execute("""
             INSERT INTO BalanceGeneralTotales (
-                cliente_identificacion, mes_iso,
+                cliente_identificacion,
                 activo_circulante, activo_fijo, total_activos,
                 pasivo_circulante, pasivo_largo, total_pasivo,
                 patrimonio, capital_trabajo,
-                comentarios
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                comentarios, fecha_registro
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """, (
-            cliente_id, mes_iso,
+            cliente_id,
             float(tot.get("activo_circulante", 0) or 0),
             float(tot.get("activo_fijo", 0) or 0),
             float(tot.get("total_activos", 0) or 0),
@@ -812,20 +799,20 @@ def save_balance_general(cliente_id: str, mes_iso: str, datos: dict) -> bool:
             datos.get("comentarios", "")
         ))
 
-        # 🔽 3) Insertar detalles por secciones
+        # 🔽 Insertar detalles por secciones
         insert_sql = """
             INSERT INTO BalanceGeneralDetalles (
-                cliente_identificacion, mes_iso,
+                cliente_identificacion,
                 seccion, descripcion, monto, monto_secundario,
-                verificado, evidencia, comentario
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                verificado, evidencia, comentario, fecha_registro
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
         """
 
         def insert_detalles(seccion: str, lista: list, desc_field: str, monto_field: str, monto2_field: str = None):
             for row in lista:
                 cursor.execute(
                     insert_sql,
-                    cliente_id, mes_iso,
+                    cliente_id,
                     seccion,
                     row.get(desc_field, ""),
                     float(row.get(monto_field, 0) or 0),
@@ -844,7 +831,6 @@ def save_balance_general(cliente_id: str, mes_iso: str, datos: dict) -> bool:
         insert_detalles("cpp", datos.get("cpp", []), "Proveedor", "Monto (₡)")
         insert_detalles("anticipos", datos.get("anticipos", []), "Cliente/Descripción", "Monto (₡)")
 
-        # ✅ Guardar cambios
         conn.commit()
         conn.close()
         return True
