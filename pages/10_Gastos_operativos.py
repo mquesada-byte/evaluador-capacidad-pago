@@ -189,7 +189,7 @@ with c2:
         st.session_state.setdefault("reporte", {})
 
         if sin_gastos:
-            # 🔄 Guardar snapshot vacío en memoria
+            # 🔄 Limpiar completamente cuando no hay gastos
             st.session_state["reporte"]["gastos_operativos"] = {
                 "tabla": [],
                 "totales": {
@@ -199,8 +199,9 @@ with c2:
                     "sin_gastos": True
                 }
             }
-            # 🔄 Forzar que el editor arranque vacío
-            df = pd.DataFrame(columns=base_cols)
+            # Limpiar también DataFrames en memoria
+            st.session_state["de_gastos_operativos"] = pd.DataFrame(columns=base_cols)
+            st.session_state["de_gastos_operativos_calc"] = pd.DataFrame(columns=base_cols)
         else:
             # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
@@ -215,12 +216,12 @@ with c2:
 
         st.session_state["done_10"] = True
 
-        # 👇 Guardar en SQL
+        # 👇 Guardar en SQL (igual que en deudas)
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
         try:
             save_ok = save_gastos_operativos(
                 cliente_id=cliente_id,
-                df=df if not sin_gastos else pd.DataFrame(),
+                df=df if not sin_gastos else pd.DataFrame(),  # si hay check, se manda vacío
                 totales=st.session_state["reporte"]["gastos_operativos"]["totales"],
                 sin_gastos=sin_gastos
             )
@@ -237,6 +238,7 @@ with c2:
         except Exception:
             st.success("Gastos operativos guardados. Abrí **11 – Gastos familiares** desde el menú lateral.")
             st.stop()
+
 
 
 
