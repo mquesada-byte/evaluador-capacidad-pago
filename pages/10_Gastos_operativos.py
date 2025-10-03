@@ -193,10 +193,14 @@ with c2:
     if st.button("Guardar y continuar ➡️", key="gastos_save_next", use_container_width=True, disabled=not puede_continuar):
         st.session_state.setdefault("reporte", {})
 
-        if sin_gastos or all_ceros:
-            # 🔄 Limpiar completamente cuando no hay gastos
+        if sin_gastos:
+            # 🔄 Mantener rubros pero forzar montos en cero
+            df_ceros = df.copy()
+            df_ceros["Monto por período (₡)"] = 0
+            df_ceros["Gasto mensualizado (₡)"] = 0
+        
             st.session_state["reporte"]["gastos_operativos"] = {
-                "tabla": [],
+                "tabla": df_ceros.fillna("").to_dict(orient="records"),
                 "totales": {
                     "total_gasto_operativo_mensualizado_colones": 0,
                     "total_gasto_operativo_verificado_colones": 0,
@@ -204,7 +208,7 @@ with c2:
                     "sin_gastos": True
                 }
             }
-            df_to_save = pd.DataFrame()
+            df_to_save = df_ceros
         else:
             # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
@@ -217,6 +221,7 @@ with c2:
                 }
             }
             df_to_save = df
+
 
 
         
