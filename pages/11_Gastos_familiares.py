@@ -1,7 +1,7 @@
 # pages/11_Gastos_familiares.py
 import streamlit as st
 import pandas as pd
-from utils.db import save_gastos_familiares   # ✅ agregado
+from utils.db import save_gastos_familiares, load_visita   # ✅ usamos load_visita
 
 st.set_page_config(page_title="Paso 11: Gastos familiares", page_icon="🏠")
 
@@ -11,7 +11,7 @@ st.set_page_config(page_title="Paso 11: Gastos familiares", page_icon="🏠")
 def _mensualizar_gasto_fam(monto: float, periodicidad: str) -> float:
     per = (periodicidad or "").lower()
     if per == "diario":       return monto * 30.0
-    if per == "semanal":      return monto * (52.0 / 12.0)  # ≈ 4.333
+    if per == "semanal":      return monto * (52.0 / 12.0)
     if per == "quincenal":    return monto * 2.0
     if per == "mensual":      return monto
     if per == "bimestral":    return monto / 2.0
@@ -20,12 +20,8 @@ def _mensualizar_gasto_fam(monto: float, periodicidad: str) -> float:
     if per == "anual":        return monto / 12.0
     return 0.0
 
-# ---------- UI ----------
 st.title("🏠 Paso 11: Gastos familiares")
-st.caption(
-    "Registre los gastos del **hogar** (familia): alimentación, vivienda, educación, salud, "
-    "transporte, servicios públicos y otros. Indique si fueron **verificados** y el **tipo de evidencia**."
-)
+st.caption("Registre los gastos del hogar (familia): alimentación, vivienda, educación, salud, transporte, servicios públicos y otros. Indique si fueron **verificados** y el **tipo de evidencia**.")
 
 # Catálogos
 rubros_fam = ["Alimentación", "Vivienda", "Educación", "Salud", "Transporte", "Servicios públicos", "Otros"]
@@ -35,34 +31,27 @@ evidencias = [
     "Planilla/CCSS", "Recibos", "Foto/Chat", "No aplica", "Otro"
 ]
 
-# Columnas base (entrada)
-base_cols = [
-    "Rubro", "Detalle", "Monto por período (₡)", "Periodicidad",
-    "Verificado por asesor", "Tipo de evidencia", "Comentario",
-]
+# Columnas base
+base_cols = ["Rubro", "Detalle", "Monto por período (₡)", "Periodicidad",
+             "Verificado por asesor", "Tipo de evidencia", "Comentario"]
 
-# ---------- CARGA INICIAL DESDE LO GUARDADO (si existe) ----------
-guardado = (
-    st.session_state.get("reporte", {})
-    .get("gastos_familiares", {})
-    .get("tabla", [])
-)
+# ---------- CARGA DIRECTA DESDE SQL ----------
+cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
+df_base = None
+totales_guardados = {}
 
-if guardado:
-    df_base = pd.DataFrame(guardado).copy()
-    # Asegurar columnas base y tipos
-    for c in base_cols:
-        if c not in df_base.columns:
-            if c == "Monto por período (₡)":
-                df_base[c] = 0
-            elif c == "Verificado por asesor":
-                df_base[c] = False
-            else:
-                df_base[c] = ""
-    df_base = df_base[base_cols]
-    df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
-    df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
-else:
+if cliente_id:
+    datos = load_visita(cliente_id)
+    if datos and "gastos_familiares" in datos:
+        try:
+            gastos_data = datos["gastos_familiares"]
+            df_base = pd.DataFrame(gastos_data.get("tabla", []))
+            totales_guardados = gastos_data.get("totales", {})
+        except Exception:
+            df_base = None
+            totales_guardados = {}
+
+if df_base is None or df_base.empty:
     # Placeholders iniciales (una fila por rubro)
     df_base = pd.DataFrame([
         {
@@ -91,56 +80,14 @@ df_in = st.data_editor(
 
 # --- Derivados ---
 df = df_in.copy()
-if "Monto por período (₡)" not in df.columns:
-    df["Monto por período (₡)"] = 0
-df["Monto por período (₡)"] = pd.to_numeric(df["Monto por período (₡)"], errors="coerce").fillna(0)
-if "Verificado por asesor" not in df.columns:
-    df["Verificado por asesor"] = False
-df["Verificado por asesor"] = df["Verificado por asesor"].fillna(False).astype(bool)
+df["Monto por período (₡)"] = pd.to_numeric(df.get("Monto por período (₡)"), errors="coerce").fillna(0)
+df["Verificado por asesor"] = df.get("Verificado por asesor", False).fillna(False).astype(bool)
 
-mensualizados = []
-for _, r in df.iterrows():
-    monto = float(r.get("Monto por período (₡)") or 0)
-    per = r.get("Periodicidad") or ""
-    mensualizados.append(_mensualizar_gasto_fam(monto, per))
-df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
-
-# Editor con cálculos bloqueados
-df_edit = df.copy()
-with st.expander("Editar tabla con cálculos (derivados bloqueados)"):
-    df_edit = st.data_editor(
-        df,
-        use_container_width=True,
-        num_rows="dynamic",
-        hide_index=True,
-        key="de_gastos_familiares_calc",
-        column_config={
-            "Rubro": st.column_config.SelectboxColumn("Rubro", options=rubros_fam),
-            "Detalle": st.column_config.TextColumn("Detalle"),
-            "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
-            "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades),
-            "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
-            "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
-            "Comentario": st.column_config.TextColumn("Comentario"),
-            "Gasto mensualizado (₡)": st.column_config.NumberColumn("Gasto mensualizado (₡)", format="₡ %d", disabled=True),
-        },
-    )
-
-# Recalcular por si hubo cambios en el expander
-if "Monto por período (₡)" not in df_edit.columns:
-    df_edit["Monto por período (₡)"] = 0
-df_edit["Monto por período (₡)"] = pd.to_numeric(df_edit["Monto por período (₡)"], errors="coerce").fillna(0)
-if "Verificado por asesor" not in df_edit.columns:
-    df_edit["Verificado por asesor"] = False
-df_edit["Verificado por asesor"] = df_edit["Verificado por asesor"].fillna(False).astype(bool)
-
-mensualizados = []
-for _, r in df_edit.iterrows():
-    monto = float(r.get("Monto por período (₡)") or 0)
-    per = r.get("Periodicidad") or ""
-    mensualizados.append(_mensualizar_gasto_fam(monto, per))
-df = df_edit.copy()
-df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
+df["Gasto mensualizado (₡)"] = [
+    _mensualizar_gasto_fam(float(r.get("Monto por período (₡)") or 0), r.get("Periodicidad") or "")
+    for _, r in df.iterrows()
+]
+df["Gasto mensualizado (₡)"] = df["Gasto mensualizado (₡)"].round(0).astype(int)
 
 # --- Resumen ---
 valid_mask = df["Periodicidad"].isin(periodicidades) & (df["Monto por período (₡)"] > 0)
@@ -158,7 +105,7 @@ st.write({
 
 st.divider()
 
-# Navegación / Guardar
+# --- Navegación / Guardar ---
 c1, c2 = st.columns([0.5, 0.5])
 
 with c1:
@@ -170,27 +117,15 @@ with c1:
 
 with c2:
     if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True, disabled=(reg_validos == 0)):
-        st.session_state.setdefault("reporte", {})
-        st.session_state["reporte"]["gastos_familiares"] = {
-            "tabla": df.fillna("").to_dict(orient="records"),
-            "totales": {
-                "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
-                "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
-                "registros_validos": reg_validos,
-            }
-        }
-        st.session_state["done_11"] = True
-
-        # 👇 Guardar en SQL
-        cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
-        mes_iso = st.session_state.get("mes_iso", "")
-
         try:
             save_ok = save_gastos_familiares(
                 cliente_id=cliente_id,
-                mes_iso=mes_iso,
                 df=df if reg_validos > 0 else pd.DataFrame(),
-                totales=st.session_state["reporte"]["gastos_familiares"]["totales"],
+                totales={
+                    "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
+                    "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
+                    "registros_validos": reg_validos,
+                },
                 sin_gastos=(reg_validos == 0)
             )
             if save_ok:
@@ -200,22 +135,9 @@ with c2:
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
 
-
-        # Ir al próximo paso (archivo exacto solicitado primero)
-        for nxt in [
-            "pages/12_Estado_de_resultadosl.py",  # el nombre pedido
-            "pages/12_Estado_resultados.py",
-            "pages/12_Resultados.py",
-            "pages/12_Resumen.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
+        # Ir al próximo paso
+        try:
+            st.switch_page("pages/12_Estado_de_resultadosl.py")
+        except Exception:
             st.success("Gastos familiares guardados. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
-
-# Evitar render adicional
-st.stop()
