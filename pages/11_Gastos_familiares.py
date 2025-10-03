@@ -106,16 +106,24 @@ st.write({
 st.divider()
 
 # --- CHECKBOX DE SIN GASTOS ---
-all_ceros = (df_valid.empty and df["Monto por período (₡)"].sum() == 0)
-sin_gastos_val = totales_guardados.get("sin_gastos", False) if totales_guardados else all_ceros
+# Detectar si realmente todos los gastos son cero
+all_ceros = (df["Monto por período (₡)"].sum() == 0)
 
+# Si había guardado previamente el flag sin_gastos en SQL, se respeta
+sin_gastos_val = False
+if totales_guardados:
+    sin_gastos_val = totales_guardados.get("sin_gastos", False)
+
+# El valor del checkbox solo será True si estaba guardado en SQL o si realmente todos son cero
 sin_gastos = st.checkbox(
     "El hogar no tiene gastos familiares que reportar.",
     key="sin_gastos_fam",
     value=sin_gastos_val or all_ceros
 )
 
+# Condición para habilitar el botón
 puede_continuar = (reg_validos > 0) or sin_gastos or all_ceros
+
 
 # --- Navegación / Guardar ---
 c1, c2 = st.columns([0.5, 0.5])
