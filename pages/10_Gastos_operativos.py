@@ -106,7 +106,16 @@ for _, r in df.iterrows():
     monto = float(r.get("Monto por período (₡)") or 0)
     per = r.get("Periodicidad") or ""
     mensualizados.append(_mensualizar_gasto(monto, per))
-df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
+df["Gasto mensualizado (₡)"] = (
+    pd.to_numeric(pd.Series(mensualizados), errors="coerce")
+    .fillna(0)
+    .round(0)
+    .astype(int)
+)
+
+
+
+
 
 # Editor con cálculos bloqueados
 df_edit = df.copy()
