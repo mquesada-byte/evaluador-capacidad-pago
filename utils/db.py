@@ -206,9 +206,13 @@ def load_visita(cliente_id: str) -> dict | None:
 
 
 
-    # === Paso 11: Gastos familiares (ajustado) ===
+    # === Paso 11: Gastos familiares (ajustado igual a Paso 10) ===
     cursor.execute("""
-        SELECT *
+        SELECT rubro, detalle, monto_periodo, periodicidad,
+               verificado, tipo_evidencia, comentario, gasto_mensualizado,
+               total_gastos_familiares_mensualizado_colones,
+               total_gastos_familiares_verificado_colones,
+               registros_validos, sin_gastos
         FROM GastosFamiliares
         WHERE cliente_identificacion=?
     """, (cliente_id,))
@@ -216,6 +220,7 @@ def load_visita(cliente_id: str) -> dict | None:
     if rows:
         cols = [col[0] for col in cursor.description]
         df_gf = pd.DataFrame.from_records(rows, columns=cols)
+
         df_gf = df_gf.rename(columns={
             "rubro": "Rubro",
             "detalle": "Detalle",
@@ -226,9 +231,30 @@ def load_visita(cliente_id: str) -> dict | None:
             "comentario": "Comentario",
             "gasto_mensualizado": "Gasto mensualizado (₡)"
         })
+
         if "Verificado por asesor" in df_gf.columns:
             df_gf["Verificado por asesor"] = df_gf["Verificado por asesor"].astype(bool)
-        datos["gastos_familiares"] = df_gf.to_dict(orient="records")
+
+        # separar totales (solo tomamos la primera fila porque son iguales en el snapshot)
+        totales = {
+            "total_gastos_familiares_mensualizado_colones": int(df_gf["total_gastos_familiares_mensualizado_colones"].iloc[0] or 0),
+            "total_gastos_familiares_verificado_colones": int(df_gf["total_gastos_familiares_verificado_colones"].iloc[0] or 0),
+            "registros_validos": int(df_gf["registros_validos"].iloc[0] or 0),
+            "sin_gastos": bool(df_gf["sin_gastos"].iloc[0])
+        }
+
+        # quitamos columnas de totales para que quede solo la tabla
+        df_tabla = df_gf.drop(columns=[
+            "total_gastos_familiares_mensualizado_colones",
+            "total_gastos_familiares_verificado_colones",
+            "registros_validos",
+            "sin_gastos"
+        ], errors="ignore")
+
+        datos["gastos_familiares"] = {
+            "tabla": df_tabla.to_dict(orient="records"),
+            "totales": totales
+        }
 
 
 
