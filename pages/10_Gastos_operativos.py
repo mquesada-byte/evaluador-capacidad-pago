@@ -62,18 +62,6 @@ if df_base is None or df_base.empty:
         } for r in rubros
     ])
 
-# 👇 Si ya estaba marcado sin_gastos, forzar tabla vacía
-if st.session_state.get("reporte", {}) \
-        .get("gastos_operativos", {}) \
-        .get("totales", {}) \
-        .get("sin_gastos", False):
-    df_base = pd.DataFrame([])
-
-
-
-
-
-
 # --- Editor base ---
 df_in = st.data_editor(
     df_base,
@@ -106,16 +94,7 @@ for _, r in df.iterrows():
     monto = float(r.get("Monto por período (₡)") or 0)
     per = r.get("Periodicidad") or ""
     mensualizados.append(_mensualizar_gasto(monto, per))
-df["Gasto mensualizado (₡)"] = (
-    pd.to_numeric(pd.Series(mensualizados), errors="coerce")
-    .fillna(0)
-    .astype(float)
-    .round(0)
-    .astype(int)
-)
-
-
-
+df["Gasto mensualizado (₡)"] = pd.Series(mensualizados).round(0).astype(int)
 
 # Editor con cálculos bloqueados
 df_edit = df.copy()
@@ -172,8 +151,12 @@ st.divider()
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
 
-# Recuperar valor previo de sin_gastos solo desde session_state
+# Recuperar valor previo de sin_gastos desde SQL o memoria
 sin_gastos_val = bool(
+    datos.get("gastos_operativos", {})
+         .get("totales", {})
+         .get("sin_gastos", False)
+) if datos else bool(
     st.session_state.get("reporte", {})
         .get("gastos_operativos", {})
         .get("totales", {})
@@ -187,7 +170,6 @@ sin_gastos = st.checkbox(
 )
 
 puede_continuar = (valid_mask.sum() > 0) or sin_gastos
-
 
 
 
