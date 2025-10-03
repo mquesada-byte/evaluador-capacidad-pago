@@ -696,6 +696,7 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
 
 
 
+
 # ==========================================================
 # GUARDAR PASO 11 – GASTOS FAMILIARES (ajustado)
 # ==========================================================
