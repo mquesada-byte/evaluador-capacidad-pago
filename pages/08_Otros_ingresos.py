@@ -7,6 +7,13 @@ from utils.db import save_otros_ingresos, load_visita   # ✅ corregido
 
 st.set_page_config(page_title="Paso 8: Otros ingresos del hogar", page_icon="💸")
 
+# =========================
+# Asegurar mes_iso
+# =========================
+TZ = ZoneInfo("America/Costa_Rica")
+if "mes_iso" not in st.session_state:
+    now = dt.datetime.now(TZ)
+    st.session_state["mes_iso"] = f"{now.year}-{now.month:02d}"
 
 # =========================
 # Funciones auxiliares
@@ -178,7 +185,8 @@ with c1:
 with c2:
     if st.button("Guardar y continuar ➡️", use_container_width=True, disabled=not puede_continuar):
         ok = save_otros_ingresos(
-            cliente_id=cliente_id,
+            cliente_id=st.session_state["cliente"]["identificacion"],
+            mes_iso=st.session_state["mes_iso"],
             df=df_valid if not sin_ingresos else pd.DataFrame()
         )
         if ok:
