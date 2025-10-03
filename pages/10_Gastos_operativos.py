@@ -199,9 +199,6 @@ with c2:
                     "sin_gastos": True
                 }
             }
-            # Limpiar también DataFrames en memoria
-            st.session_state["de_gastos_operativos"] = pd.DataFrame(columns=base_cols)
-            st.session_state["de_gastos_operativos_calc"] = pd.DataFrame(columns=base_cols)
         else:
             # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
@@ -216,12 +213,12 @@ with c2:
 
         st.session_state["done_10"] = True
 
-        # 👇 Guardar en SQL (igual que en deudas)
+        # 👇 Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
         try:
             save_ok = save_gastos_operativos(
                 cliente_id=cliente_id,
-                df=df if not sin_gastos else pd.DataFrame(),  # si hay check, se manda vacío
+                df=df if not sin_gastos else pd.DataFrame(),
                 totales=st.session_state["reporte"]["gastos_operativos"]["totales"],
                 sin_gastos=sin_gastos
             )
