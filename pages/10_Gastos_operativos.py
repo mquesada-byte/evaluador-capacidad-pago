@@ -151,12 +151,8 @@ st.divider()
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
 
-# Recuperar valor previo de sin_gastos desde SQL o memoria
+# Recuperar valor previo de sin_gastos solo desde session_state
 sin_gastos_val = bool(
-    datos.get("gastos_operativos", {})
-         .get("totales", {})
-         .get("sin_gastos", False)
-) if datos else bool(
     st.session_state.get("reporte", {})
         .get("gastos_operativos", {})
         .get("totales", {})
@@ -170,6 +166,7 @@ sin_gastos = st.checkbox(
 )
 
 puede_continuar = (valid_mask.sum() > 0) or sin_gastos
+
 
 
 
