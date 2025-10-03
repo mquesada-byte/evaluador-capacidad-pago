@@ -50,8 +50,12 @@ if cliente_id:
     datos = load_visita(cliente_id)
     if datos and "gastos_familiares" in datos:
         try:
-            # ahora "gastos_familiares" es un dict con tabla + totales
             gastos_data = datos["gastos_familiares"]
+
+            # ✅ Compatibilidad: si viene como lista (formato viejo), envolver en dict
+            if isinstance(gastos_data, list):
+                gastos_data = {"tabla": gastos_data, "totales": {}}
+
             df_base = pd.DataFrame(gastos_data.get("tabla", []))
             totales_guardados = gastos_data.get("totales", {})
         except Exception:
@@ -159,17 +163,16 @@ st.subheader("Finalizar este paso")
 # Detectar si todos los gastos están en cero
 all_ceros = (df_valid.empty and df["Monto por período (₡)"].sum() == 0)
 
-# Recuperar valor previo de sin_gastos desde SQL o memoria
-sin_gastos_val = (
-    datos.get("gastos_familiares", {})
-         .get("totales", {})
-         .get("sin_gastos", False)
-) if cliente_id and datos else (
-    st.session_state.get("reporte", {})
-        .get("gastos_familiares", {})
-        .get("totales", {})
-        .get("sin_gastos", False)
-)
+# ✅ Recuperar valor previo de sin_gastos desde SQL o memoria (sin romper si datos=None)
+if isinstance(datos, dict) and "gastos_familiares" in datos:
+    sin_gastos_val = datos["gastos_familiares"].get("totales", {}).get("sin_gastos", False)
+else:
+    sin_gastos_val = (
+        st.session_state.get("reporte", {})
+            .get("gastos_familiares", {})
+            .get("totales", {})
+            .get("sin_gastos", False)
+    )
 
 # El checkbox se marca si ya estaba guardado o si detectamos todo en ceros
 sin_gastos = st.checkbox(
