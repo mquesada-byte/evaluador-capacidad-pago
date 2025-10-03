@@ -62,6 +62,18 @@ if df_base is None or df_base.empty:
         } for r in rubros
     ])
 
+# 👇 Si ya estaba marcado sin_gastos, forzar tabla vacía
+if st.session_state.get("reporte", {}) \
+        .get("gastos_operativos", {}) \
+        .get("totales", {}) \
+        .get("sin_gastos", False):
+    df_base = pd.DataFrame([])
+
+
+
+
+
+
 # --- Editor base ---
 df_in = st.data_editor(
     df_base,
