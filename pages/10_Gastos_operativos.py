@@ -109,10 +109,10 @@ for _, r in df.iterrows():
 df["Gasto mensualizado (₡)"] = (
     pd.to_numeric(pd.Series(mensualizados), errors="coerce")
     .fillna(0)
+    .astype(float)
     .round(0)
     .astype(int)
 )
-
 
 
 
