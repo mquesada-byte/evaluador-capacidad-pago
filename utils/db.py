@@ -663,10 +663,10 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
                     float(row.get("Gasto mensualizado (₡)", 0) or 0),
                     float(totales.get("total_gasto_operativo_mensualizado_colones", 0) or 0),
                     float(totales.get("total_gasto_operativo_verificado_colones", 0) or 0),
-                    int(totales.get("registros_validos", 0) or 0),
+                    int(totales.get("registros_validos", 0) or 0)
                 )
         else:
-            # Guardar solo totales si sin_gastos=True
+            # ✅ Guardar solo snapshot vacío con bandera sin_gastos=1
             cursor.execute("""
                 INSERT INTO GastosOperativos (
                     cliente_identificacion,
@@ -686,8 +686,9 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
         conn.close()
         return True
     except Exception as e:
-        st.error(f"Error guardando gastos_operativos: {e}")
+        print(f"❌ Error guardando gastos operativos: {e}")
         return False
+
 
 
 
