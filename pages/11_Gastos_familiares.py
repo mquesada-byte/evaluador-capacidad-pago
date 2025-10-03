@@ -137,7 +137,7 @@ with c2:
 
         # Ir al próximo paso
         try:
-            st.switch_page("pages/12_Estado_de_resultadosl.py")
+            st.switch_page("pages/12_Estado_de_resultados.py")
         except Exception:
             st.success("Gastos familiares guardados. Abrí el **siguiente paso** desde el menú lateral.")
             st.stop()
