@@ -792,9 +792,8 @@ def save_gastos_familiares(cliente_id: str, df: pd.DataFrame, totales: dict, sin
         return True
 
     except Exception as e:
-        print(f"❌ Error guardando gastos familiares: {e}")
+        st.error(f"❌ Error guardando gastos familiares: {e}")
         return False
-
 
 
 
