@@ -206,13 +206,14 @@ def load_visita(cliente_id: str) -> dict | None:
 
 
 
-    # === Paso 11: Gastos familiares (igual a Paso 10: tabla + totales) ===
+    # === Paso 11: Gastos familiares (tabla + totales) ===
     cursor.execute("""
-        SELECT rubro, detalle, monto_periodo, periodicidad,
+        SELECT id, cliente_identificacion, mes_iso,
+               rubro, detalle, monto_periodo, periodicidad,
                verificado, tipo_evidencia, comentario, gasto_mensualizado,
                total_gastos_familiares_mensualizado_colones,
                total_gastos_familiares_verificado_colones,
-               registros_validos
+               registros_validos, fecha_registro
         FROM GastosFamiliares
         WHERE cliente_identificacion=?
     """, (cliente_id,))
@@ -221,14 +222,14 @@ def load_visita(cliente_id: str) -> dict | None:
         cols = [col[0] for col in cursor.description]
         df_gf = pd.DataFrame.from_records(rows, columns=cols)
 
-        # Totales (del snapshot)
+        # Totales (mismos en todas las filas → se toma el primero)
         totales = {
             "total_gastos_familiares_mensualizado_colones": int(df_gf["total_gastos_familiares_mensualizado_colones"].iloc[0] or 0),
             "total_gastos_familiares_verificado_colones": int(df_gf["total_gastos_familiares_verificado_colones"].iloc[0] or 0),
             "registros_validos": int(df_gf["registros_validos"].iloc[0] or 0),
         }
 
-        # Tabla para UI
+        # Preparar tabla para UI
         df_gf = df_gf.rename(columns={
             "rubro": "Rubro",
             "detalle": "Detalle",
@@ -240,9 +241,10 @@ def load_visita(cliente_id: str) -> dict | None:
             "gasto_mensualizado": "Gasto mensualizado (₡)"
         })
         df_tabla = df_gf.drop(columns=[
+            "id", "cliente_identificacion", "mes_iso", "fecha_registro",
             "total_gastos_familiares_mensualizado_colones",
             "total_gastos_familiares_verificado_colones",
-            "registros_validos",
+            "registros_validos"
         ], errors="ignore")
         if "Verificado por asesor" in df_tabla.columns:
             df_tabla["Verificado por asesor"] = df_tabla["Verificado por asesor"].astype(bool)
@@ -251,6 +253,7 @@ def load_visita(cliente_id: str) -> dict | None:
             "tabla": df_tabla.to_dict(orient="records"),
             "totales": totales
         }
+
 
 
 
