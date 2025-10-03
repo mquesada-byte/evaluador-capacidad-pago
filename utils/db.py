@@ -725,12 +725,12 @@ def save_gastos_operativos(cliente_id: str, df: pd.DataFrame, totales: dict, sin
 
 
 # ==========================================================
-# GUARDAR PASO 11 – GASTOS FAMILIARES (ajustado)
+# GUARDAR PASO 11 – GASTOS FAMILIARES (alineado a Paso 10)
 # ==========================================================
-def save_gastos_familiares(cliente_id: str, df, totales: dict, sin_gastos: bool = False) -> bool:
+def save_gastos_familiares(cliente_id: str, df: pd.DataFrame, totales: dict, sin_gastos: bool = False) -> bool:
     """
-    Inserta los registros de gastos familiares en la tabla GastosFamiliares.
-    Antes de insertar, elimina los registros existentes del mismo cliente.
+    Guarda los gastos familiares en la tabla GastosFamiliares.
+    Si sin_gastos=True, solo guarda los totales con bandera sin_gastos=1.
     """
     try:
         conn = get_connection()
@@ -739,42 +739,52 @@ def save_gastos_familiares(cliente_id: str, df, totales: dict, sin_gastos: bool 
         # 🔄 Borrar registros previos del cliente
         cursor.execute("""
             DELETE FROM GastosFamiliares
-            WHERE cliente_identificacion=?
+            WHERE cliente_identificacion = ?
         """, (cliente_id,))
 
-        # Si no hay registros válidos o se marcó "sin gastos", salir
-        if df is None or df.empty or sin_gastos:
-            conn.commit()
-            conn.close()
-            return True
-
-        insert_sql = """
-            INSERT INTO GastosFamiliares (
-                cliente_identificacion,
-                rubro, detalle, monto_periodo, periodicidad,
-                verificado, tipo_evidencia, comentario, gasto_mensualizado,
-                total_gastos_familiares_mensualizado_colones,
-                total_gastos_familiares_verificado_colones,
-                registros_validos,
-                fecha_registro
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-        """
-
-        for _, row in df.iterrows():
-            cursor.execute(insert_sql, (
+        if not sin_gastos and not df.empty:
+            insert_sql = """
+                INSERT INTO GastosFamiliares (
+                    cliente_identificacion,
+                    rubro, detalle, monto_periodo, periodicidad,
+                    verificado, tipo_evidencia, comentario, gasto_mensualizado,
+                    total_gastos_familiares_mensualizado_colones,
+                    total_gastos_familiares_verificado_colones,
+                    registros_validos, sin_gastos, fecha_registro
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, GETDATE())
+            """
+            for _, row in df.iterrows():
+                cursor.execute(
+                    insert_sql,
+                    cliente_id,
+                    row.get("Rubro", ""),
+                    row.get("Detalle", ""),
+                    float(row.get("Monto por período (₡)", 0) or 0),
+                    row.get("Periodicidad", ""),
+                    1 if row.get("Verificado por asesor", False) else 0,
+                    row.get("Tipo de evidencia", ""),
+                    row.get("Comentario", ""),
+                    float(row.get("Gasto mensualizado (₡)", 0) or 0),
+                    float(totales.get("total_gastos_familiares_mensualizado_colones", 0) or 0),
+                    float(totales.get("total_gastos_familiares_verificado_colones", 0) or 0),
+                    int(totales.get("registros_validos", 0) or 0)
+                )
+        else:
+            # ✅ Guardar solo snapshot vacío con bandera sin_gastos=1
+            cursor.execute("""
+                INSERT INTO GastosFamiliares (
+                    cliente_identificacion,
+                    total_gastos_familiares_mensualizado_colones,
+                    total_gastos_familiares_verificado_colones,
+                    registros_validos, sin_gastos, fecha_registro
+                )
+                VALUES (?, ?, ?, ?, 1, GETDATE())
+            """, (
                 cliente_id,
-                row.get("Rubro", ""),
-                row.get("Detalle", ""),
-                float(row.get("Monto por período (₡)", 0) or 0),
-                row.get("Periodicidad", ""),
-                1 if row.get("Verificado por asesor", False) else 0,
-                row.get("Tipo de evidencia", ""),
-                row.get("Comentario", ""),
-                float(row.get("Gasto mensualizado (₡)", 0) or 0),
-                int(totales.get("total_gastos_familiares_mensualizado_colones", 0)),
-                int(totales.get("total_gastos_familiares_verificado_colones", 0)),
-                int(totales.get("registros_validos", 0))
+                float(totales.get("total_gastos_familiares_mensualizado_colones", 0) or 0),
+                float(totales.get("total_gastos_familiares_verificado_colones", 0) or 0),
+                int(totales.get("registros_validos", 0) or 0)
             ))
 
         conn.commit()
@@ -784,6 +794,7 @@ def save_gastos_familiares(cliente_id: str, df, totales: dict, sin_gastos: bool 
     except Exception as e:
         print(f"❌ Error guardando gastos familiares: {e}")
         return False
+
 
 
 
