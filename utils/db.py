@@ -374,7 +374,7 @@ def save_ventas_bottomup(cliente_id: str, data: dict) -> bool:
         # 🔽 Insertar snapshot
         cursor.execute("""
             INSERT INTO ventas_bottomup (
-                cliente_identificacion, mes_referencia, unidad_clientes, clientes_valor, dias_abiertos, semanas_abiertos,
+                cliente_identificacion, mes_referencia, unidad_clientes, clientes_valor, dias_abiertos, semanas_abiertas,
                 ticket_promedio_colones, ventas_estimadas_colones, comentario, no_data, fecha_registro
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
