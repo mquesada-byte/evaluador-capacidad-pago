@@ -186,8 +186,9 @@ with c2:
     if st.button("Guardar y continuar ➡️", use_container_width=True, disabled=not puede_continuar):
         ok = save_otros_ingresos(
             cliente_id=st.session_state["cliente"]["identificacion"],
-            df=df_valid.to_dict(orient="records") if not sin_ingresos else []
+            df=df_valid if not sin_ingresos else pd.DataFrame()
         )
+
         
         if ok:
             st.success("✅ Otros ingresos guardados en la base de datos")
