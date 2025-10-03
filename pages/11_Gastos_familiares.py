@@ -61,18 +61,15 @@ if df_base is None or df_base.empty:
     )
     if guardado:
         df_base = pd.DataFrame(guardado).copy()
-        # Asegurar columnas base y tipos
-        for c in base_cols:
-            if c not in df_base.columns:
-                if c == "Monto por período (₡)":
-                    df_base[c] = 0
-                elif c == "Verificado por asesor":
-                    df_base[c] = False
-                else:
-                    df_base[c] = ""
-        df_base = df_base[base_cols]
-        df_base["Monto por período (₡)"] = pd.to_numeric(df_base["Monto por período (₡)"], errors="coerce").fillna(0)
-        df_base["Verificado por asesor"] = df_base["Verificado por asesor"].fillna(False).astype(bool)
+
+        # ✅ Asegurar columnas base y descartar otras
+        df_base = df_base.reindex(columns=base_cols, fill_value="")
+        df_base["Monto por período (₡)"] = pd.to_numeric(
+            df_base["Monto por período (₡)"], errors="coerce"
+        ).fillna(0)
+        df_base["Verificado por asesor"] = (
+            df_base["Verificado por asesor"].fillna(False).astype(bool)
+        )
     else:
         # Placeholders iniciales (una fila por rubro)
         df_base = pd.DataFrame([
@@ -81,6 +78,7 @@ if df_base is None or df_base.empty:
                 "Verificado por asesor": False, "Tipo de evidencia": "", "Comentario": "",
             } for r in rubros_fam
         ])
+
 
 
 # --- Editor base ---
@@ -199,11 +197,15 @@ with c2:
         try:
             save_ok = save_gastos_familiares(
                 cliente_id=cliente_id,
-                mes_iso=mes_iso,
                 df=df if reg_validos > 0 else pd.DataFrame(),
                 totales=st.session_state["reporte"]["gastos_familiares"]["totales"],
                 sin_gastos=(reg_validos == 0)
             )
+
+
+
+
+            
             if save_ok:
                 st.success("✅ Gastos familiares guardados en la base de datos.")
             else:
