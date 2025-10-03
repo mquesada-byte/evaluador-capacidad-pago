@@ -194,7 +194,6 @@ with c2:
 
         # 👇 Guardar en SQL
         cliente_id = st.session_state.get("cliente", {}).get("identificacion", "")
-        mes_iso = st.session_state.get("mes_iso", "")
 
         try:
             save_ok = save_gastos_familiares(
