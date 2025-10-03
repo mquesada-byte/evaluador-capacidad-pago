@@ -151,25 +151,30 @@ st.divider()
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
 
+# Detectar si todos los gastos están en cero
+all_ceros = (df_valid.empty and df["Monto por período (₡)"].sum() == 0)
+
 # Recuperar valor previo de sin_gastos desde SQL o memoria
-sin_gastos_val = bool(
+sin_gastos_val = (
     datos.get("gastos_operativos", {})
          .get("totales", {})
          .get("sin_gastos", False)
-) if datos else bool(
+) if datos else (
     st.session_state.get("reporte", {})
         .get("gastos_operativos", {})
         .get("totales", {})
         .get("sin_gastos", False)
 )
 
+# El checkbox se marca si ya estaba guardado o si detectamos todo en ceros
 sin_gastos = st.checkbox(
     "El hogar o negocio no tiene gastos operativos que reportar.",
     key="sin_gastos",
-    value=sin_gastos_val
+    value=sin_gastos_val or all_ceros
 )
 
-puede_continuar = (valid_mask.sum() > 0) or sin_gastos
+# Condición para habilitar el botón
+puede_continuar = (valid_mask.sum() > 0) or sin_gastos or all_ceros
 
 
 
@@ -188,7 +193,7 @@ with c2:
     if st.button("Guardar y continuar ➡️", key="gastos_save_next", use_container_width=True, disabled=not puede_continuar):
         st.session_state.setdefault("reporte", {})
 
-        if sin_gastos:
+        if sin_gastos or all_ceros:
             # 🔄 Limpiar completamente cuando no hay gastos
             st.session_state["reporte"]["gastos_operativos"] = {
                 "tabla": [],
@@ -199,6 +204,7 @@ with c2:
                     "sin_gastos": True
                 }
             }
+            df_to_save = pd.DataFrame()
         else:
             # 🔄 Guardar datos capturados en memoria
             st.session_state["reporte"]["gastos_operativos"] = {
@@ -210,6 +216,10 @@ with c2:
                     "sin_gastos": False
                 }
             }
+            df_to_save = df
+
+
+        
 
         st.session_state["done_10"] = True
 
