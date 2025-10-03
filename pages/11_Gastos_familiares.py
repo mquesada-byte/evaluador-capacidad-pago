@@ -82,6 +82,7 @@ if df_base is None or df_base.empty:
             } for r in rubros_fam
         ])
 
+
 # --- Editor base ---
 df_in = st.data_editor(
     df_base,
