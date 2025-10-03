@@ -471,64 +471,53 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 # ==========================================================
 # GUARDAR PASO 8 – OTROS INGRESOS (ajustado sin mes_iso)
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, df) -> bool:
-    """
-    Inserta los registros de otros ingresos en la tabla OtrosIngresos.
-    Se maneja como snapshot único por cliente (sin mes_iso).
-    Antes de insertar, elimina los registros existentes del mismo cliente.
-    """
+def save_otros_ingresos(cliente_id: str, df: pd.DataFrame) -> bool:
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # 🔄 Borrar registros previos del cliente
-        cursor.execute("""
-            DELETE FROM OtrosIngresos
-            WHERE cliente_identificacion=?
-        """, (cliente_id,))
-
-        if df.empty:
-            conn.commit()
-            conn.close()
-            return True  # nada más que guardar
-
-        insert_sql = """
-            INSERT INTO OtrosIngresos (
-                cliente_identificacion,
-                titular, relacion, fuente, periodicidad,
-                monto_periodo, verificado, evidencia, meses_cont, prob_cont,
-                ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
-                comentario, fecha_registro
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-        """
-
-        for _, row in df.iterrows():
-            cursor.execute(
-                insert_sql,
-                cliente_id,
-                row.get("Titular (nombre)", ""),
-                row.get("Relación", ""),
-                row.get("Fuente de ingreso", ""),
-                row.get("Periodicidad", ""),
-                float(row.get("Monto por período (₡)", 0) or 0),
-                1 if row.get("Verificado por asesor", False) else 0,
-                row.get("Tipo de evidencia", ""),
-                int(row.get("Meses de continuidad", 0) or 0),
-                int(row.get("Prob. continuidad (0–10)", 0) or 0),
-                float(row.get("Ingreso mensualizado (₡)", 0) or 0),
-                float(row.get("Factor confiabilidad (0.2–1.0)", 0) or 0),
-                float(row.get("Ingreso ponderado (₡)", 0) or 0),
-                row.get("Comentario", "")
+        # 🚨 Primero eliminamos cualquier registro previo del cliente
+        with engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM otros_ingresos WHERE cliente_id = :cid"),
+                {"cid": cliente_id}
             )
 
-        conn.commit()
-        conn.close()
+        # 🚀 Insertamos el nuevo (único) registro
+        if not df.empty:
+            df_to_save = df.fillna("").to_dict(orient="records")
+            with engine.begin() as conn:
+                for row in df_to_save:
+                    conn.execute(
+                        text("""
+                            INSERT INTO otros_ingresos 
+                            (cliente_id, titular, relacion, fuente, periodicidad,
+                             monto, verificado, evidencia, meses, prob, comentario,
+                             ingreso_mensualizado, factor_conf, ingreso_ponderado)
+                            VALUES
+                            (:cliente_id, :titular, :relacion, :fuente, :periodicidad,
+                             :monto, :verificado, :evidencia, :meses, :prob, :comentario,
+                             :ingreso_mensualizado, :factor_conf, :ingreso_ponderado)
+                        """),
+                        {
+                            "cliente_id": cliente_id,
+                            "titular": row.get("Titular (nombre)", ""),
+                            "relacion": row.get("Relación", ""),
+                            "fuente": row.get("Fuente de ingreso", ""),
+                            "periodicidad": row.get("Periodicidad", ""),
+                            "monto": row.get("Monto por período (₡)", 0),
+                            "verificado": bool(row.get("Verificado por asesor", False)),
+                            "evidencia": row.get("Tipo de evidencia", ""),
+                            "meses": int(row.get("Meses de continuidad", 0)),
+                            "prob": int(row.get("Prob. continuidad (0–10)", 0)),
+                            "comentario": row.get("Comentario", ""),
+                            "ingreso_mensualizado": int(row.get("Ingreso mensualizado (₡)", 0)),
+                            "factor_conf": float(row.get("Factor confiabilidad (0.2–1.0)", 0.2)),
+                            "ingreso_ponderado": int(row.get("Ingreso ponderado (₡)", 0)),
+                        }
+                    )
         return True
-
     except Exception as e:
-        st.error(f"Error guardando otros_ingresos: {e}")
+        print("❌ Error en save_otros_ingresos:", e)
         return False
+
 
 
 # ==========================================================
