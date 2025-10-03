@@ -488,11 +488,11 @@ def save_otros_ingresos(cliente_id: str, df: pd.DataFrame) -> bool:
                     conn.execute(
                         text("""
                             INSERT INTO otros_ingresos 
-                            (cliente_id, titular, relacion, fuente, periodicidad,
+                            (cliente_id, mes_iso, titular, relacion, fuente, periodicidad,
                              monto, verificado, evidencia, meses, prob, comentario,
                              ingreso_mensualizado, factor_conf, ingreso_ponderado)
                             VALUES
-                            (:cliente_id, :titular, :relacion, :fuente, :periodicidad,
+                            (:cliente_id, NULL, :titular, :relacion, :fuente, :periodicidad,
                              :monto, :verificado, :evidencia, :meses, :prob, :comentario,
                              :ingreso_mensualizado, :factor_conf, :ingreso_ponderado)
                         """),
@@ -502,8 +502,8 @@ def save_otros_ingresos(cliente_id: str, df: pd.DataFrame) -> bool:
                             "relacion": row.get("Relación", ""),
                             "fuente": row.get("Fuente de ingreso", ""),
                             "periodicidad": row.get("Periodicidad", ""),
-                            "monto": row.get("Monto por período (₡)", 0),
-                            "verificado": bool(row.get("Verificado por asesor", False)),
+                            "monto": int(row.get("Monto por período (₡)", 0)),
+                            "verificado": 1 if row.get("Verificado por asesor", False) else 0,
                             "evidencia": row.get("Tipo de evidencia", ""),
                             "meses": int(row.get("Meses de continuidad", 0)),
                             "prob": int(row.get("Prob. continuidad (0–10)", 0)),
