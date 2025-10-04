@@ -66,7 +66,7 @@ base_cols = [
     "Monto por período (₡)", "Verificado por asesor", "Tipo de evidencia",
     "Meses de continuidad", "Prob. continuidad (0–10)", "Comentario",
 ]
-deriv_cols = ["Ingreso mensualizado (₡)", "Factor confiabilidad (0.2–1.0)", "Ingreso ponderado (₡)"]
+deriv_cols = ["Ingreso mensualizado (₡)", "Factor confiabilidad (1–10)", "Ingreso ponderado (₡)"]
 
 # =========================
 # UI
@@ -137,7 +137,14 @@ for _, r in df.iterrows():
 
 
 df["Ingreso mensualizado (₡)"] = [int(x) for x in mensualizados]
-df["Factor confiabilidad (0.2–1.0)"] = [round(x, 2) for x in factores]
+# df["Factor confiabilidad (0.2–1.0)"] = [round(x, 2) for x in factores]
+
+
+# Escalar el factor de 0.2–1.0 a 1–10
+df["Factor confiabilidad (1–10)"] = [round(x * 10, 1) for x in factores]
+
+
+
 df["Ingreso ponderado (₡)"] = [int(x) for x in ponderados]
 
 # =========================
