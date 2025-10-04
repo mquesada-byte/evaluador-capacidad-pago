@@ -63,6 +63,9 @@ if df_base is None or df_base.empty:
     ])
 
 # --- Editor base ---
+# Determinar si el checkbox sin_gastos ya está marcado (si existe en session_state)
+sin_gastos_flag = st.session_state.get("sin_gastos", False)
+
 df_in = st.data_editor(
     df_base,
     use_container_width=True,
@@ -72,13 +75,21 @@ df_in = st.data_editor(
     column_config={
         "Rubro": st.column_config.SelectboxColumn("Rubro", options=rubros, required=False),
         "Detalle": st.column_config.TextColumn("Detalle"),
-        "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
+        # 👇 solo esta columna se bloquea si el checkbox está marcado
+        "Monto por período (₡)": st.column_config.NumberColumn(
+            "Monto por período (₡)",
+            min_value=0,
+            step=1000,
+            format="₡ %d",
+            disabled=sin_gastos_flag,
+        ),
         "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades, required=False),
         "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
         "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias, required=False),
         "Comentario": st.column_config.TextColumn("Comentario"),
     },
 )
+
 
 
 # --- Derivados ---
