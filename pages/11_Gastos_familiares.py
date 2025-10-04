@@ -118,6 +118,7 @@ with c1:
 with c2:
     if st.button("Guardar y continuar ➡️", key="gfam_save_next", use_container_width=True, disabled=(reg_validos == 0)):
         try:
+            # Guardar en base de datos
             save_ok = save_gastos_familiares(
                 cliente_id=cliente_id,
                 df=df if reg_validos > 0 else pd.DataFrame(),
@@ -128,10 +129,23 @@ with c2:
                 },
                 sin_gastos=(reg_validos == 0)
             )
+
+            # ✅ También guardar en session_state para que el Paso 12 lo lea
+            st.session_state.setdefault("reporte", {})
+            st.session_state["reporte"]["gastos_familiares"] = {
+                "tabla": df.to_dict("records"),
+                "totales": {
+                    "total_gastos_familiares_mensualizado_colones": total_gasto_fam_mensual,
+                    "total_gastos_familiares_verificado_colones": total_gasto_fam_verificado,
+                    "registros_validos": reg_validos,
+                },
+            }
+
             if save_ok:
                 st.success("✅ Gastos familiares guardados en la base de datos.")
             else:
                 st.warning("⚠️ No se pudieron guardar los gastos familiares en la base de datos.")
+
         except Exception as e:
             st.error(f"Error guardando en SQL: {e}")
 
