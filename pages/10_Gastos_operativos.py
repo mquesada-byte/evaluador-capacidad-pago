@@ -80,6 +80,7 @@ df_in = st.data_editor(
     },
 )
 
+
 # --- Derivados ---
 df = df_in.copy()
 if "Monto por período (₡)" not in df.columns:
