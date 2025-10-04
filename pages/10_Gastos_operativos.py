@@ -181,6 +181,8 @@ else:
             .get("sin_gastos", False)
     )
 
+
+
 # El checkbox se marca si ya estaba guardado o si detectamos todo en ceros
 sin_gastos = st.checkbox(
     "El hogar o negocio no tiene gastos operativos que reportar.",
@@ -188,26 +190,8 @@ sin_gastos = st.checkbox(
     value=sin_gastos_val or all_ceros
 )
 
-# 🔹 Obtener valor actualizado del flag después del checkbox
-sin_gastos_flag = st.session_state.get("sin_gastos", False)
-
-# 🔹 Si se marca la casilla, poner los montos en cero una sola vez y refrescar
-if sin_gastos_flag and "de_gastos_operativos" in st.session_state and not st.session_state.get("_montos_en_cero", False):
-    df_tmp_data = st.session_state["de_gastos_operativos"]
-    df_tmp = pd.DataFrame(df_tmp_data)
-
-    if "Monto por período (₡)" in df_tmp.columns:
-        df_tmp["Monto por período (₡)"] = 0
-        st.session_state["de_gastos_operativos"] = df_tmp.to_dict(orient="records")
-        st.session_state["_montos_en_cero"] = True
-        st.rerun()
-
-# 🔹 Si se desmarca, permitir edición normal nuevamente
-if not sin_gastos_flag:
-    st.session_state["_montos_en_cero"] = False
-
 # Condición para habilitar el botón
-puede_continuar = (valid_mask.sum() > 0) or sin_gastos_flag or all_ceros
+puede_continuar = (valid_mask.sum() > 0) or sin_gastos or all_ceros
 
 
 
