@@ -805,59 +805,54 @@ with col2:
                     reg["verificado"], reg["evidencia"], reg["comentario"]
                 ))
 
-            # Guardar TOTALES
-            capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
-            comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}", "") or "").strip()
 
-            cursor.execute("""
-                DELETE FROM BalanceGeneralTotales
-                WHERE cliente_identificacion = ?
-            """, (cliente_id,))
+         # Guardar TOTALES
+        capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
+        comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}", "") or "").strip()
+        
+        cursor.execute("""
+            DELETE FROM BalanceGeneralTotales
+            WHERE cliente_identificacion = ?
+        """, (cliente_id,))
+        
+        cursor.execute("""
+            INSERT INTO BalanceGeneralTotales (
+                cliente_identificacion,
+                activo_circulante, activo_fijo, total_activos,
+                pasivo_circulante, pasivo_largo, total_pasivo,
+                patrimonio, capital_trabajo, comentarios, fecha_registro
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+        """, (
+            cliente_id,
+            int(activo_circulante),
+            int(af_neto_total),
+            int(total_activos),
+            int(pasivo_circulante_total),
+            int(tot_largo),
+            int(pasivo_total),
+            int(patrimonio),
+            int(capital_trabajo),
+            comentarios_totales,
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        # --- 🔄 Sincronizar con session_state para el informe final ---
+        st.session_state.setdefault("reporte", {}).setdefault("balance_general", {})
+        st.session_state["reporte"]["balance_general"]["totales"] = {
+            "activo_circulante": int(activo_circulante),
+            "activo_fijo": int(af_neto_total),
+            "total_activos": int(total_activos),
+            "pasivo_circulante": int(pasivo_circulante_total),
+            "pasivo_largo": int(tot_largo),
+            "total_pasivo": int(pasivo_total),
+            "patrimonio": int(patrimonio),
+            "capital_trabajo": int(activo_circulante - pasivo_circulante_total),
+        }
+        st.session_state["reporte"]["balance_general"]["comentarios"] = comentarios_totales
+        # --------------------------------------------------------------
+        
+        st.success("✅ Datos de Balance General guardados correctamente.")
 
-            cursor.execute("""
-                INSERT INTO BalanceGeneralTotales (
-                    cliente_identificacion,
-                    activo_circulante, activo_fijo, total_activos,
-                    pasivo_circulante, pasivo_largo, total_pasivo,
-                    patrimonio, capital_trabajo, comentarios, fecha_registro
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-            """, (
-                cliente_id,
-                int(activo_circulante),
-                int(af_neto_total),
-                int(total_activos),
-                int(pasivo_circulante_total),
-                int(tot_largo),
-                int(pasivo_total),
-                int(patrimonio),
-                int(capital_trabajo),
-                comentarios_totales,
-            ))
 
-            conn.commit()
-            conn.close()
-            st.success("✅ Datos de Balance General guardados correctamente.")
-
-            # avanzar al siguiente paso
-            for nxt in [
-                "pages/14_Informe_final.py",
-                "pages/14_informe_final.py",
-                "pages/14_Informe.py",
-            ]:
-                try:
-                    st.switch_page(nxt)
-                    break
-                except Exception:
-                    continue
-
-        except Exception as e:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            st.error(f"❌ Error al guardar: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
