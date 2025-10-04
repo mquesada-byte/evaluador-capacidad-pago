@@ -105,14 +105,32 @@ df = st.data_editor(
         "Relación": st.column_config.SelectboxColumn("Relación", options=relaciones),
         "Fuente de ingreso": st.column_config.SelectboxColumn("Fuente de ingreso", options=fuentes),
         "Periodicidad": st.column_config.SelectboxColumn("Periodicidad", options=periodicidades),
-        "Monto por período (₡)": st.column_config.NumberColumn("Monto por período (₡)", min_value=0, step=1000, format="₡ %d"),
-        "Verificado por asesor": st.column_config.CheckboxColumn("Verificado por asesor", default=False),
-        "Tipo de evidencia": st.column_config.SelectboxColumn("Tipo de evidencia", options=evidencias),
-        "Meses de continuidad": st.column_config.NumberColumn("Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"),
-        "Prob. continuidad (0–10)": st.column_config.NumberColumn("Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"),
+        "Monto por período (₡)": st.column_config.NumberColumn(
+            "Monto por período (₡)", min_value=0, step=1000, format="₡ %d"
+        ),
+        "Verificado por asesor": st.column_config.CheckboxColumn(
+            "Verificado por asesor", default=False
+        ),
+        "Tipo de evidencia": st.column_config.SelectboxColumn(
+            "Tipo de evidencia", options=evidencias
+        ),
+        "Meses de continuidad": st.column_config.NumberColumn(
+            "Meses de continuidad", min_value=0, max_value=480, step=1, format="%d"
+        ),
+        "Prob. continuidad (0–10)": st.column_config.NumberColumn(
+            "Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"
+        ),
         "Comentario": st.column_config.TextColumn("Comentario"),
+
+        # ✅ NUEVA COLUMNA VISUALIZADA
+        "Factor confiabilidad (1–10)": st.column_config.NumberColumn(
+            "Factor confiabilidad (1–10)",
+            format="%.1f",
+            help="Factor calculado en escala de 1 a 10 según verificación, continuidad y evidencia."
+        ),
     }
 )
+
 
 # =========================
 # Cálculos derivados
