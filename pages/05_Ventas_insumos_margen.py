@@ -128,6 +128,36 @@ st.session_state.no_data_p5 = st.checkbox(
 )
 is_disabled = st.session_state.no_data_p5
 
+# 🔄 Si se marca "No tengo datos", limpiar los valores visibles inmediatamente
+if st.session_state.no_data_p5:
+    vin.update({
+        "compras_mes_colones": 0,
+        "margen_pct": 0,
+        "facturacion_bruta_mes_colones": 0,
+        "comision_pct": 0,
+        "ventas_reportadas_mes_colones": 0,
+        "costo_pct_sobre_ventas": 0,
+        "costo_estimado_colones": 0,
+        "ventas_estimadas_colones": 0,
+        "comentario": "",
+    })
+
+# 🧭 Si el usuario vuelve a desmarcar "No tengo datos", restaurar valores por defecto
+else:
+    vin.setdefault("modo", "Bienes (insumos/margen)")
+    vin.setdefault("tiene_registros", "Sí")
+    vin.setdefault("compras_mes_colones", 0)
+    vin.setdefault("tipo_margen", "Sobre ventas")
+    vin.setdefault("margen_pct", 30)
+    vin.setdefault("facturacion_bruta_mes_colones", 0)
+    vin.setdefault("comision_pct", 10)
+    vin.setdefault("ventas_reportadas_mes_colones", 0)
+    vin.setdefault("costo_pct_sobre_ventas", 10)
+    vin.setdefault("comentario", "")
+    vin.setdefault("ventas_estimadas_colones", 0)
+    vin.setdefault("costo_estimado_colones", 0)
+
+
 # Selector de modo
 vin["modo"] = st.selectbox(
     "¿Cómo obtiene ingresos el negocio?",
