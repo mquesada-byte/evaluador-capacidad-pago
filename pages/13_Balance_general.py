@@ -855,5 +855,3 @@ with col2:
             
             st.success("✅ Datos de Balance General guardados correctamente.")
 
-
-
