@@ -805,16 +805,15 @@ with col2:
                     reg["verificado"], reg["evidencia"], reg["comentario"]
                 ))
 
-
             # Guardar TOTALES
             capital_trabajo = int((activo_circulante or 0) - (pasivo_circulante_total or 0))
             comentarios_totales = (st.session_state.get(f"bg_comentarios_{cliente_id}", "") or "").strip()
-            
+
             cursor.execute("""
                 DELETE FROM BalanceGeneralTotales
                 WHERE cliente_identificacion = ?
             """, (cliente_id,))
-            
+
             cursor.execute("""
                 INSERT INTO BalanceGeneralTotales (
                     cliente_identificacion,
@@ -834,10 +833,10 @@ with col2:
                 int(capital_trabajo),
                 comentarios_totales,
             ))
-            
+
             conn.commit()
             conn.close()
-            
+
             # --- 🔄 Sincronizar con session_state para el informe final ---
             st.session_state.setdefault("reporte", {}).setdefault("balance_general", {})
             st.session_state["reporte"]["balance_general"]["totales"] = {
@@ -852,7 +851,31 @@ with col2:
             }
             st.session_state["reporte"]["balance_general"]["comentarios"] = comentarios_totales
             # --------------------------------------------------------------
-            
+
             st.success("✅ Datos de Balance General guardados correctamente.")
+
+            # avanzar al siguiente paso
+            for nxt in [
+                "pages/14_Informe_final.py",
+                "pages/14_informe_final.py",
+                "pages/14_Informe.py",
+            ]:
+                try:
+                    st.switch_page(nxt)
+                    break
+                except Exception:
+                    continue
+
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            st.error(f"❌ Error al guardar: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
