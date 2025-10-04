@@ -193,12 +193,18 @@ sin_gastos = st.checkbox(
 
 # Si se marca la casilla, poner los montos en cero y refrescar visualmente
 if sin_gastos and "de_gastos_operativos" in st.session_state:
-    df_tmp = st.session_state["de_gastos_operativos"].copy()
+    df_tmp_data = st.session_state["de_gastos_operativos"]
+
+    # Convertir a DataFrame si es necesario
+    if isinstance(df_tmp_data, pd.DataFrame):
+        df_tmp = df_tmp_data.copy()
+    else:
+        df_tmp = pd.DataFrame(df_tmp_data)
+
     if "Monto por período (₡)" in df_tmp.columns:
         df_tmp["Monto por período (₡)"] = 0
-        st.session_state["de_gastos_operativos"] = df_tmp
+        st.session_state["de_gastos_operativos"] = df_tmp.to_dict(orient="records")
         st.rerun()  # 👈 fuerza actualización inmediata de la tabla
-
 
 
 
