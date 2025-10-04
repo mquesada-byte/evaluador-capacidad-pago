@@ -269,20 +269,34 @@ with colNav1:
 
 with colNav2:
     if st.button("Siguiente ➡️ (Valoración)", key="next_step_5", disabled=not oblig_ok, use_container_width=True):
+
+        # 🔒 Si NO HAY DATOS, limpiamos los valores en memoria para que la UI quede en cero al recargar,
+        # y enviamos NULL a la BD (mismo comportamiento que el Paso 4)
+        if st.session_state.no_data_p5:
+            for k in (
+                "compras_mes_colones", "margen_pct", "facturacion_bruta_mes_colones", "comision_pct",
+                "ventas_reportadas_mes_colones", "costo_pct_sobre_ventas",
+                "costo_estimado_colones", "ventas_estimadas_colones"
+            ):
+                vin[k] = 0  # UI en cero al recargar
+
         reporte = {
             "modo": vin.get("modo"),
             "mes_referencia": mes_etiqueta,
             "mes_iso": mes_iso,
-            "tiene_registros": vin.get("tiene_registros"),
-            "compras_mes_colones": int(vin.get("compras_mes_colones") or 0),
-            "tipo_margen": vin.get("tipo_margen"),
-            "margen_pct": int(vin.get("margen_pct") or 0),
-            "facturacion_bruta_mes_colones": int(vin.get("facturacion_bruta_mes_colones") or 0),
-            "comision_pct": int(vin.get("comision_pct") or 0),
-            "ventas_reportadas_mes_colones": int(vin.get("ventas_reportadas_mes_colones") or 0),
-            "costo_pct_sobre_ventas": int(vin.get("costo_pct_sobre_ventas") or 0),
-            "costo_estimado_colones": int(vin.get("costo_estimado_colones") or 0),
-            "ventas_estimadas_colones": int(vin.get("ventas_estimadas_colones") or 0),
+
+            # 👉 Enviamos NULL cuando no_data_p5 = 1
+            "tiene_registros": None if st.session_state.no_data_p5 else vin.get("tiene_registros"),
+            "compras_mes_colones": None if st.session_state.no_data_p5 else int(vin.get("compras_mes_colones") or 0),
+            "tipo_margen": vin.get("tipo_margen"),  # dejamos la clasificación (análoga a unidad_clientes del Paso 4)
+            "margen_pct": None if st.session_state.no_data_p5 else int(vin.get("margen_pct") or 0),
+            "facturacion_bruta_mes_colones": None if st.session_state.no_data_p5 else int(vin.get("facturacion_bruta_mes_colones") or 0),
+            "comision_pct": None if st.session_state.no_data_p5 else int(vin.get("comision_pct") or 0),
+            "ventas_reportadas_mes_colones": None if st.session_state.no_data_p5 else int(vin.get("ventas_reportadas_mes_colones") or 0),
+            "costo_pct_sobre_ventas": None if st.session_state.no_data_p5 else int(vin.get("costo_pct_sobre_ventas") or 0),
+            "costo_estimado_colones": None if st.session_state.no_data_p5 else int(vin.get("costo_estimado_colones") or 0),
+            "ventas_estimadas_colones": None if st.session_state.no_data_p5 else int(vin.get("ventas_estimadas_colones") or 0),
+
             "comentario": vin.get("comentario").strip() if vin.get("comentario") else None,
             "no_data": 1 if st.session_state.no_data_p5 else 0
         }
@@ -303,3 +317,4 @@ with colNav2:
         except Exception:
             st.success("Datos guardados. Abrí **06 – Valoración del asesor** desde el menú lateral.")
             st.stop()
+
