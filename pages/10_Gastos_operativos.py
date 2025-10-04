@@ -190,6 +190,18 @@ sin_gastos = st.checkbox(
     value=sin_gastos_val or all_ceros
 )
 
+
+# Si se marca la casilla, poner los montos en cero y refrescar visualmente
+if sin_gastos and "de_gastos_operativos" in st.session_state:
+    df_tmp = st.session_state["de_gastos_operativos"].copy()
+    if "Monto por período (₡)" in df_tmp.columns:
+        df_tmp["Monto por período (₡)"] = 0
+        st.session_state["de_gastos_operativos"] = df_tmp
+        st.rerun()  # 👈 fuerza actualización inmediata de la tabla
+
+
+
+
 # Condición para habilitar el botón
 puede_continuar = (valid_mask.sum() > 0) or sin_gastos or all_ceros
 
