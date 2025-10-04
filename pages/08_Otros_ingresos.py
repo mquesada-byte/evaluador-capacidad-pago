@@ -137,7 +137,7 @@ for _, r in df.iterrows():
 
 
 df["Ingreso mensualizado (₡)"] = [int(x) for x in mensualizados]
-# df["Factor confiabilidad (0.2–1.0)"] = [round(x, 2) for x in factores]
+# df["Factor confiabilidad (1–10)"] = [round(x, 2) for x in factores]
 
 
 # Escalar el factor de 0.2–1.0 a 1–10
