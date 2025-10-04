@@ -94,6 +94,14 @@ if df_in is None or df_in.empty:
     df_in["Verificado por asesor"] = False
 
 
+# 🔧 Normalizar nombres de columnas antiguas (compatibilidad)
+df_in.rename(
+    columns={"Factor confiabilidad (0.2–1.0)": "Factor confiabilidad (1–10)"},
+    inplace=True
+)
+
+
+
 # Editor con menús desplegables
 df = st.data_editor(
     df_in,
