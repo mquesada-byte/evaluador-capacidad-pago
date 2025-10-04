@@ -132,11 +132,15 @@ src["otros_ingresos"] = ruta_oi
 otros_ing_total = _num(otros_ing_total, 0)
 
 
-# 6) Gastos familiares
-gastos_fam_total = _num(
-    _getr(["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"], 0), 0
+# 6) Gastos familiares (ajustado según estructura real)
+gastos_fam_total = (
+    _getr(["gastos_familiares", "totales", "total_gastos_familiares_mensualizado_colones"])
+    or _getr(["gastos_familiares", "total_gastos_familiares_mensualizado_colones"])
+    or 0
 )
-src["gastos_familiares"] = "reporte.gastos_familiares.totales.total_gastos_familiares_mensualizado_colones"
+src["gastos_familiares"] = "reporte.gastos_familiares.total_gastos_familiares_mensualizado_colones"
+gastos_fam_total = _num(gastos_fam_total, 0)
+
 
 # 7) Pago de deudas
 deudas_total = _num(_getr(["deudas_activas", "totales", "total_pago_mensual_colones"], 0), 0)
