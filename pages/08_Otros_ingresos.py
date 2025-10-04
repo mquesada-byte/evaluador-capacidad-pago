@@ -102,12 +102,15 @@ df_in.rename(
 
 
 
-# Editor con menús desplegables
+# Editor con menús desplegables (bloqueado si se marca "sin ingresos")
+bloquear_edicion = st.session_state.get("sin_ingresos", False)
+
 df = st.data_editor(
     df_in,
     use_container_width=True,
-    num_rows="dynamic",
+    num_rows=("dynamic" if not bloquear_edicion else "fixed"),
     hide_index=True,
+    disabled=bloquear_edicion,  # ✅ desactiva toda la edición si está marcado
     column_config={
         "Titular (nombre)": st.column_config.TextColumn("Titular (nombre)"),
         "Relación": st.column_config.SelectboxColumn("Relación", options=relaciones),
@@ -129,8 +132,6 @@ df = st.data_editor(
             "Prob. continuidad (0–10)", min_value=0, max_value=10, step=1, format="%d"
         ),
         "Comentario": st.column_config.TextColumn("Comentario"),
-
-        # ✅ NUEVA COLUMNA VISUALIZADA
         "Factor confiabilidad (1–10)": st.column_config.NumberColumn(
             "Factor confiabilidad (1–10)",
             format="%.1f",
@@ -138,6 +139,7 @@ df = st.data_editor(
         ),
     }
 )
+
 
 
 # =========================
