@@ -167,16 +167,21 @@ st.subheader("Finalizar este paso")
 all_ceros = (df_valid.empty and df["Monto por período (₡)"].sum() == 0)
 
 # Recuperar valor previo de sin_gastos desde SQL o memoria
-sin_gastos_val = (
-    datos.get("gastos_operativos", {})
-         .get("totales", {})
-         .get("sin_gastos", False)
-) if datos else (
-    st.session_state.get("reporte", {})
-        .get("gastos_operativos", {})
-        .get("totales", {})
-        .get("sin_gastos", False)
-)
+if "datos" in locals() and datos:
+    sin_gastos_val = (
+        datos.get("gastos_operativos", {})
+             .get("totales", {})
+             .get("sin_gastos", False)
+    )
+else:
+    sin_gastos_val = (
+        st.session_state.get("reporte", {})
+            .get("gastos_operativos", {})
+            .get("totales", {})
+            .get("sin_gastos", False)
+    )
+
+
 
 # El checkbox se marca si ya estaba guardado o si detectamos todo en ceros
 sin_gastos = st.checkbox(
