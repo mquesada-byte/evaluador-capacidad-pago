@@ -170,6 +170,7 @@ def _ratios_financieros(rep: dict) -> str:
         return f"{val:.2%}" if val is not None else "N/D"
 
     def _semaforo_ratio(nombre, val, bueno, medio, invertido=False):
+        """Clasifica un ratio según umbrales"""
         if val is None:
             return f"- {nombre}: N/D ⚪"
         if invertido:
@@ -198,11 +199,13 @@ def _ratios_financieros(rep: dict) -> str:
 def _capacidad_pago(rep: dict) -> str:
     er = rep.get("estado_resultados", {}) or {}
     disponible = _num(er.get("disponible_para_prestamo_colones", 0))
-    cuota = _num(st.session_state.get("cuota_con_poliza", 0))
+
+    # Variables provenientes del Paso Condiciones de Crédito (si fueron guardadas)
+    cuota = _num(st.session_state.get("cuota_con_poliza", 0)) or _num(st.session_state.get("cuota_base", 0))
     monto_solicitado = _num(st.session_state.get("monto_solicitado", 0))
     plazo_meses = _num(st.session_state.get("plazo_meses", 0))
 
-    if disponible <= 0 or cuota <= 0:
+    if disponible <= 0 or cuota <= 0 or monto_solicitado <= 0 or plazo_meses <= 0:
         return "_No hay información suficiente para evaluar la capacidad de pago._"
 
     ratio = cuota / disponible if disponible > 0 else 0
@@ -380,4 +383,120 @@ def _pdf_from_md(md_text: str) -> bytes:
             if not line:
                 story.append(Spacer(1, 6))
                 continue
-            line =
+            line = line.replace("**", "").replace("__", "")
+            story.append(Paragraph(line, styles["CustomBody"]))
+
+        doc.build(story)
+        pdf_bytes = buf.getvalue()
+        buf.close()
+        return pdf_bytes
+    except Exception as e:
+        st.warning("No se pudo generar el PDF. Verificá que `reportlab` esté instalado.")
+        st.exception(e)
+        return b""
+
+def _get_openai_key():
+    candidates = []
+    try:
+        if hasattr(st, "secrets"):
+            for k in ["OPENAI_API_KEY", "openai_api_key", "OPENAI_KEY"]:
+                if k in st.secrets:
+                    candidates.append(st.secrets[k])
+    except Exception:
+        pass
+    for envk in ["OPENAI_API_KEY", "openai_api_key", "OPENAI_KEY"]:
+        if os.getenv(envk):
+            candidates.append(os.getenv(envk))
+    return next((c for c in candidates if c), None)
+
+def _call_openai_chat(model: str, system_prompt: str, user_prompt: str, api_key: str) -> str:
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.3,
+    )
+    return resp.choices[0].message.content
+
+# ====== Carga del reporte consolidado ======
+reporte = st.session_state.get("reporte", {}) or {}
+if not reporte:
+    st.warning("No se encontró información previa en memoria (`st.session_state['reporte']`). Volvé al Paso 14 y generá el informe.")
+    st.stop()
+
+# ====== Test de API Key ======
+api_key_test = _get_openai_key()
+if api_key_test:
+    st.info(f"✅ API Key detectada. Empieza con: {api_key_test[:6]}... y tiene {len(api_key_test)} caracteres.")
+else:
+    st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
+
+# ====== Opciones de la IA ======
+with st.expander("Opciones de análisis IA"):
+    modelo = st.selectbox("Modelo", ["gpt-4o-mini", "gpt-4o", "gpt-4.1"], index=0)
+    tono = st.selectbox("Tono", ["Profesional", "Conciso", "Detallado"], index=0)
+    ver_prompt = st.checkbox("Mostrar prompt generado", value=False)
+
+# ====== Generación ======
+col_g, col_d = st.columns([0.6, 0.4])
+
+with col_g:
+    if st.button("Generar análisis", type="primary", use_container_width=True):
+        reglamentos = st.session_state.get("reglamentos_texto", "")
+        prompt = _mk_prompt(reporte, tono, reglamentos)
+        if ver_prompt:
+            with st.expander("Prompt utilizado"):
+                st.code(prompt)
+
+        api_key = _get_openai_key()
+        try:
+            if not api_key:
+                raise RuntimeError("Falta OPENAI_API_KEY en st.secrets o variables de entorno.")
+
+            md = _call_openai_chat(
+                model=modelo,
+                system_prompt="Eres analista senior de crédito en microfinanzas.",
+                user_prompt=prompt,
+                api_key=api_key,
+            )
+        except Exception:
+            md = _fallback_local(reporte)
+
+        st.session_state["analisis_ia_md"] = md
+        st.session_state["analisis_ia_pdf_bytes"] = _pdf_from_md(md)
+        st.success("Análisis generado.")
+
+with col_d:
+    pdf_bytes = st.session_state.get("analisis_ia_pdf_bytes", b"")
+    if pdf_bytes:
+        st.download_button(
+            "📄 Descargar análisis (PDF)",
+            data=pdf_bytes,
+            file_name="analisis_ia.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+st.divider()
+st.subheader("Resultado")
+st.markdown(st.session_state.get("analisis_ia_md", "_Todavía no generaste el análisis._"))
+
+# ====== Navegación ======
+c1, c2 = st.columns([0.5, 0.5])
+with c1:
+    if st.button("⬅️ Volver a 14 – Informe final", use_container_width=True):
+        try:
+            st.switch_page("pages/14_Informe_final.py")
+        except Exception:
+            st.stop()
+with c2:
+    if st.button("Ir al inicio 🏠", use_container_width=True):
+        try:
+            st.switch_page("Home.py")
+        except Exception:
+            st.experimental_rerun()
