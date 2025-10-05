@@ -350,6 +350,15 @@ def _pdf_from_md(md_text: str) -> bytes:
             if not line:
                 story.append(Spacer(1, 6))
                 continue
+
+            # 🔧 Reemplazo solo para PDF: traducir los emojis a texto legible
+            line = (
+                line.replace("🟢", "(positivo)")
+                    .replace("🟡", "(intermedio)")
+                    .replace("🔴", "(negativo)")
+                    .replace("⚪", "(sin dato)")
+            )
+
             line = line.replace("**", "").replace("__", "")
             story.append(Paragraph(line, styles["CustomBody"]))
 
