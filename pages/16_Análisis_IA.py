@@ -383,6 +383,15 @@ def _pdf_from_md(md_text: str) -> bytes:
             if not line:
                 story.append(Spacer(1, 6))
                 continue
+
+            # 🔧 Reemplazo solo para PDF: traducir los emojis a texto legible
+            line = (
+                line.replace("🟢", "(positivo)")
+                    .replace("🟡", "(intermedio)")
+                    .replace("🔴", "(negativo)")
+                    .replace("⚪", "(sin dato)")
+            )
+
             line = line.replace("**", "").replace("__", "")
             story.append(Paragraph(line, styles["CustomBody"]))
 
@@ -395,33 +404,6 @@ def _pdf_from_md(md_text: str) -> bytes:
         st.exception(e)
         return b""
 
-def _get_openai_key():
-    candidates = []
-    try:
-        if hasattr(st, "secrets"):
-            for k in ["OPENAI_API_KEY", "openai_api_key", "OPENAI_KEY"]:
-                if k in st.secrets:
-                    candidates.append(st.secrets[k])
-    except Exception:
-        pass
-    for envk in ["OPENAI_API_KEY", "openai_api_key", "OPENAI_KEY"]:
-        if os.getenv(envk):
-            candidates.append(os.getenv(envk))
-    return next((c for c in candidates if c), None)
-
-def _call_openai_chat(model: str, system_prompt: str, user_prompt: str, api_key: str) -> str:
-    from openai import OpenAI
-    client = OpenAI(api_key=api_key)
-
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.3,
-    )
-    return resp.choices[0].message.content
 
 # ====== Carga del reporte consolidado ======
 reporte = st.session_state.get("reporte", {}) or {}
