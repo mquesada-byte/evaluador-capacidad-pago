@@ -1,7 +1,18 @@
 import streamlit as st
-import pyodbc
+
+# ⛔️ Parche mínimo para evitar error si no existe pyodbc (como en Streamlit Cloud)
+try:
+    import pyodbc
+except Exception:
+    pyodbc = None
 
 st.title("🔍 Prueba de lectura en Azure SQL Database")
+
+# Si pyodbc no está disponible, mostrar aviso y detener esta página
+if pyodbc is None:
+    st.warning("⚠️ El módulo 'pyodbc' no está disponible en esta instancia (Streamlit Cloud). "
+               "Esta página de prueba de conexión se ejecutará solo en modo local.")
+    st.stop()
 
 # Leer los secrets de Streamlit
 server = st.secrets["azure_sql"]["server"]
@@ -32,7 +43,6 @@ try:
     conn.close()
 
 except Exception as e:
-    st.error(f"❌ Error: {e}")
-
+    st.error(f"❌ Error al conectar con Azure SQL: {e}")
 
 
