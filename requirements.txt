@@ -8,3 +8,5 @@ PyPDF2
 pandas
 numpy
 numpy-financial
+pyodbc
+pymssql
