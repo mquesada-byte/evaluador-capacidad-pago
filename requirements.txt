@@ -9,5 +9,7 @@ pandas
 numpy
 numpy-financial
 pyodbc==5.1.0; sys_platform == "win32"
-pymssql==2.2.3; sys_platform == "linux"
+python-tds==1.13.0; sys_platform == "linux"
+sqlalchemy-tds==1.0.0; sys_platform == "linux"
 sqlalchemy==2.0.35
+
