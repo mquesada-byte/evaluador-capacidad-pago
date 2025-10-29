@@ -1,6 +1,5 @@
 import streamlit as st
-import sys
-from sqlalchemy import create_engine, text
+import pyodbc
 
 st.title("🔍 Prueba de lectura en Azure SQL Database")
 
@@ -9,41 +8,28 @@ server = st.secrets["azure_sql"]["server"]
 database = st.secrets["azure_sql"]["database"]
 username = st.secrets["azure_sql"]["username"]
 password = st.secrets["azure_sql"]["password"]
-
-def get_engine():
-    if sys.platform == "win32":
-        # Windows: usa ODBC Driver 18 + pyodbc
-        conn_url = (
-            "mssql+pyodbc://{USER}:{PWD}@{SERVER}:1433/{DB}"
-            "?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no"
-        ).format(
-            USER=username,
-            PWD=password,
-            SERVER=server,
-            DB=database,
-        )
-    else:
-        # Linux (Streamlit Cloud): usa python-tds + sqlalchemy-tds
-        conn_url = (
-            "mssql+pytds://{USER}:{PWD}@{SERVER}:1433/{DB}?encrypt=true"
-        ).format(
-            USER=username,
-            PWD=password,
-            SERVER=server,
-            DB=database,
-        )
-    return create_engine(conn_url, pool_pre_ping=True)
+driver = st.secrets["azure_sql"]["driver"]
 
 try:
-    engine = get_engine()
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT @@VERSION;"))
-        version = result.scalar()
+    conn = pyodbc.connect(
+        f"DRIVER={{{driver}}};"
+        f"SERVER={server};"
+        f"DATABASE={database};"
+        f"UID={username};"
+        f"PWD={password}",
+        timeout=60
+    )
 
     st.success("✅ Conexión establecida")
+
+    cursor = conn.cursor()
+    cursor.execute("SELECT @@VERSION;")
+    version = cursor.fetchone()[0]
+
     st.write("Versión de SQL Server:")
     st.code(version)
 
+    conn.close()
+
 except Exception as e:
     st.error(f"❌ Error: {e}")
-
