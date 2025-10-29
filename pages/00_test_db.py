@@ -23,9 +23,9 @@ def get_engine():
             DB=database,
         )
     else:
-        # Linux (Streamlit Cloud): usa pymssql
+        # Linux (Streamlit Cloud): usa python-tds + sqlalchemy-tds
         conn_url = (
-            "mssql+pymssql://{USER}:{PWD}@{SERVER}:1433/{DB}"
+            "mssql+pytds://{USER}:{PWD}@{SERVER}:1433/{DB}?encrypt=true"
         ).format(
             USER=username,
             PWD=password,
@@ -46,3 +46,4 @@ try:
 
 except Exception as e:
     st.error(f"❌ Error: {e}")
+
