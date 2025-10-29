@@ -23,9 +23,9 @@ def get_engine():
             DB=database,
         )
     else:
-        # Linux (Streamlit Cloud): usa python-tds
+        # Linux (Streamlit Cloud): usa pymssql
         conn_url = (
-            "mssql+pytds://{USER}:{PWD}@{SERVER}:1433/{DB}?encrypt=true"
+            "mssql+pymssql://{USER}:{PWD}@{SERVER}:1433/{DB}"
         ).format(
             USER=username,
             PWD=password,
