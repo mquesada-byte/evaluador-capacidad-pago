@@ -10,4 +10,3 @@ numpy
 numpy-financial
 #pyodbc
 #pymssql
-pyodbc==5.1.0
