@@ -8,4 +8,5 @@ PyPDF2
 pandas
 numpy
 numpy-financial
-pyodbc==5.1.0
+pyodbc==5.1.0; sys_platform != "linux"
+pymssql==2.2.11; sys_platform == "linux"
