@@ -1,7 +1,7 @@
 import streamlit as st
 import pyodbc
 
-st.title("🔍 Prueba de lectura en Azure SQL Database")
+st.title("🔍 Prueba de lectura en SQL Server DataHub_OnPremise")
 
 # Leer los secrets de Streamlit
 server = st.secrets["azure_sql"]["server"]
