@@ -3,20 +3,22 @@ import pyodbc
 
 st.title("🔍 Prueba de lectura en SQL Server DataHub_OnPremise")
 
-# Leer los secrets de Streamlit
+# =========================
+# Leer configuración
+# =========================
+
 server = st.secrets["azure_sql"]["server"]
 database = st.secrets["azure_sql"]["database"]
 username = st.secrets["azure_sql"]["username"]
 password = st.secrets["azure_sql"]["password"]
 driver = st.secrets["azure_sql"]["driver"]
 
-# ----------------------------------------------------------------------------------------
-# Mantener la conexión a SQL Server en memoria.
-# Streamlit reutiliza esta conexión entre ejecuciones para evitar abrir
-# una nueva conexión en cada consulta y así mejorar el rendimiento.
+# =========================
+# Conexión cacheada (rápida)
+# =========================
 
 @st.cache_resource
-def get_connection():
+def create_connection():
     return pyodbc.connect(
         f"DRIVER={{{driver}}};"
         f"SERVER={server};"
@@ -26,18 +28,27 @@ def get_connection():
         timeout=60
     )
 
-# ----------------------------------------------------------------------------------------
+# =========================
+# Conexión resiliente
+# =========================
+
+def get_connection():
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        return conn
+    except:
+        create_connection.clear()
+        return create_connection()
+
+# =========================
+# Prueba de conexión
+# =========================
 
 try:
     conn = get_connection()
-    # conn = pyodbc.connect(
-        # f"DRIVER={{{driver}}};"
-        # f"SERVER={server};"
-        # f"DATABASE={database};"
-        # f"UID={username};"
-        # f"PWD={password}",
-        # timeout=60
-    # )
 
     st.success("✅ Conexión establecida")
 
@@ -47,8 +58,6 @@ try:
 
     st.write("Versión de SQL Server:")
     st.code(version)
-
-    # conn.close()
 
 except Exception as e:
     st.error(f"❌ Error: {e}")
