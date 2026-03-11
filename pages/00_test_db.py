@@ -15,7 +15,7 @@ driver = st.secrets["azure_sql"]["driver"]
 # Streamlit reutiliza esta conexión entre ejecuciones para evitar abrir
 # una nueva conexión en cada consulta y así mejorar el rendimiento.
 
-# @st.cache_resource
+@st.cache_resource
 def get_connection():
     return pyodbc.connect(
         f"DRIVER={{{driver}}};"
