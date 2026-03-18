@@ -225,7 +225,7 @@ if cliente_id:
         )
         """, cliente_id)
 
-        rows = cursor.fetchall()
+        docs = cursor.fetchall()
         conn.close()
 
         if rows:
