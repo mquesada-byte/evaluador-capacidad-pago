@@ -32,6 +32,90 @@ def get_connection():
     )
 
 # ==============================
+# FUNCIÓN PDF DEL ANÁLISIS
+# ==============================
+
+def generar_pdf_analisis(md_text: str, cliente_id: str) -> bytes:
+    import io
+    import datetime as dt
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.pagesizes import LETTER
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib import colors
+    from xml.sax.saxutils import escape
+
+    buffer = io.BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=LETTER,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=48,
+        bottomMargin=36
+    )
+
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
+        font_name = "DejaVu"
+    except Exception:
+        font_name = "Helvetica"
+
+    styles = getSampleStyleSheet()
+
+    body_style = ParagraphStyle(
+        name="CustomBody17",
+        fontName=font_name,
+        fontSize=10.5,
+        leading=14,
+        textColor=colors.black
+    )
+
+    title_style = ParagraphStyle(
+        name="CustomTitle17",
+        fontName=font_name,
+        fontSize=15,
+        leading=19,
+        spaceAfter=12,
+        textColor=colors.black
+    )
+
+    story = []
+    story.append(Paragraph("Análisis de referencias crediticias", title_style))
+    story.append(Paragraph(f"Cliente: {escape(str(cliente_id))}", body_style))
+    story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), body_style))
+    story.append(Spacer(1, 10))
+
+    for raw in md_text.split("\n"):
+        line = raw.strip()
+
+        if not line:
+            story.append(Spacer(1, 6))
+            continue
+
+        # Limpieza mínima de markdown para PDF
+        line = (
+            line.replace("**", "")
+                .replace("__", "")
+                .replace("### ", "")
+                .replace("## ", "")
+                .replace("# ", "")
+        )
+
+        # Escapar caracteres especiales HTML/XML
+        line = escape(line)
+
+        story.append(Paragraph(line, body_style))
+
+    doc.build(story)
+
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+# ==============================
 # 1️⃣ DETECTAR ASESOR AUTOMÁTICO
 # ==============================
 
@@ -260,44 +344,14 @@ if st.button("Generar análisis IA"):
         # 📄 GENERAR PDF DEL ANÁLISIS
         # ==============================
 
-        from reportlab.lib.pagesizes import letter
-        from reportlab.pdfgen import canvas
-        import io
-        
-        buffer = io.BytesIO()
-        
-        pdf = canvas.Canvas(buffer, pagesize=letter)
-        
-        x = 40
-        y = 750
-        line_height = 14
-        
-        pdf.setFont("Helvetica", 10)
-        
-        for line in analisis.split("\n"):
-        
-            if y <= 40:  # margen inferior → nueva página
-                pdf.showPage()
-                pdf.setFont("Helvetica", 10)
-                y = 750
-        
-            pdf.drawString(x, y, line)
-            y -= line_height
-        
-        pdf.save()
-        
-        buffer.seek(0)
-        
+        pdf_bytes = generar_pdf_analisis(analisis, cliente_id)
+
         st.download_button(
             label="📄 Descargar análisis en PDF",
-            data=buffer,
+            data=pdf_bytes,
             file_name=f"Analisis_crediticio_{cliente_id}.pdf",
             mime="application/pdf"
         )
-
-
-
-    
 
     except Exception as e:
         st.error(f"Error en análisis IA: {e}")
