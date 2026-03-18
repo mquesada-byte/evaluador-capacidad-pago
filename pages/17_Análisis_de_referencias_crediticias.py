@@ -305,25 +305,126 @@ if st.button("Generar análisis IA"):
         client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
         prompt = f"""
-        Analiza el siguiente historial de referencias crediticias.
-
-        Objetivo:
-        Determinar riesgo de crédito para microcrédito.
-
-        Evalúa:
-
-        - nivel de endeudamiento
-        - morosidad histórica
-        - comportamiento de pago
-        - consultas recientes
+        Actúas como ANALISTA SENIOR DE RIESGO EN MICROFINANZAS EN COSTA RICA.
+        
+        Tu función es evaluar el comportamiento crediticio del cliente para decidir
+        si es recomendable otorgar un microcrédito productivo.
+        
+        Debes realizar un análisis profundo orientado a detectar probabilidad de NO PAGO,
+        más allá del score tradicional del buró.
+        
+        ========================
+        CRITERIO MICROFINANCIERO LOCAL
+        ========================
+        
+        1. Evalúa principalmente deudas con:
+        - financieras
+        - bancos
+        - cooperativas
+        - casas comerciales
+        - prestamistas
+        - créditos personales o de consumo
+        
+        2. Si existen cobros judiciales relacionados con estas entidades,
+        considerarlo como señal de ALTO RIESGO.
+        
+        3. Si los cobros judiciales corresponden a:
+        - CCSS
+        - servicios públicos (electricidad, agua, telecomunicaciones)
+        - municipalidades
+        - impuestos
+        
+        Debes mencionarlos solo como contexto socioeconómico,
+        pero NO debes concluir sobre sobreendeudamiento financiero ni mala cultura de pago
+        basándote en esos casos.
+        
+        ========================
+        ANÁLISIS REQUERIDO
+        ========================
+        
+        Debes estructurar tu análisis en las siguientes secciones:
+        
+        1️⃣ PERFIL CONDUCTUAL DE PAGO
+        
+        Describe cómo se comporta el cliente financieramente:
+        
+        - ordenado / desordenado
+        - reactivo / preventivo
+        - dependiente de crédito
+        - uso intensivo de financiamiento
+        - tendencia a atrasos
+        - cultura de cancelación puntual
+        - señales de estrés financiero
+        - posible fragilidad económica
+        
+        2️⃣ NIVEL DE ENDEUDAMIENTO REAL
+        
+        Analiza:
+        
+        - saldo total
+        - cuota mensual estimada
+        - cantidad de créditos activos
         - concentración de deuda
-        - señales de sobreendeudamiento
-        - riesgo global (BAJO / MEDIO / ALTO)
-
-        Texto reportes:
-
+        - posible sobreapalancamiento
+        
+        3️⃣ MOROSIDAD HISTÓRICA
+        
+        Determina:
+        
+        - existencia de atrasos recurrentes
+        - duración de la mora
+        - refinanciamientos
+        - cancelaciones tardías
+        - castigos o cuentas incobrables
+        
+        4️⃣ CONSULTAS RECIENTES
+        
+        Evalúa si el cliente:
+        
+        - está buscando financiamiento activamente
+        - presenta incremento acelerado de consultas
+        - muestra señales de necesidad urgente de liquidez
+        
+        5️⃣ SEÑALES TEMPRANAS DE POSIBLE NO PAGO
+        
+        Debes identificar pistas como:
+        
+        - aumento reciente del endeudamiento
+        - comportamiento irregular de pago
+        - múltiples créditos de consumo
+        - cobros judiciales financieros
+        - saldos elevados para su perfil
+        - presión financiera acumulada
+        - dependencia del crédito para sostener su flujo
+        
+        6️⃣ CLASIFICACIÓN FINAL DE RIESGO
+        
+        Clasifica el cliente como:
+        
+        BAJO  
+        MEDIO  
+        ALTO  
+        
+        7️⃣ RECOMENDACIÓN MICROFINANCIERA
+        
+        Indica:
+        
+        - si se puede otorgar crédito o no
+        - si requiere monto reducido
+        - si requiere plazo corto
+        - si requiere garantía o seguimiento
+        - si se debe esperar antes de aprobar
+        
+        Tu análisis debe ser claro, técnico y práctico,
+        como si fueras el jefe de crédito de una institución microfinanciera.
+        
+        Texto de los reportes:
+        
         {texto_total[:15000]}
         """
+
+
+        
 
         with st.spinner("Analizando referencias crediticias..."):
             response = client.chat.completions.create(
