@@ -198,6 +198,21 @@ with st.container(border=True):
     else:
         st.info("Crea `pages/16_Analisis_IA.py` para habilitar el Paso 16.")
 
+# Paso 17 – Análisis de referencias crediticias
+with st.container(border=True):
+    p17 = first_existing([
+        "pages/17_Analisis_referencias_crediticias.py",
+        "pages/17_Analisis_de_referencias_crediticias.py",  # fallback por si el nombre varía
+    ])
+    if p17:
+        st.page_link(p17,
+            label=f"{step_status('done_17')} 17 – Análisis de referencias crediticias",
+            help="Carga y análisis de reportes de centrales crediticias (Equifax, CIC, Credid)."
+        )
+    else:
+        st.info("Crea `pages/17_Analisis_referencias_crediticias.py` para habilitar el Paso 17.")
+
+
 
 st.divider()
 st.info("También podés abrir los pasos desde el menú lateral.")
