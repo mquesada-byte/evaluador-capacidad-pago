@@ -4,6 +4,8 @@
 
 import streamlit as st
 import pyodbc
+import fitz
+from openai import OpenAI
 
 st.set_page_config(
     page_title="Paso 17: Análisis de referencias crediticias",
@@ -157,3 +159,98 @@ if cliente_id:
 
     except Exception as e:
         st.error(f"No fue posible consultar documentos: {e}")
+
+# ==============================
+# 5️⃣ ANÁLISIS IA AUTOMÁTICO
+# ==============================
+
+st.divider()
+st.subheader("🧠 Análisis automático de referencias")
+
+if st.button("Generar análisis IA"):
+
+    if not cliente_id:
+        st.error("Debe indicar la cédula del cliente")
+        st.stop()
+
+    try:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT TipoDocumento, ArchivoPDF
+            FROM DocumentosReferenciasCrediticias A
+            WHERE ClienteId = ?
+            AND VersionDocumento = (
+                SELECT MAX(VersionDocumento)
+                FROM DocumentosReferenciasCrediticias
+                WHERE ClienteId = A.ClienteId
+                AND TipoDocumento = A.TipoDocumento
+            )
+        """, cliente_id)
+
+        docs = cursor.fetchall()
+        conn.close()
+
+        if not docs:
+            st.warning("No hay reportes para analizar.")
+            st.stop()
+
+        texto_total = ""
+
+        for d in docs:
+            tipo = d.TipoDocumento
+            pdf_bytes = d.ArchivoPDF
+
+            with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
+                for page in pdf:
+                    texto_total += f"\n\n--- REPORTE {tipo} ---\n"
+                    texto_total += page.get_text()
+
+        if len(texto_total.strip()) < 50:
+            st.warning("No se pudo extraer texto útil del PDF.")
+            st.stop()
+
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+        prompt = f"""
+        Analiza el siguiente historial de referencias crediticias.
+
+        Objetivo:
+        Determinar riesgo de crédito para microcrédito.
+
+        Evalúa:
+
+        - nivel de endeudamiento
+        - morosidad histórica
+        - comportamiento de pago
+        - consultas recientes
+        - concentración de deuda
+        - señales de sobreendeudamiento
+        - riesgo global (BAJO / MEDIO / ALTO)
+
+        Texto reportes:
+
+        {texto_total[:15000]}
+        """
+
+        with st.spinner("Analizando referencias crediticias..."):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres analista experto en riesgo microfinanciero."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2
+            )
+
+        analisis = response.choices[0].message.content
+
+        st.success("Análisis generado correctamente")
+        st.markdown(analisis)
+
+    except Exception as e:
+        st.error(f"Error en análisis IA: {e}")
+
+
