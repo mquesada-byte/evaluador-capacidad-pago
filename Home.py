@@ -201,8 +201,7 @@ with st.container(border=True):
 # Paso 17 – Análisis de referencias crediticias
 with st.container(border=True):
     p17 = first_existing([
-        "pages/17_Analisis_referencias_crediticias.py",
-        "pages/17_Análisis_de_referencias_crediticias.py",  # fallback por si el nombre varía
+        "pages/17_Análisis_de_referencias_crediticias.py",
     ])
     if p17:
         st.page_link(p17,
@@ -210,7 +209,7 @@ with st.container(border=True):
             help="Carga y análisis de reportes de centrales crediticias (Equifax, CIC, Credid)."
         )
     else:
-        st.info("Crea `pages/17_Análisis_de_referencias_crediticias.py` para habilitar el Paso 17.")
+        st.info("No se encontró la página del Paso 17. Verificá el nombre del archivo en /pages.")
 
 
 
