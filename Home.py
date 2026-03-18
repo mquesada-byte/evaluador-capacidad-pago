@@ -210,7 +210,7 @@ with st.container(border=True):
             help="Carga y análisis de reportes de centrales crediticias (Equifax, CIC, Credid)."
         )
     else:
-        st.info("Crea `pages/17_Analisis_referencias_crediticias.py` para habilitar el Paso 17.")
+        st.info("Crea `pages/17_Análisis_de_referencias_crediticias.py` para habilitar el Paso 17.")
 
 
 
