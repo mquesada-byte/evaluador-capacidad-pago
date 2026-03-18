@@ -214,18 +214,18 @@ if cliente_id:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT TipoDocumento, ArchivoPDF
-        FROM DocumentosReferenciasCrediticias A
-        WHERE ClienteId = ?
-        AND FechaCarga = (
-            SELECT MAX(FechaCarga)
+            SELECT TipoDocumento,
+                   NombreArchivo,
+                   VersionDocumento,
+                   FechaCarga,
+                   UsuarioCarga,
+                   PesoArchivoKB
             FROM DocumentosReferenciasCrediticias
-            WHERE ClienteId = A.ClienteId
-            AND TipoDocumento = A.TipoDocumento
-        )
+            WHERE ClienteId = ?
+            ORDER BY FechaCarga DESC
         """, cliente_id)
 
-        docs = cursor.fetchall()
+        rows = cursor.fetchall()
         conn.close()
 
         if rows:
