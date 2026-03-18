@@ -142,66 +142,115 @@ st.subheader("Carga de reportes")
 
 tipo_documento = st.selectbox(
     "Tipo de reporte",
-    ["EQUIFAX", "CIC", "CREDID"]
+    ["EQUIFAX","CIC","CREDID"]
 )
 
 uploaded_file = st.file_uploader("Subir archivo PDF", type=["pdf"])
 
+# 🔎 advertencia si ya existe
+if cliente_id:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT TOP 1 NombreArchivo, FechaCarga
+            FROM DocumentosReferenciasCrediticias
+            WHERE ClienteId = ?
+            AND TipoDocumento = ?
+            ORDER BY FechaCarga DESC
+        """, cliente_id, tipo_documento)
+
+        ex = cursor.fetchone()
+        conn.close()
+
+        if ex:
+            st.warning(f"⚠️ Ya existe un reporte {tipo_documento}: {ex.NombreArchivo}. Se reemplazará.")
+
+    except:
+        pass
+
 if st.button("Guardar documento"):
 
-    if not usuario:
-        st.error("Debe indicar el nombre del asesor")
-        st.stop()
-
-    if not cliente_id:
-        st.error("Debe indicar la cédula del cliente")
-        st.stop()
-
-    if uploaded_file is None:
-        st.error("Debe cargar un archivo PDF")
+    if not usuario or not cliente_id or uploaded_file is None:
+        st.error("Complete los datos requeridos")
         st.stop()
 
     try:
+
         file_bytes = uploaded_file.read()
-        file_size_kb = int(len(file_bytes) / 1024)
+        file_size_kb = int(len(file_bytes)/1024)
         file_name = uploaded_file.name
 
         conn = get_connection()
         cursor = conn.cursor()
 
+        # 🧹 eliminar anterior del mismo tipo
         cursor.execute("""
-            SELECT ISNULL(MAX(VersionDocumento),0)+1
-            FROM DocumentosReferenciasCrediticias
+            DELETE FROM DocumentosReferenciasCrediticias
             WHERE ClienteId = ?
             AND TipoDocumento = ?
         """, cliente_id, tipo_documento)
-
-        version = cursor.fetchone()[0]
 
         cursor.execute("""
             INSERT INTO DocumentosReferenciasCrediticias
             (ClienteId, NumeroOperacion, TipoDocumento,
              NombreArchivo, ArchivoPDF, PesoArchivoKB,
              UsuarioCarga, VersionDocumento)
-            VALUES (?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,1)
         """,
         cliente_id,
-        numero_operacion if numero_operacion != "" else None,
+        numero_operacion if numero_operacion else None,
         tipo_documento,
         file_name,
         file_bytes,
         file_size_kb,
-        usuario,
-        version
+        usuario
         )
 
         conn.commit()
         conn.close()
 
-        st.success(f"Documento cargado correctamente. Versión {version}")
+        st.success("Documento actualizado correctamente")
 
     except Exception as e:
         st.error(f"Error al guardar: {e}")
+
+# ==============================
+# MOSTRAR DOCUMENTOS
+# ==============================
+
+if cliente_id:
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT *
+            FROM DocumentosReferenciasCrediticias
+            WHERE ClienteId = ?
+            ORDER BY FechaCarga DESC
+        """, cliente_id)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        if rows:
+            st.subheader("📂 Documentos cargados")
+
+            for r in rows:
+                st.markdown(f"""
+**{r.TipoDocumento}**  
+Archivo: {r.NombreArchivo}  
+Fecha: {r.FechaCarga}  
+Asesor: {r.UsuarioCarga}  
+Tamaño: {r.PesoArchivoKB} KB
+""")
+                st.divider()
+
+    except Exception as e:
+        st.error(e)
 
 # ==============================
 # 4️⃣ MOSTRAR DOCUMENTOS EXISTENTES
