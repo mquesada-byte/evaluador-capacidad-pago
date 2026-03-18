@@ -263,28 +263,41 @@ if st.button("Generar análisis IA"):
         from reportlab.lib.pagesizes import letter
         from reportlab.pdfgen import canvas
         import io
-
+        
         buffer = io.BytesIO()
-
+        
         pdf = canvas.Canvas(buffer, pagesize=letter)
-        text_object = pdf.beginText(40, 750)
-        text_object.setFont("Helvetica", 10)
-
+        
+        x = 40
+        y = 750
+        line_height = 14
+        
+        pdf.setFont("Helvetica", 10)
+        
         for line in analisis.split("\n"):
-            text_object.textLine(line)
-
-        pdf.drawText(text_object)
-        pdf.showPage()
+        
+            if y <= 40:  # margen inferior → nueva página
+                pdf.showPage()
+                pdf.setFont("Helvetica", 10)
+                y = 750
+        
+            pdf.drawString(x, y, line)
+            y -= line_height
+        
         pdf.save()
-
+        
         buffer.seek(0)
-
+        
         st.download_button(
             label="📄 Descargar análisis en PDF",
             data=buffer,
             file_name=f"Analisis_crediticio_{cliente_id}.pdf",
             mime="application/pdf"
         )
+
+
+
+    
 
     except Exception as e:
         st.error(f"Error en análisis IA: {e}")
