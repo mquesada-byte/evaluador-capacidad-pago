@@ -19,11 +19,16 @@ st.title("📄 Paso 17 — Análisis de referencias crediticias")
 # ==============================
 
 def get_connection():
+    import streamlit as st
+    import pyodbc
+
     return pyodbc.connect(
-        "DRIVER={SQL Server};"
-        "SERVER=TU_SERVIDOR;"
-        "DATABASE=DataHub_OnPremise;"
-        "Trusted_Connection=yes;"
+        f"DRIVER={{{st.secrets['azure_sql']['driver']}}};"
+        f"SERVER={st.secrets['azure_sql']['server']};"
+        f"DATABASE={st.secrets['azure_sql']['database']};"
+        f"UID={st.secrets['azure_sql']['username']};"
+        f"PWD={st.secrets['azure_sql']['password']};"
+        "TrustServerCertificate=yes;"
     )
 
 # ==============================
