@@ -202,7 +202,7 @@ with st.container(border=True):
 with st.container(border=True):
     p17 = first_existing([
         "pages/17_Analisis_referencias_crediticias.py",
-        "pages/17_Analisis_de_referencias_crediticias.py",  # fallback por si el nombre varía
+        "pages/17_Análisis_de_referencias_crediticias.py",  # fallback por si el nombre varía
     ])
     if p17:
         st.page_link(p17,
