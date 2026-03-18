@@ -165,6 +165,7 @@ if cliente_id:
     except Exception as e:
         st.error(f"No fue posible consultar documentos: {e}")
 
+
 # ==============================
 # 5️⃣ ANÁLISIS IA AUTOMÁTICO
 # ==============================
@@ -255,7 +256,35 @@ if st.button("Generar análisis IA"):
         st.success("Análisis generado correctamente")
         st.markdown(analisis)
 
+        # ==============================
+        # 📄 GENERAR PDF DEL ANÁLISIS
+        # ==============================
+
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        import io
+
+        buffer = io.BytesIO()
+
+        pdf = canvas.Canvas(buffer, pagesize=letter)
+        text_object = pdf.beginText(40, 750)
+        text_object.setFont("Helvetica", 10)
+
+        for line in analisis.split("\n"):
+            text_object.textLine(line)
+
+        pdf.drawText(text_object)
+        pdf.showPage()
+        pdf.save()
+
+        buffer.seek(0)
+
+        st.download_button(
+            label="📄 Descargar análisis en PDF",
+            data=buffer,
+            file_name=f"Analisis_crediticio_{cliente_id}.pdf",
+            mime="application/pdf"
+        )
+
     except Exception as e:
         st.error(f"Error en análisis IA: {e}")
-
-
