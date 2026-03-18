@@ -269,15 +269,10 @@ if st.button("Generar análisis IA"):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT TipoDocumento, ArchivoPDF
-            FROM DocumentosReferenciasCrediticias A
+            SELECT TOP 1 TipoDocumento, ArchivoPDF
+            FROM DocumentosReferenciasCrediticias
             WHERE ClienteId = ?
-            AND VersionDocumento = (
-                SELECT MAX(VersionDocumento)
-                FROM DocumentosReferenciasCrediticias
-                WHERE ClienteId = A.ClienteId
-                AND TipoDocumento = A.TipoDocumento
-            )
+            ORDER BY FechaCarga DESC
         """, cliente_id)
 
         docs = cursor.fetchall()
