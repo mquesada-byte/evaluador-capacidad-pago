@@ -207,9 +207,60 @@ Asesor: {r.UsuarioCarga}
         st.error(e)
 
 # ==============================
-# 5️⃣ BOTÓN FUTURO IA
+# 5️⃣ ANÁLISIS IA FINANCIERO
 # ==============================
 
-st.divider()
+import fitz
+from openai import OpenAI
 
-st.button("Analizar movimientos financieros con IA (próximamente)")
+st.divider()
+st.subheader("🧠 Análisis automático de comportamiento financiero")
+
+if st.button("Analizar movimientos financieros con IA"):
+
+    if not cliente_id:
+        st.error("Debe indicar la cédula del cliente")
+        st.stop()
+
+    try:
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT TipoDocumento, ArchivoPDF
+            FROM DocumentosFinancierosCliente
+            WHERE CedulaCliente = ?
+            AND Activo = 1
+            ORDER BY FechaCarga
+        """, cliente_id)
+
+        docs = cursor.fetchall()
+        conn.close()
+
+        if not docs:
+            st.warning("No hay estados de cuenta para analizar.")
+            st.stop()
+
+        texto_total = ""
+
+        with st.spinner("Extrayendo movimientos financieros..."):
+
+            for d in docs:
+                tipo = d.TipoDocumento
+                pdf_bytes = d.ArchivoPDF
+
+                with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
+                    for page in pdf:
+                        texto_total += f"\n\n--- ESTADO {tipo} ---\n"
+                        texto_total += page.get_text()
+
+        if len(texto_total.strip()) < 100:
+            st.warning("No se pudo extraer texto útil de los estados.")
+            st.stop()
+
+        st.success("Texto financiero consolidado correctamente")
+        st.text_area("Texto consolidado (control interno)", texto_total[:4000], height=300)
+
+    except Exception as e:
+        st.error(f"Error preparando análisis financiero: {e}")
