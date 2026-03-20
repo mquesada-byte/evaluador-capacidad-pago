@@ -214,7 +214,7 @@ with st.container(border=True):
 # Paso 18 – Estados de cuenta financieros
 with st.container(border=True):
     p18 = first_existing([
-        "pages/18_estados_cuenta.py",
+        "pages/18_Estados_cuenta.py",
     ])
     if p18:
         st.page_link(
