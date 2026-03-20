@@ -97,6 +97,7 @@ if st.button("📊 Cargar historial de gestiones"):
         st.subheader("📋 Historial cronológico de gestiones")
         st.dataframe(df, use_container_width=True)
 
+
         # ==============================
         # RESUMEN CONDUCTUAL AUTOMÁTICO
         # ==============================
@@ -107,59 +108,63 @@ if st.button("📊 Cargar historial de gestiones"):
         porc_sin_contacto = round((sin_contacto / total_gestiones) * 100, 1)
         
         mora_max = df["DiasAtraso"].max()
-        mora_prom = round(df["DiasAtraso"].mean(),1)
+        mora_prom = round(df["DiasAtraso"].mean(), 1)
         
         promesas = df["PromesaPago"].astype(str).str.contains("Si", na=False).sum()
         
-        mora_severa = df[df["NivelMora"]=="MORA_SEVERA"].shape[0]
+        mora_severa = df[df["NivelMora"] == "MORA_SEVERA"].shape[0]
         
         ultimo_nivel = df.iloc[-1]["NivelMora"]
         
         df["MesGestion"] = pd.to_datetime(df["FechaGestion"]).dt.to_period("M")
-        intensidad = round(df.groupby("MesGestion").size().mean(),1)
-        
-        # 🔵 Clasificación automática de intensidad
-        if intensidad <= 1:
-            estado_cobranza = "Cobranza normal"
-        elif intensidad <= 3:
-            estado_cobranza = "Cobranza moderada"
-        elif intensidad <= 6:
-            estado_cobranza = "Cobranza intensiva"
-        else:
-            estado_cobranza = "Cobranza crítica"
-        
-        interpretacion_intensidad = f"""
-        Ejemplo interpretativo:
-        
-        👉 Intensidad {intensidad} con mora máxima {mora_max} días.
-        
-        • Mora baja (<15 días): cliente disciplinado pero monitoreado.
-        • Mora media (15-45 días): cliente reactivo al contacto.
-        • Mora alta (>45 días): posible deterioro financiero.
-        """
+        intensidad = round(df.groupby("MesGestion").size().mean(), 1)
         
         st.subheader("📊 Resumen conductual automático")
         
-        col1,col2,col3,col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4)
         
         col1.metric("Total gestiones", total_gestiones)
         col2.metric("% sin contacto", porc_sin_contacto)
         col3.metric("Mora máxima", mora_max)
         col4.metric("Mora promedio", mora_prom)
         
-        col5,col6,col7,col8 = st.columns(4)
+        col5, col6, col7, col8 = st.columns(4)
         
         col5.metric("Promesas de pago", promesas)
         col6.metric("Gestiones en mora severa", mora_severa)
         col7.metric("Último nivel mora", ultimo_nivel)
         
+        interpretacion_intensidad = """
+        🎯 Interpretación profesional del rango (microfinanzas)
+        
+        🟢 0 a 1  
+        Cobranza normal / crédito sano  
+        Cliente paga casi sin presión.  
+        ✔ Riesgo bajo.
+        
+        🟡 1 a 3  
+        Cobranza moderada  
+        Cliente requiere seguimiento ocasional.  
+        ✔ Riesgo medio manejable.
+        
+        🟠 3 a 6  
+        Cobranza intensiva  
+        Cliente paga de forma reactiva y necesita presión frecuente.  
+        ✔ Riesgo medio-alto.
+        
+        🔴 Más de 6  
+        Cobranza crítica  
+        Dependencia total de presión para pagar.  
+        ✔ Riesgo alto para recrédito.
+        """
+        
         col8.metric(
-            "Estado cobranza",
-            f"{estado_cobranza} ({intensidad})",
+            "Intensidad cobranza",
+            intensidad,
             help=interpretacion_intensidad
         )
-
         
+       #-------------------------------------------------------------------------------------------- 
 
         # guardar dataframe en sesión para IA futura
         st.session_state["df_cobranza"] = df
