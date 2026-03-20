@@ -121,7 +121,9 @@ numero_operacion = st.text_input("Número de operación a analizar *")
 # BOTÓN CARGAR HISTORIAL
 # ==============================
 
-if st.button("📊 Cargar historial de gestiones"):
+# if st.button("📊 Cargar historial de gestiones"):
+cargar_historial = st.button("📊 Cargar historial de gestiones")
+if cargar_historial:
 
     if not numero_operacion:
         st.error("Debe indicar el número de operación")
@@ -264,7 +266,8 @@ if st.button("📊 Cargar historial de gestiones"):
         st.divider()
         st.subheader("🧠 Análisis automático del comportamiento de pago")
 
-        if st.button("🧠 Analizar comportamiento de pago con IA"):
+        # if st.button("🧠 Analizar comportamiento de pago con IA"):
+        if st.session_state.get("df_cobranza") is not None and st.button("🧠 Analizar comportamiento de pago con IA"):
 
             try:
 
@@ -371,3 +374,15 @@ if st.button("📊 Cargar historial de gestiones"):
 
     except Exception as e:
         st.error(f"Error cargando historial: {e}")
+
+        # ==============================
+        # MOSTRAR HISTORIAL SI YA FUE CARGADO
+        # ==============================
+        
+        if st.session_state.get("df_cobranza") is not None:
+        
+            df = st.session_state["df_cobranza"]
+            numero_operacion = st.session_state["op_cargada"]
+        
+            st.subheader("📋 Historial cronológico de gestiones")
+            st.dataframe(df, use_container_width=True)
