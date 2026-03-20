@@ -211,6 +211,23 @@ with st.container(border=True):
     else:
         st.info("No se encontró la página del Paso 17. Verificá el nombre del archivo en /pages.")
 
+# Paso 18 – Estados de cuenta financieros
+with st.container(border=True):
+    p18 = first_existing([
+        "pages/18_estados_cuenta.py",
+    ])
+    if p18:
+        st.page_link(
+            p18,
+            label=f"{step_status('done_18')} 18 – Estados de cuenta financieros",
+            help="Carga, gestión y análisis de estados de cuenta bancarios y de tarjetas para evaluar comportamiento financiero real."
+        )
+    else:
+        st.info("No se encontró la página del Paso 18. Verificá el nombre del archivo en /pages.")
+
+
+
+
 
 
 st.divider()
