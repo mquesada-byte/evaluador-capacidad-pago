@@ -225,7 +225,19 @@ with st.container(border=True):
     else:
         st.info("No se encontró la página del Paso 18. Verificá el nombre del archivo en /pages.")
 
-
+# Paso 19 – Análisis de gestiones de cobro
+with st.container(border=True):
+    p19 = first_existing([
+        "pages/19_Analisis_de_gestiones_de_cobro.py",
+    ])
+    if p19:
+        st.page_link(
+            p19,
+            label=f"{step_status('done_19')} 19 – Análisis de gestiones de cobro",
+            help="Evaluación del comportamiento histórico de pago del cliente con la institución, incluyendo mora, promesas de pago, contacto y disciplina financiera."
+        )
+    else:
+        st.info("No se encontró la página del Paso 19. Verificá el nombre del archivo en /pages.")
 
 
 
