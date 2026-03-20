@@ -28,6 +28,90 @@ def get_connection():
     )
 
 # ==============================
+# FUNCIÓN PDF DEL ANÁLISIS
+# ==============================
+
+def generar_pdf_analisis(md_text: str, identificador: str) -> bytes:
+    import io
+    import datetime as dt
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.pagesizes import LETTER
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib import colors
+    from xml.sax.saxutils import escape
+
+    buffer = io.BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=LETTER,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=48,
+        bottomMargin=36
+    )
+
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
+        font_name = "DejaVu"
+    except Exception:
+        font_name = "Helvetica"
+
+    styles = getSampleStyleSheet()
+
+    body_style = ParagraphStyle(
+        name="CustomBody19",
+        fontName=font_name,
+        fontSize=10.5,
+        leading=14,
+        textColor=colors.black
+    )
+
+    title_style = ParagraphStyle(
+        name="CustomTitle19",
+        fontName=font_name,
+        fontSize=15,
+        leading=19,
+        spaceAfter=12,
+        textColor=colors.black
+    )
+
+    story = []
+    story.append(Paragraph("Informe IA de comportamiento de pago", title_style))
+    story.append(Paragraph(f"Operación: {escape(str(identificador))}", body_style))
+    story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), body_style))
+    story.append(Spacer(1, 10))
+
+    for raw in md_text.split("\n"):
+        line = raw.strip()
+
+        if not line:
+            story.append(Spacer(1, 6))
+            continue
+
+        line = (
+            line.replace("**", "")
+                .replace("__", "")
+                .replace("### ", "")
+                .replace("## ", "")
+                .replace("# ", "")
+        )
+
+        line = escape(line)
+
+        story.append(Paragraph(line, body_style))
+
+    doc.build(story)
+
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+
+
+# ==============================
 # INPUT OPERACIÓN
 # ==============================
 
