@@ -260,7 +260,108 @@ if st.button("Analizar movimientos financieros con IA"):
             st.stop()
 
         st.success("Texto financiero consolidado correctamente")
-        st.text_area("Texto consolidado (control interno)", texto_total[:4000], height=300)
+
+        # 🔎 Control interno opcional
+        st.text_area(
+            "Texto consolidado (control interno)",
+            texto_total[:4000],
+            height=250
+        )
+
+        # ==============================
+        # 🧠 ENVÍO A IA
+        # ==============================
+
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+        prompt = f"""
+Actúas como ANALISTA SENIOR DE RIESGO MICROFINANCIERO especializado en
+interpretación forense de estados de cuenta bancarios.
+
+Tu objetivo es determinar la verdadera capacidad de pago del cliente,
+su rol operativo en el negocio y su nivel de riesgo financiero.
+
+========================
+ANÁLISIS REQUERIDO
+========================
+
+1️⃣ INGRESO REAL
+- Estimar ingreso promedio mensual
+- Evaluar estabilidad del ingreso
+- Detectar dependencia de pocos clientes
+
+2️⃣ ROL FINANCIERO DEL CLIENTE
+Determinar si:
+- administra el negocio
+- es solo receptor de pagos
+- traslada dinero a terceros
+- hay retiros inmediatos tras ingresos
+
+3️⃣ EGRESOS
+Separar:
+Gastos negocio:
+- combustible
+- compras inventario
+- pagos operativos
+Gastos personales:
+- consumo familiar
+- supermercados
+- tiendas
+- transferencias personales
+
+4️⃣ CARGA FINANCIERA
+- Detectar pagos tipo cuota
+- Estimar acreedores
+- Evaluar sobreendeudamiento
+
+5️⃣ ESTRÉS FINANCIERO
+- descapitalización rápida
+- saldos bajos recurrentes
+- dependencia del ingreso diario
+
+6️⃣ FLUJO DE CAJA
+- estimar flujo neto mensual
+- capacidad potencial de pago
+
+7️⃣ CLASIFICACIÓN FINAL
+BAJO / MEDIO / ALTO
+
+8️⃣ RECOMENDACIÓN CREDITICIA
+
+Texto financiero:
+
+{texto_total[:18000]}
+"""
+
+        with st.spinner("Analizando comportamiento financiero..."):
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Eres experto en análisis financiero microempresarial."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2
+            )
+
+        analisis = response.choices[0].message.content
+
+        st.success("Informe IA generado correctamente")
+        st.markdown(analisis)
+
+
+# ==============================
+# 📄 GENERAR PDF DEL ANÁLISIS
+# ==============================
+
+pdf_bytes = generar_pdf_analisis(analisis, cliente_id)
+
+st.download_button(
+    label="📄 Descargar informe financiero en PDF",
+    data=pdf_bytes,
+    file_name=f"Informe_financiero_{cliente_id}.pdf",
+    mime="application/pdf"
+)
 
     except Exception as e:
-        st.error(f"Error preparando análisis financiero: {e}")
+        st.error(f"Error en análisis financiero IA: {e}")
