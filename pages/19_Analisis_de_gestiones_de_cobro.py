@@ -250,28 +250,25 @@ if st.button("📊 Cargar historial de gestiones"):
 
 
         
+
         # ==============================
         # 6️⃣ ANÁLISIS IA COMPORTAMIENTO DE PAGO
         # ==============================
-        
+
         import io
         from openai import OpenAI
-        
+
         st.divider()
         st.subheader("🧠 Análisis automático del comportamiento de pago")
-        
-        if "df_cobranza" in st.session_state:
-        
-            if st.button("Analizar comportamiento de pago con IA"):
-        
-                try:
-        
-                    df = st.session_state["df_cobranza"]
-        
-                    texto_historial = ""
-        
-                    for _, row in df.iterrows():
-                        texto_historial += f"""
+
+        if st.button("🧠 Analizar comportamiento de pago con IA"):
+
+            try:
+
+                texto_historial = ""
+
+                for _, row in df.iterrows():
+                    texto_historial += f"""
         Fecha gestión: {row['FechaGestion']}
         Días atraso: {row['DiasAtraso']}
         Nivel mora: {row['NivelMora']}
@@ -280,10 +277,10 @@ if st.button("📊 Cargar historial de gestiones"):
         Descripción: {row['DescripcionGestion']}
         -------------------------
         """
-        
-                    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        
-                    prompt = f"""
+
+                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+                prompt = f"""
         Actúas como JEFE DE RIESGO MICROFINANCIERO experto en análisis conductual de pago.
         
         Tu objetivo es determinar la calidad real del comportamiento de pago del cliente
@@ -326,40 +323,38 @@ if st.button("📊 Cargar historial de gestiones"):
         
         {texto_historial[:18000]}
         """
-        
-                    with st.spinner("Analizando comportamiento de pago..."):
-        
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[
-                                {"role": "system", "content": "Eres experto en riesgo microfinanciero."},
-                                {"role": "user", "content": prompt}
-                            ],
-                            temperature=0.2
-                        )
-        
-                    analisis = response.choices[0].message.content
-        
-                    st.success("Informe IA generado correctamente")
-                    st.markdown(analisis)
-        
-                    # ==============================
-                    # 📄 GENERAR PDF
-                    # ==============================
-        
-                    pdf_bytes = generar_pdf_analisis(analisis, numero_operacion)
-        
-                    st.download_button(
-                        label="📄 Descargar informe de comportamiento de pago",
-                        data=pdf_bytes,
-                        file_name=f"Informe_cobranza_{numero_operacion}.pdf",
-                        mime="application/pdf"
+
+                with st.spinner("Analizando comportamiento de pago..."):
+
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "Eres experto en riesgo microfinanciero."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.2
                     )
-        
-                except Exception as e:
-                    st.error(f"Error en análisis IA: {e}")
 
+                analisis = response.choices[0].message.content
 
+                st.success("Informe IA generado correctamente")
+                st.markdown(analisis)
+
+                # ==============================
+                # 📄 GENERAR PDF
+                # ==============================
+
+                pdf_bytes = generar_pdf_analisis(analisis, numero_operacion)
+
+                st.download_button(
+                    label="📄 Descargar informe de comportamiento de pago",
+                    data=pdf_bytes,
+                    file_name=f"Informe_cobranza_{numero_operacion}.pdf",
+                    mime="application/pdf"
+                )
+
+            except Exception as e:
+                st.error(f"Error en análisis IA: {e}")
         
        #-------------------------------------------------------------------------------------------- 
 
