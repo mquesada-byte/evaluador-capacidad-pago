@@ -163,6 +163,119 @@ if st.button("📊 Cargar historial de gestiones"):
             intensidad,
             help=interpretacion_intensidad
         )
+
+
+        
+        # ==============================
+        # 6️⃣ ANÁLISIS IA COMPORTAMIENTO DE PAGO
+        # ==============================
+        
+        import io
+        from openai import OpenAI
+        
+        st.divider()
+        st.subheader("🧠 Análisis automático del comportamiento de pago")
+        
+        if "df_cobranza" in st.session_state:
+        
+            if st.button("Analizar comportamiento de pago con IA"):
+        
+                try:
+        
+                    df = st.session_state["df_cobranza"]
+        
+                    texto_historial = ""
+        
+                    for _, row in df.iterrows():
+                        texto_historial += f"""
+        Fecha gestión: {row['FechaGestion']}
+        Días atraso: {row['DiasAtraso']}
+        Nivel mora: {row['NivelMora']}
+        Resultado contacto: {row['ResultadoContacto']}
+        Promesa pago: {row['PromesaPago']}
+        Descripción: {row['DescripcionGestion']}
+        -------------------------
+        """
+        
+                    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        
+                    prompt = f"""
+        Actúas como JEFE DE RIESGO MICROFINANCIERO experto en análisis conductual de pago.
+        
+        Tu objetivo es determinar la calidad real del comportamiento de pago del cliente
+        durante este ciclo crediticio específico.
+        
+        Debes analizar:
+        
+        1️⃣ DISCIPLINA DE PAGO  
+        - cliente preventivo o reactivo  
+        - tendencia a atrasarse  
+        - gravedad de la mora alcanzada  
+        
+        2️⃣ REACCIÓN ANTE PRESIÓN  
+        - paga solo cuando se le contacta  
+        - evasión de contacto  
+        - promesas incumplidas  
+        
+        3️⃣ DETERIORO O MEJORA  
+        - evolución cronológica del riesgo  
+        - estabilidad o desgaste financiero  
+        
+        4️⃣ CREDIBILIDAD FINANCIERA  
+        - coherencia entre promesas y pagos  
+        - responsabilidad frente a la deuda  
+        
+        5️⃣ PERFIL CONDUCTUAL FINAL  
+        Clasificar como:
+        
+        EXCELENTE  
+        ACEPTABLE  
+        RIESGOSO  
+        CRÍTICO  
+        
+        6️⃣ RECOMENDACIÓN DE RECRÉDITO  
+        - monto sugerido (igual / menor / no recomendable)
+        - necesidad de seguimiento
+        - plazo prudente
+        
+        Historial de gestiones:
+        
+        {texto_historial[:18000]}
+        """
+        
+                    with st.spinner("Analizando comportamiento de pago..."):
+        
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[
+                                {"role": "system", "content": "Eres experto en riesgo microfinanciero."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            temperature=0.2
+                        )
+        
+                    analisis = response.choices[0].message.content
+        
+                    st.success("Informe IA generado correctamente")
+                    st.markdown(analisis)
+        
+                    # ==============================
+                    # 📄 GENERAR PDF
+                    # ==============================
+        
+                    pdf_bytes = generar_pdf_analisis(analisis, numero_operacion)
+        
+                    st.download_button(
+                        label="📄 Descargar informe de comportamiento de pago",
+                        data=pdf_bytes,
+                        file_name=f"Informe_cobranza_{numero_operacion}.pdf",
+                        mime="application/pdf"
+                    )
+        
+                except Exception as e:
+                    st.error(f"Error en análisis IA: {e}")
+
+
         
        #-------------------------------------------------------------------------------------------- 
 
