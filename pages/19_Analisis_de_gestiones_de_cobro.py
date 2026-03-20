@@ -248,8 +248,11 @@ if st.button("📊 Cargar historial de gestiones"):
             help=interpretacion_intensidad
         )
 
-
-        
+        # ---------------------------------------------------------------------------------------------------
+           
+        # guardar dataframe en sesión para IA
+        st.session_state["df_cobranza"] = df
+        st.session_state["op_cargada"] = numero_operacion
 
         # ==============================
         # 6️⃣ ANÁLISIS IA COMPORTAMIENTO DE PAGO
@@ -265,9 +268,12 @@ if st.button("📊 Cargar historial de gestiones"):
 
             try:
 
+                df_ia = st.session_state["df_cobranza"]
+                op_ia = st.session_state["op_cargada"]
+
                 texto_historial = ""
 
-                for _, row in df.iterrows():
+                for _, row in df_ia.iterrows():
                     texto_historial += f"""
         Fecha gestión: {row['FechaGestion']}
         Días atraso: {row['DiasAtraso']}
@@ -344,17 +350,19 @@ if st.button("📊 Cargar historial de gestiones"):
                 # 📄 GENERAR PDF
                 # ==============================
 
-                pdf_bytes = generar_pdf_analisis(analisis, numero_operacion)
+                pdf_bytes = generar_pdf_analisis(analisis, op_ia)
 
                 st.download_button(
                     label="📄 Descargar informe de comportamiento de pago",
                     data=pdf_bytes,
-                    file_name=f"Informe_cobranza_{numero_operacion}.pdf",
+                    file_name=f"Informe_cobranza_{op_ia}.pdf",
                     mime="application/pdf"
                 )
 
             except Exception as e:
                 st.error(f"Error en análisis IA: {e}")
+
+
         
        #-------------------------------------------------------------------------------------------- 
 
