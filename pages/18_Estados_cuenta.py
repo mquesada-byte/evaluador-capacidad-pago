@@ -349,19 +349,18 @@ Texto financiero:
         st.success("Informe IA generado correctamente")
         st.markdown(analisis)
 
+        # ==============================
+        # 📄 GENERAR PDF DEL ANÁLISIS
+        # ==============================
 
-# ==============================
-# 📄 GENERAR PDF DEL ANÁLISIS
-# ==============================
+        pdf_bytes = generar_pdf_analisis(analisis, cliente_id)
 
-pdf_bytes = generar_pdf_analisis(analisis, cliente_id)
-
-st.download_button(
-    label="📄 Descargar informe financiero en PDF",
-    data=pdf_bytes,
-    file_name=f"Informe_financiero_{cliente_id}.pdf",
-    mime="application/pdf"
-)
+        st.download_button(
+            label="📄 Descargar informe financiero en PDF",
+            data=pdf_bytes,
+            file_name=f"Informe_financiero_{cliente_id}.pdf",
+            mime="application/pdf"
+        )
 
     except Exception as e:
         st.error(f"Error en análisis financiero IA: {e}")
