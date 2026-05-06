@@ -239,7 +239,19 @@ with st.container(border=True):
     else:
         st.info("No se encontró la página del Paso 19. Verificá el nombre del archivo en /pages.")
 
-
+# Paso 20 – Fotografías de inspección
+with st.container(border=True):
+    p20 = first_existing([
+        "pages/20_Fotografias_inspeccion.py",
+    ])
+    if p20:
+        st.page_link(
+            p20,
+            label=f"{step_status('done_20')} 20 – Fotografías de inspección",
+            help="Carga y análisis visual de fotografías del cliente, negocio, inventario, registros y evidencia operativa para fortalecer la evaluación crediticia."
+        )
+    else:
+        st.info("No se encontró la página del Paso 20. Verificá el nombre del archivo en /pages.")
 
 
 st.divider()
