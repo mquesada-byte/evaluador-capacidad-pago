@@ -7,8 +7,8 @@ import numpy_financial as npf
 # ======================
 # 📌 Parámetros globales
 # ======================
-TASA_MAX_CREDITO = 36.27   # % anual, tasa máxima para todo tipo de créditos
-TASA_MAX_MICROCREDITO = 51.21  # % anual, tasa máxima para microcrédito
+TASA_MAX_CREDITO = 36.48   # % anual, tasa máxima para todo tipo de créditos
+TASA_MAX_MICROCREDITO = 51.51  # % anual, tasa máxima para microcrédito
 SALARIO_BASE = 462_200     # Salario base en colones
 MONTO_MAX_MICROCREDITO = SALARIO_BASE * 1.5  # Monto máximo permitido para microcrédito
 # ======================
