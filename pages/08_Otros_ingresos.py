@@ -215,7 +215,7 @@ puede_continuar = (len(df_valid) > 0) or sin_ingresos
 c1, c2 = st.columns([0.5, 0.5])
 with c1:
     if st.button("⬅️ Volver a 07 – Conciliación", use_container_width=True):
-        st.switch_page("pages/07_Conciliacion_de_ventas.py")
+        st.switch_page("pages/07_Conciliación_de_ventas.py")
 
 with c2:
     if st.button("Guardar y continuar ➡️", use_container_width=True, disabled=not puede_continuar):
