@@ -230,7 +230,8 @@ Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, 
 Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en los siguientes reglamentos internos:
 
 ---
-{reglamento[:3000]}
+# {reglamento[:3000]}
+{reglamento}
 ---
 
 Datos del cliente (valores mensuales y totales):
