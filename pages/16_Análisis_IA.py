@@ -269,16 +269,27 @@ Datos del cliente (valores mensuales y totales):
 - Patrimonio: {patrimonio}
 - Capital de trabajo: {capital_trabajo}
 
+Debes utilizar expresamente ambos reglamentos en el análisis.
+
+Incluye las disposiciones que resulten aplicables al caso, indicando:
+- Nombre del reglamento.
+- Artículo, apartado o título de la disposición.
+- Regla o requisito aplicable.
+- Forma en que el cliente cumple, incumple o queda pendiente de verificación.
+
+No inventes requisitos ni números de artículos. Si no encuentras una disposición aplicable, indícalo expresamente.
+
 Entrega la respuesta en **Markdown** con estas secciones:
 1) Evaluación del cliente y negocio
 2) Análisis de las ventas (comparativo y confiabilidad)
 3) Análisis de ratios financieros
-4) Fortalezas del negocio (viñetas)
-5) Riesgos / banderas rojas (viñetas)
-6) Lectura financiera (2–3 párrafos)
-7) Capacidad de pago y holgura (cálculos simples con los datos)
-8) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
-9) Pendientes de verificación (checklist breve)
+4) Aplicación de los reglamentos internos
+5) Fortalezas del negocio (viñetas)
+6) Riesgos / banderas rojas (viñetas)
+7) Lectura financiera (2–3 párrafos)
+8) Capacidad de pago y holgura (cálculos simples con los datos)
+9) Recomendación (monto sugerido, plazo y ratio cuota/ingreso objetivo)
+10) Pendientes de verificación (checklist breve)
 
 Concluye con un párrafo final de criterio del analista.
     """.strip()
