@@ -187,29 +187,41 @@ def _ratios_financieros(rep: dict) -> str:
     def _fmt_pct(val):
         return f"{val:.2%}" if val is not None else "N/D"
 
-    def _semaforo_ratio(nombre, val, bueno, medio, invertido=False):
+    def _fmt_x(val):
+        return f"{val:.2f}x" if val is not None else "N/D"
+
+        def _semaforo_ratio(nombre, val, bueno, medio, invertido=False, formato_x=False):
         """Clasifica un ratio según umbrales"""
         if val is None:
             return f"- {nombre}: N/D ⚪"
+
         if invertido:
-            if val <= bueno: color = "🟢"
-            elif val <= medio: color = "🟡"
-            else: color = "🔴"
+            if val <= bueno:
+                color = "🟢"
+            elif val <= medio:
+                color = "🟡"
+            else:
+                color = "🔴"
         else:
-            if val >= bueno: color = "🟢"
-            elif val >= medio: color = "🟡"
-            else: color = "🔴"
-        return f"- {nombre}: {_fmt_pct(val)} {color}"
+            if val >= bueno:
+                color = "🟢"
+            elif val >= medio:
+                color = "🟡"
+            else:
+                color = "🔴"
+
+        valor_formateado = _fmt_x(val) if formato_x else _fmt_pct(val)
+        return f"- {nombre}: {valor_formateado} {color}"
 
     return f"""
 **Análisis de Ratios Financieros:**
 
 {_semaforo_ratio("Margen operativo", margen_operativo, 0.20, 0.10)}
-{_semaforo_ratio("DSCR (cobertura deuda)", dscr, 1.5, 1.0)}
+{_semaforo_ratio("DSCR (cobertura deuda)", dscr, 1.5, 1.0, formato_x=True)}
 {_semaforo_ratio("Gastos familiares / Ingresos", gastos_fam_ratio, 0.30, 0.40, invertido=True)}
 
-{_semaforo_ratio("Razón circulante (AC/PC)", razon_circulante, 1.5, 1.0)}
-{_semaforo_ratio("Apalancamiento (Deuda/Patrimonio)", apalancamiento, 2.0, 3.0, invertido=True)}
+{_semaforo_ratio("Razón circulante (AC/PC)", razon_circulante, 1.5, 1.0, formato_x=True)}
+{_semaforo_ratio("Apalancamiento (Deuda/Patrimonio)", apalancamiento, 2.0, 3.0, invertido=True, formato_x=True)}
 {_semaforo_ratio("Solvencia (Patrimonio/Activos)", solvencia, 0.40, 0.25)}
 """
 
@@ -251,7 +263,6 @@ Eres analista senior de crédito en microfinanzas. Con tono **{tono.lower()}**, 
 Además, ajusta tu criterio tomando en cuenta las reglas de política crediticia incluidas en los siguientes reglamentos internos:
 
 ---
-# {reglamento[:3000]}
 {reglamento}
 ---
 
@@ -439,11 +450,16 @@ if not reporte:
     st.stop()
 
 # ====== Test de API Key ======
+#api_key_test = _get_openai_key()
+#if api_key_test:
+#    st.info(f"✅ API Key detectada. Empieza con: {api_key_test[:6]}... y tiene {len(api_key_test)} caracteres.")
+#else:
+#    st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
+
 api_key_test = _get_openai_key()
-if api_key_test:
-    st.info(f"✅ API Key detectada. Empieza con: {api_key_test[:6]}... y tiene {len(api_key_test)} caracteres.")
-else:
-    st.error("❌ No se detectó ninguna API Key. Revisá que esté en st.secrets o en las variables de entorno.")
+
+if not api_key_test:
+    st.error("❌ No se detectó la configuración necesaria para generar el análisis.")
 
 # ====== Opciones de la IA ======
 with st.expander("Opciones de análisis IA"):
@@ -473,7 +489,10 @@ with col_g:
                 user_prompt=prompt,
                 api_key=api_key,
             )
-        except Exception:
+        #except Exception:
+
+        except Exception as e:
+            st.error(f"No fue posible generar el análisis con OpenAI: {e}")
             md = _fallback_local(reporte)
 
         st.session_state["analisis_ia_md"] = md
