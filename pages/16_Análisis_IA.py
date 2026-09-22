@@ -39,10 +39,31 @@ def _load_pdf_text(path: str) -> str:
     except Exception as e:
         return f"[No se pudo cargar {path}: {e}]"
 
+#if "reglamentos_texto" not in st.session_state:
+#    texto_credito = _load_pdf_text(os.path.join("assets", "reglamento_de_crédito.pdf"))
+#    texto_fondo   = _load_pdf_text(os.path.join("assets", "reglamento_del_fondo_de_utilidad_pública.pdf"))
+#    st.session_state["reglamentos_texto"] = f"{texto_credito}\n\n{texto_fondo}".strip()
+
 if "reglamentos_texto" not in st.session_state:
-    texto_credito = _load_pdf_text(os.path.join("assets", "reglamento_de_crédito.pdf"))
-    texto_fondo   = _load_pdf_text(os.path.join("assets", "reglamento_del_fondo_de_utilidad_pública.pdf"))
-    st.session_state["reglamentos_texto"] = f"{texto_credito}\n\n{texto_fondo}".strip()
+    texto_credito = _load_pdf_text(
+        os.path.join("assets", "reglamento_de_crédito.pdf")
+    )
+    texto_fondo = _load_pdf_text(
+        os.path.join("assets", "reglamento_del_fondo_de_utilidad_pública.pdf")
+    )
+
+    if not texto_credito or texto_credito.startswith("[No se pudo cargar"):
+        st.error("No se pudo cargar correctamente el Reglamento de Crédito.")
+        st.stop()
+
+    if not texto_fondo or texto_fondo.startswith("[No se pudo cargar"):
+        st.error("No se pudo cargar correctamente el Reglamento del Fondo de Utilidad Pública.")
+        st.stop()
+
+    st.session_state["reglamentos_texto"] = (
+        f"REGLAMENTO DE CRÉDITO\n\n{texto_credito}"
+        f"\n\nREGLAMENTO DEL FONDO DE UTILIDAD PÚBLICA\n\n{texto_fondo}"
+    )
 
 # ====== Perfil cliente ======
 def _perfil_cliente(rep: dict) -> str:
