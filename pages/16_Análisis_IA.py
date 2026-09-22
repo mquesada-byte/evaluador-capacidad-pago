@@ -190,7 +190,7 @@ def _ratios_financieros(rep: dict) -> str:
     def _fmt_x(val):
         return f"{val:.2f}x" if val is not None else "N/D"
 
-        def _semaforo_ratio(nombre, val, bueno, medio, invertido=False, formato_x=False):
+    def _semaforo_ratio(nombre, val, bueno, medio, invertido=False, formato_x=False):
         """Clasifica un ratio según umbrales"""
         if val is None:
             return f"- {nombre}: N/D ⚪"
