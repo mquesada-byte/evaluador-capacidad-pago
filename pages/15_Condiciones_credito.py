@@ -136,3 +136,72 @@ if calcular:
             st.metric("Cuota con póliza", f"₡{cuota_con_poliza:,.0f}")
     else:
         st.warning("⚠️ Por favor completa comisión, tasa y plazo antes de calcular.")
+
+# ============================================================
+# PASO 15 — GUARDAR CONDICIONES Y CONTINUAR
+# Guarda las condiciones negociadas por cédula y abre el paso 17
+# ============================================================
+
+st.divider()
+
+col_volver, col_guardar = st.columns(2)
+
+with col_volver:
+    if st.button("⬅️ Volver a 14 – Informe final", use_container_width=True):
+        st.switch_page("pages/14_Informe_final.py")
+
+with col_guardar:
+    if st.button("Guardar y continuar ➡️", use_container_width=True):
+        if not cliente_id:
+            st.warning("Cargá un cliente antes de guardar las condiciones.")
+        elif monto_solicitado <= 0 or comision_pct is None or tasa_interes_anual is None or plazo_meses <= 0:
+            st.warning("Completá monto solicitado, comisión, tasa y plazo antes de guardar.")
+        else:
+            monto_total = (
+                (monto_solicitado + honorarios_timbres)
+                * (1 + comision_pct / 100)
+                + saldo_payoff
+            )
+            tasa_mensual = tasa_interes_anual / 100 / 12
+            n = plazo_meses
+
+            if tasa_mensual > 0:
+                cuota_base = monto_total * (
+                    tasa_mensual * (1 + tasa_mensual) ** n
+                ) / ((1 + tasa_mensual) ** n - 1)
+            else:
+                cuota_base = monto_total / n
+
+            poliza = monto_total / 100000 * 100
+            cuota_con_poliza = cuota_base + poliza
+            plazo_anios = plazo_meses / 12
+            tita = (
+                tasa_interes_anual
+                + comision_pct / plazo_anios
+                + (poliza * 12 / monto_total) * 100
+                + (honorarios_timbres / monto_solicitado / plazo_anios) * 100
+            )
+
+            datos = {
+                "monto_solicitado": monto_solicitado,
+                "saldo_payoff": saldo_payoff,
+                "comision_pct": comision_pct,
+                "tasa_interes_anual": tasa_interes_anual,
+                "plazo_meses": plazo_meses,
+                "honorarios_timbres": honorarios_timbres,
+                "monto_total": monto_total,
+                "poliza_mensual": poliza,
+                "cuota_sin_poliza": cuota_base,
+                "cuota_con_poliza": cuota_con_poliza,
+                "tita": tita,
+            }
+
+            if save_condiciones_credito(cliente_id, datos):
+                st.session_state["done_15"] = True
+                st.switch_page("pages/17_Análisis_de_referencias_crediticias.py")
+
+
+
+
+
+
