@@ -24,43 +24,73 @@ cliente_id = st.session_state.get("cliente", {}).get("identificacion")
 condiciones_guardadas = load_condiciones_credito(cliente_id) if cliente_id else None
 
 # ===== Entradas =====
+opciones_comision = [1.5, 2, 4, 6, 8, 10]
+opciones_tasa = [14, 22, 24, 26, 30, 34]
+
+comision_guardada = (
+    float(condiciones_guardadas["comision_pct"])
+    if condiciones_guardadas else None
+)
+tasa_guardada = (
+    float(condiciones_guardadas["tasa_interes_anual"])
+    if condiciones_guardadas else None
+)
+
 col1, col2 = st.columns(2)
 with col1:
     monto_solicitado = st.number_input(
-    "Monto solicitado (₡)",
-    min_value=0,
-    step=50000,
-    value=int(condiciones_guardadas["monto_solicitado"]) if condiciones_guardadas else 0,
-)
+        "Monto solicitado (₡)",
+        min_value=0,
+        step=50000,
+        value=int(condiciones_guardadas["monto_solicitado"]) if condiciones_guardadas else 0,
+    )
 with col2:
     saldo_payoff = st.number_input(
-        "Saldo pay off (₡)", min_value=0, step=50000, value=0,
-        help="Saldo pay off solo para recréditos"
+        "Saldo pay off (₡)",
+        min_value=0,
+        step=50000,
+        value=int(condiciones_guardadas["saldo_payoff"]) if condiciones_guardadas else 0,
+        help="Saldo pay off solo para recréditos",
     )
 
 col3, col4, col5 = st.columns(3)
 with col3:
     comision_pct = st.selectbox(
-        "Porcentaje de comisión (%)", [1.5, 2, 4, 6, 8, 10],
-        index=None, placeholder="Selecciona"
+        "Porcentaje de comisión (%)",
+        opciones_comision,
+        index=opciones_comision.index(comision_guardada)
+        if comision_guardada in opciones_comision else None,
+        placeholder="Selecciona",
     )
 with col4:
     tasa_interes_anual = st.selectbox(
-        "Tasa de interés anual (%)", [14, 22, 24, 26, 30, 34],
-        index=None, placeholder="Selecciona"
+        "Tasa de interés anual (%)",
+        opciones_tasa,
+        index=opciones_tasa.index(tasa_guardada)
+        if tasa_guardada in opciones_tasa else None,
+        placeholder="Selecciona",
     )
 with col5:
-    plazo_meses = st.number_input("Plazo (meses)", min_value=0, max_value=120, step=1, value=0)
+    plazo_meses = st.number_input(
+        "Plazo (meses)",
+        min_value=0,
+        max_value=120,
+        step=1,
+        value=int(condiciones_guardadas["plazo_meses"]) if condiciones_guardadas else 0,
+    )
 
 # Honorarios + espacio para TITA
 col6, col7 = st.columns(2)
 with col6:
     honorarios_timbres = st.number_input(
-        "Honorarios y timbres (₡)", min_value=0, step=5000, value=0,
-        help="Monto único que nos cotiza el abogado"
+        "Honorarios y timbres (₡)",
+        min_value=0,
+        step=5000,
+        value=int(condiciones_guardadas["honorarios_timbres"]) if condiciones_guardadas else 0,
+        help="Monto único que nos cotiza el abogado",
     )
 with col7:
-    tita_placeholder = st.empty()  # 👈 aquí pondremos la TITA
+    tita_placeholder = st.empty()
 
 # ===== Botón y alerta en la misma fila =====
 col_boton, col_alerta = st.columns([1, 3])  # botón pequeño a la izquierda, alerta a la derecha
