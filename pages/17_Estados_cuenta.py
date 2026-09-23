@@ -306,3 +306,30 @@ if cliente_id:
     except Exception as e:
         st.error(e)
 
+# ==============================
+# NAVEGACIÓN
+# ==============================
+
+st.divider()
+col_volver, col_continuar = st.columns(2)
+
+with col_volver:
+    if st.button(
+        "⬅️ Volver a 16 – Referencias de crédito",
+        use_container_width=True,
+    ):
+        st.switch_page("pages/16_Referencias_de_credito.py")
+
+with col_continuar:
+    if st.button(
+        "Guardar y continuar ➡️",
+        use_container_width=True,
+    ):
+        if uploaded_file is not None:
+            st.warning(
+                "Hay un PDF seleccionado sin guardar. "
+                "Pulsá «Guardar estado de cuenta» antes de continuar."
+            )
+        else:
+            st.session_state["done_17"] = True
+            st.switch_page("pages/18_Fotografias_inspeccion.py")
