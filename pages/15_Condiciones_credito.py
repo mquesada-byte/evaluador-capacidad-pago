@@ -2,6 +2,7 @@
 import streamlit as st
 import numpy as np
 import numpy_financial as npf
+from utils.db import load_condiciones_credito, save_condiciones_credito
 
 
 # ======================
