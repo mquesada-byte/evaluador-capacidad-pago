@@ -9,12 +9,12 @@ import pandas as pd
 # CONFIG
 # =========================
 st.set_page_config(
-    page_title="Paso 20: Fotografías de inspección",
+    page_title="Paso 18: Fotografías de inspección",
     page_icon="📸",
     layout="wide"
 )
 
-st.title("📸 Paso 20: Fotografías de inspección")
+st.title("📸 Paso 18: Fotografías de inspección")
 
 # =========================
 # CLIENTE
