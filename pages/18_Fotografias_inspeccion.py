@@ -170,7 +170,7 @@ tipos_foto = [
     ("registros", "Registros contables"),
     ("fachada", "Fachada"),
     ("trabajando", "Clienta trabajando"),
-    ("herramientas", "Herramientas")
+    ("herramientas", "Mobiliario y equipo")
 ]
 
 # =========================
@@ -254,13 +254,15 @@ if df_fotos.empty:
 else:
 
     for _, row in df_fotos.iterrows():
+        foto_id = int(row["IdFoto"])
+        foto_bytes = bytes(row["ArchivoFoto"])
 
         col1, col2, col3 = st.columns([0.25, 0.55, 0.20])
 
         with col1:
 
             st.image(
-                row["ArchivoFoto"],
+                foto_bytes,
                 width=220
             )
 
@@ -278,13 +280,73 @@ else:
         with col3:
 
             if st.button(
-                "🗑️ Eliminar",
-                key=f"del_{row['IdFoto']}"
+                "👁️ Ver",
+                key=f"ver_foto_{foto_id}",
+                use_container_width=True
             ):
+                if st.session_state.get("foto_ampliada") == foto_id:
+                    st.session_state.pop("foto_ampliada", None)
+                else:
+                    st.session_state["foto_ampliada"] = foto_id
 
-                eliminar_foto(int(row["IdFoto"]))
+            st.download_button(
+                "⬇️ Descargar",
+                data=foto_bytes,
+                file_name=row["NombreArchivo"],
+                mime="image/jpeg",
+                key=f"descargar_foto_{foto_id}",
+                use_container_width=True
+            )
 
-                st.success("✅ Fotografía eliminada")
-                st.rerun()
+            if st.button(
+                "🗑️ Eliminar",
+                key=f"eliminar_foto_{foto_id}",
+                use_container_width=True
+            ):
+                st.session_state["confirmar_eliminar_foto"] = foto_id
 
+                if st.session_state.get("foto_ampliada") == foto_id:
+                    st.image(
+                        foto_bytes,
+                        caption=row["NombreArchivo"],
+                        use_container_width=True
+            )
+
+        if st.session_state.get("confirmar_eliminar_foto") == foto_id:
+            st.warning(
+                f"¿Eliminar la fotografía {row['NombreArchivo']}?"
+            )
+
+            col_confirmar, col_cancelar = st.columns(2)
+
+            with col_confirmar:
+                if st.button(
+                    "Sí, eliminar",
+                    key=f"confirmar_foto_{foto_id}",
+                    use_container_width=True
+                ):
+                    eliminar_foto(foto_id)
+
+                    st.session_state.pop(
+                        "confirmar_eliminar_foto",
+                        None
+                    )
+
+                    if st.session_state.get("foto_ampliada") == foto_id:
+                        st.session_state.pop("foto_ampliada", None)
+
+                    st.rerun()
+
+            with col_cancelar:
+                if st.button(
+                    "Cancelar",
+                    key=f"cancelar_foto_{foto_id}",
+                    use_container_width=True
+                ):
+                    st.session_state.pop(
+                        "confirmar_eliminar_foto",
+                        None
+                    )
+                    st.rerun()
+        
         st.divider()
