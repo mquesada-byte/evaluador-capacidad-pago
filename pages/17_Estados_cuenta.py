@@ -1,16 +1,16 @@
 # ==========================================
-# Página 18 — Estados de cuenta financieros
+# Página 17 — Estados de cuenta financieros
 # ==========================================
 
 import streamlit as st
 import pyodbc
 
 st.set_page_config(
-    page_title="Paso 18: Estados de cuenta financieros",
+    page_title="Paso 17: Estados de cuenta bancarios",
     page_icon="🏦"
 )
 
-st.title("🏦 Paso 18 — Estados de cuenta financieros")
+st.title("🏦 Paso 17 — Estados de cuenta bancarios")
 
 # ==============================
 # FUNCIÓN CONEXIÓN SQL
