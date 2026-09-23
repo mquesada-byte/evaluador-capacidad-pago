@@ -11,7 +11,6 @@ import pandas as pd
 st.set_page_config(
     page_title="Paso 18: Fotografías de inspección",
     page_icon="📸",
-    layout="wide"
 )
 
 st.title("📸 Paso 18: Fotografías de inspección")
