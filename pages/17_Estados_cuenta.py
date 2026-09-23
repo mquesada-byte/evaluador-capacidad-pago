@@ -113,7 +113,7 @@ if cliente_id:
                    NombreArchivo, ArchivoPDF, FechaCarga, UsuarioCarga
             FROM DocumentosFinancierosCliente
             WHERE CedulaCliente = ?
-            AND Activo = 1
+              AND Activo = 1
             ORDER BY FechaCarga DESC
         """, cliente_id)
 
@@ -125,11 +125,13 @@ if cliente_id:
             st.subheader("📂 Estados de cuenta cargados")
 
             for r in rows:
-                    doc_id = int(r.IdDocumento)
-                    pdf_bytes = bytes(r.ArchivoPDF)
-                    documento_actual = (cliente_id, doc_id)
+                doc_id = int(r.IdDocumento)
+                pdf_bytes = bytes(r.ArchivoPDF)
+                documento_actual = (cliente_id, doc_id)
 
-                    col1, col2, col3, col4 = st.columns([5, 1.4, 1.7, 1.7])
+                col1, col2, col3, col4 = st.columns(
+                    [5, 1.4, 1.7, 1.7]
+                )
 
                 col1.markdown(
                     f"**{r.TipoDocumento}**  \n"
@@ -143,10 +145,18 @@ if cliente_id:
                     key=f"ver_estado_{doc_id}",
                     use_container_width=True,
                 ):
-                    if st.session_state.get("estado_pdf_abierto") == documento_actual:
-                        st.session_state.pop("estado_pdf_abierto", None)
+                    if (
+                        st.session_state.get("estado_pdf_abierto")
+                        == documento_actual
+                    ):
+                        st.session_state.pop(
+                            "estado_pdf_abierto",
+                            None,
+                        )
                     else:
-                        st.session_state["estado_pdf_abierto"] = documento_actual
+                        st.session_state["estado_pdf_abierto"] = (
+                            documento_actual
+                        )
 
                 # ⬇️ DESCARGAR
                 col3.download_button(
