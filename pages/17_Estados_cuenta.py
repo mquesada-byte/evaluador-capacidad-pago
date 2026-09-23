@@ -112,19 +112,19 @@ def generar_pdf_analisis(md_text: str, cliente_id: str) -> bytes:
 # 1️⃣ DETECTAR ASESOR
 # ==============================
 
-usuario = None
-
-if "asesor" in st.session_state and st.session_state.asesor.get("nombre"):
-    usuario = st.session_state.asesor["nombre"]
-    st.success(f"Asesor detectado: {usuario}")
-else:
-    usuario = st.text_input("Nombre del asesor *")
+usuario = (
+    st.session_state.get("asesor", {}).get("nombre")
+    or "Aplicacion"
+)
 
 # ==============================
 # 2️⃣ IDENTIFICACIÓN CLIENTE
 # ==============================
 
-cliente_id = st.text_input("Número de cédula cliente (sin guiones) *")
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
+if not cliente_id:
+    st.warning("Cargá un cliente antes de gestionar sus estados de cuenta.")
+    st.stop()
 
 # ==============================
 # 3️⃣ CARGA ESTADOS DE CUENTA
@@ -144,7 +144,7 @@ uploaded_file = st.file_uploader(
 
 if st.button("Guardar estado de cuenta"):
 
-    if not usuario or not cliente_id or uploaded_file is None:
+    if not cliente_id or uploaded_file is None:
         st.error("Complete los datos requeridos")
         st.stop()
 
