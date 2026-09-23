@@ -951,7 +951,40 @@ def save_condiciones_credito(cliente_id: str, data: dict) -> bool:
             conn.close()
 
 
+# ------------------------------------------------------------
+# Cargar las condiciones de crédito guardadas por cédula
+# ------------------------------------------------------------
 
+def load_condiciones_credito(cliente_id: str) -> dict | None:
+    conn = None
+    try:
+        conn = get_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT monto_solicitado, saldo_payoff, comision_pct,
+                   tasa_interes_anual, plazo_meses, honorarios_timbres,
+                   monto_total, poliza_mensual, cuota_sin_poliza,
+                   cuota_con_poliza, tita
+            FROM dbo.CondicionesCredito
+            WHERE cliente_identificacion = ?
+        """, (cliente_id,))
+
+        row = cursor.fetchone()
+        if row is None:
+            return None
+
+        columnas = [col[0] for col in cursor.description]
+        return dict(zip(columnas, row))
+
+    except Exception as e:
+        st.error(f"Error cargando condiciones de crédito: {e}")
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 
