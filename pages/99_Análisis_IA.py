@@ -6,9 +6,9 @@ import streamlit as st
 import pandas as pd
 import statistics
 
-st.set_page_config(page_title="Paso 15: Análisis asistido (IA)", page_icon="🤖")
+st.set_page_config(page_title="Paso 99: Análisis asistido (IA)", page_icon="🤖")
 
-st.title("🤖 Paso 15: Análisis asistido (IA)")
+st.title("🤖 Paso 99: Análisis asistido (IA)")
 st.caption("Resumen y recomendación automática a partir de TODA la información consolidada en `reporte`.")
 
 # ====== Helpers ======
