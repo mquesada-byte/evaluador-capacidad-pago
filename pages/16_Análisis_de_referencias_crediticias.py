@@ -137,35 +137,43 @@ numero_operacion = None
 
 st.subheader("Carga de reportes")
 
+if st.session_state.pop("reporte_pdf_guardado", False):
+    st.success("Documento actualizado correctamente")
+
 tipo_documento = st.selectbox(
     "Tipo de reporte",
-    ["EQUIFAX","CIC","CREDID"]
+    ["EQUIFAX", "CIC", "CREDID"]
 )
 
-uploaded_file = st.file_uploader("Subir archivo PDF", type=["pdf"])
+uploaded_file = st.file_uploader(
+    "Subir archivo PDF",
+    type=["pdf"],
+    key=f"reporte_pdf_{cliente_id}_{st.session_state.get('reporte_pdf_version', 0)}",
+)
 
-# 🔎 Advertencia si ya existe un reporte de este tipo
-try:
-    conn = get_connection()
-    cursor = conn.cursor()
+# Advertir sobre reemplazo solo si se seleccionó un nuevo PDF
+if uploaded_file is not None:
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT TOP 1 NombreArchivo, FechaCarga
-        FROM dbo.DocumentosReferenciasCrediticias
-        WHERE ClienteId = ? AND TipoDocumento = ?
-        ORDER BY FechaCarga DESC
-    """, cliente_id, tipo_documento)
+        cursor.execute("""
+            SELECT TOP 1 NombreArchivo
+            FROM dbo.DocumentosReferenciasCrediticias
+            WHERE ClienteId = ? AND TipoDocumento = ?
+            ORDER BY FechaCarga DESC
+        """, cliente_id, tipo_documento)
 
-    ex = cursor.fetchone()
-    conn.close()
+        ex = cursor.fetchone()
+        conn.close()
 
-    if ex:
-        st.warning(
-            f"⚠️ Ya existe un reporte {tipo_documento}: "
-            f"{ex.NombreArchivo}. Se reemplazará."
-        )
-except Exception as e:
-    st.error(f"No fue posible consultar el reporte existente: {e}")
+        if ex:
+            st.warning(
+                f"⚠️ Ya existe un reporte {tipo_documento}: "
+                f"{ex.NombreArchivo}. Se reemplazará."
+            )
+    except Exception as e:
+        st.error(f"No fue posible consultar el reporte existente: {e}")
 
 
 # Guardar o reemplazar el reporte
@@ -211,7 +219,13 @@ if st.button("Guardar documento"):
 
             conn.commit()
             conn.close()
-            st.success("Documento actualizado correctamente")
+
+            # Cambiar la clave del selector lo deja vacío tras guardar
+            st.session_state["reporte_pdf_version"] = (
+                st.session_state.get("reporte_pdf_version", 0) + 1
+            )
+            st.session_state["reporte_pdf_guardado"] = True
+            st.rerun()
 
         except Exception as e:
             st.error(f"Error al guardar: {e}")
