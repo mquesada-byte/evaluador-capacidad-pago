@@ -217,86 +217,117 @@ if st.button("Guardar documento"):
             st.error(f"Error al guardar: {e}")
 
 # ==============================
-# MOSTRAR DOCUMENTOS
+# DOCUMENTOS DEL CLIENTE
+# Ver, descargar y eliminar
 # ==============================
 
-if cliente_id:
+try:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT IdDocumento, TipoDocumento, NombreArchivo, ArchivoPDF,
+               VersionDocumento, FechaCarga, UsuarioCarga, PesoArchivoKB
+        FROM dbo.DocumentosReferenciasCrediticias
+        WHERE ClienteId = ?
+        ORDER BY FechaCarga DESC
+    """, cliente_id)
+    documentos = cursor.fetchall()
+    conn.close()
 
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    if documentos:
+        st.subheader("📂 Documentos cargados")
 
-        cursor.execute("""
-            SELECT *
-            FROM DocumentosReferenciasCrediticias
-            WHERE ClienteId = ?
-            ORDER BY FechaCarga DESC
-        """, cliente_id)
+        for doc in documentos:
+            doc_id = int(doc.IdDocumento)
+            pdf_bytes = bytes(doc.ArchivoPDF)
 
-        rows = cursor.fetchall()
-        conn.close()
+            st.markdown(
+                f"**{doc.TipoDocumento}** — {doc.NombreArchivo}  \n"
+                f"Versión: {doc.VersionDocumento} · "
+                f"Fecha: {doc.FechaCarga:%d/%m/%Y %H:%M} · "
+                f"Tamaño: {doc.PesoArchivoKB} KB"
+            )
 
-        if rows:
-            st.subheader("📂 Documentos cargados")
+            col_ver, col_descargar, col_eliminar = st.columns(3)
 
-            for r in rows:
-                st.markdown(f"""
-**{r.TipoDocumento}**  
-Archivo: {r.NombreArchivo}  
-Fecha: {r.FechaCarga}  
-Asesor: {r.UsuarioCarga}  
-Tamaño: {r.PesoArchivoKB} KB
-""")
-                st.divider()
+            with col_ver:
+                if st.button("👁️ Ver", key=f"ver_ref_{doc_id}", use_container_width=True):
+                    st.session_state["ref_pdf_abierto"] = (cliente_id, doc_id)
 
-    except Exception as e:
-        st.error(e)
-
-# ==============================
-# 4️⃣ MOSTRAR DOCUMENTOS EXISTENTES
-# ==============================
-
-if cliente_id:
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT TipoDocumento,
-                   NombreArchivo,
-                   VersionDocumento,
-                   FechaCarga,
-                   UsuarioCarga,
-                   PesoArchivoKB
-            FROM DocumentosReferenciasCrediticias
-            WHERE ClienteId = ?
-            ORDER BY FechaCarga DESC
-        """, cliente_id)
-
-        rows = cursor.fetchall()
-        conn.close()
-
-        if rows:
-            st.subheader("📂 Documentos cargados")
-
-            for r in rows:
-                st.markdown(
-                    f"""
-                    **{r.TipoDocumento}**  
-                    Archivo: {r.NombreArchivo}  
-                    Versión: {r.VersionDocumento}  
-                    Fecha: {r.FechaCarga}  
-                    Asesor: {r.UsuarioCarga}  
-                    Tamaño: {r.PesoArchivoKB} KB
-                    """
+            with col_descargar:
+                st.download_button(
+                    "⬇️ Descargar",
+                    data=pdf_bytes,
+                    file_name=doc.NombreArchivo,
+                    mime="application/pdf",
+                    key=f"descargar_ref_{doc_id}",
+                    use_container_width=True,
                 )
-                st.divider()
-        else:
-            st.info("Este cliente aún no tiene reportes cargados.")
 
-    except Exception as e:
-        st.error(f"No fue posible consultar documentos: {e}")
+            with col_eliminar:
+                if st.button("🗑️ Eliminar", key=f"eliminar_ref_{doc_id}", use_container_width=True):
+                    st.session_state["ref_confirmar_eliminar"] = (cliente_id, doc_id)
+
+            if st.session_state.get("ref_confirmar_eliminar") == (cliente_id, doc_id):
+                st.warning(f"¿Eliminar el reporte {doc.TipoDocumento}: {doc.NombreArchivo}?")
+                col_confirmar, col_cancelar = st.columns(2)
+
+                with col_confirmar:
+                    if st.button(
+                        "Sí, eliminar",
+                        key=f"confirmar_ref_{doc_id}",
+                        use_container_width=True,
+                    ):
+                        try:
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                DELETE FROM dbo.DocumentosReferenciasCrediticias
+                                WHERE IdDocumento = ? AND ClienteId = ?
+                            """, doc_id, cliente_id)
+                            conn.commit()
+                            conn.close()
+
+                            st.session_state.pop("ref_confirmar_eliminar", None)
+                            if st.session_state.get("ref_pdf_abierto") == (cliente_id, doc_id):
+                                st.session_state.pop("ref_pdf_abierto", None)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"No se pudo eliminar el reporte: {e}")
+
+                with col_cancelar:
+                    if st.button(
+                        "Cancelar",
+                        key=f"cancelar_ref_{doc_id}",
+                        use_container_width=True,
+                    ):
+                        st.session_state.pop("ref_confirmar_eliminar", None)
+                        st.rerun()
+
+            if st.session_state.get("ref_pdf_abierto") == (cliente_id, doc_id):
+                try:
+                    with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
+                        pagina = st.number_input(
+                            f"Página de {doc.NombreArchivo}",
+                            min_value=1,
+                            max_value=len(pdf),
+                            value=1,
+                            step=1,
+                            key=f"pagina_ref_{doc_id}",
+                        )
+                        imagen = pdf[pagina - 1].get_pixmap(
+                            matrix=fitz.Matrix(1.5, 1.5)
+                        ).tobytes("png")
+                        st.image(imagen, use_container_width=True)
+                except Exception as e:
+                    st.error(f"No se pudo visualizar el PDF: {e}")
+
+            st.divider()
+    else:
+        st.info("Este cliente aún no tiene reportes cargados.")
+
+except Exception as e:
+    st.error(f"No fue posible consultar los documentos: {e}")
 
 
 # ==============================
