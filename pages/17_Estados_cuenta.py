@@ -129,7 +129,7 @@ if cliente_id:
                     pdf_bytes = bytes(r.ArchivoPDF)
                     documento_actual = (cliente_id, doc_id)
 
-                col1, col2, col3, col4 = st.columns([5, 1.4, 1.7, 1.7])
+                    col1, col2, col3, col4 = st.columns([5, 1.4, 1.7, 1.7])
 
                 col1.markdown(
                     f"**{r.TipoDocumento}**  \n"
