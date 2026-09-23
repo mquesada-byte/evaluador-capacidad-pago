@@ -8,11 +8,11 @@ import fitz
 from openai import OpenAI
 
 st.set_page_config(
-    page_title="Paso 16: Carga de referencias crediticias",
+    page_title="Paso 16: Referencias de crédito",
     page_icon="📄"
 )
 
-st.title("📄 Paso 16 — Carga de referencias crediticias")
+st.title("📄 Paso 16 — Referencias de crédito")
 
 # ==============================
 # FUNCIÓN CONEXIÓN SQL
