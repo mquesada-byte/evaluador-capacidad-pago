@@ -50,6 +50,8 @@ if not cliente_id:
 # ==============================
 
 st.subheader("Carga de estados de cuenta")
+if st.session_state.pop("estado_pdf_guardado", False):
+    st.success("Estado de cuenta guardado correctamente")
 
 tipo_documento = st.selectbox(
     "Tipo de estado",
