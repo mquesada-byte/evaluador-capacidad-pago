@@ -22,6 +22,7 @@ st.title("📸 Paso 18: Fotografías de inspección")
 cliente = st.session_state.get("cliente", {})
 
 nombre_cliente = cliente.get("nombre_completo", "").strip()
+identificacion_mostrar = cliente.get("identificacion", "").strip()
 
 identificacion = (
     cliente.get("identificacion", "")
