@@ -41,7 +41,7 @@ usuario_carga = asesor.get("nombre", "N/A")
 st.info(f"""
 Cliente: {nombre_cliente}
 
-Identificación: {identificacion}
+Identificación: {identificacion_mostrar}
 
 Usuario: {usuario_carga}
 """)
