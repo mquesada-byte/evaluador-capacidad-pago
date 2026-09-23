@@ -882,6 +882,77 @@ def save_balance_general(cliente_id: str, datos: dict) -> bool:
         st.error(f"Error guardando balance_general: {e}")
         return False
 
+# ============================================================
+# PASO 15 — CONDICIONES DE CRÉDITO
+# Guarda o actualiza las condiciones negociadas por cédula
+# en dbo.CondicionesCredito (DataHub_OnPremise).
+# ============================================================
+
+def save_condiciones_credito(cliente_id: str, data: dict) -> bool:
+    conn = None
+    try:
+        conn = get_connection()
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+        valores = (
+            data["monto_solicitado"],
+            data["saldo_payoff"],
+            data["comision_pct"],
+            data["tasa_interes_anual"],
+            data["plazo_meses"],
+            data["honorarios_timbres"],
+            data["monto_total"],
+            data["poliza_mensual"],
+            data["cuota_sin_poliza"],
+            data["cuota_con_poliza"],
+            data["tita"],
+        )
+
+        cursor.execute("""
+            UPDATE dbo.CondicionesCredito
+            SET monto_solicitado = ?,
+                saldo_payoff = ?,
+                comision_pct = ?,
+                tasa_interes_anual = ?,
+                plazo_meses = ?,
+                honorarios_timbres = ?,
+                monto_total = ?,
+                poliza_mensual = ?,
+                cuota_sin_poliza = ?,
+                cuota_con_poliza = ?,
+                tita = ?,
+                fecha_actualizacion = SYSDATETIME()
+            WHERE cliente_identificacion = ?
+        """, (*valores, cliente_id))
+
+        if cursor.rowcount == 0:
+            cursor.execute("""
+                INSERT INTO dbo.CondicionesCredito (
+                    cliente_identificacion, monto_solicitado, saldo_payoff,
+                    comision_pct, tasa_interes_anual, plazo_meses,
+                    honorarios_timbres, monto_total, poliza_mensual,
+                    cuota_sin_poliza, cuota_con_poliza, tita
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (cliente_id, *valores))
+
+        conn.commit()
+        return True
+
+    except Exception as e:
+        if conn is not None:
+            conn.rollback()
+        st.error(f"Error guardando condiciones de crédito: {e}")
+        return False
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+
+
 
 
 # ==========================================================
