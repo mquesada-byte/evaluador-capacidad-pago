@@ -234,7 +234,7 @@ with col_guardar:
 
             if save_condiciones_credito(cliente_id, datos):
                 st.session_state["done_15"] = True
-                st.switch_page("pages/17_Análisis_de_referencias_crediticias.py")
+                st.switch_page("pages/16_Referencias_de_credito.py")
 
 
 
