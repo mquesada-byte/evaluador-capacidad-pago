@@ -1,5 +1,5 @@
 # ==========================================
-# Página 17 — Análisis de referencias crediticias
+# Página 16 — Análisis de referencias crediticias
 # ==========================================
 
 import streamlit as st
@@ -8,11 +8,11 @@ import fitz
 from openai import OpenAI
 
 st.set_page_config(
-    page_title="Paso 17: Análisis de referencias crediticias",
+    page_title="Paso 16: Análisis de referencias crediticias",
     page_icon="📄"
 )
 
-st.title("📄 Paso 17 — Análisis de referencias crediticias")
+st.title("📄 Paso 16 — Análisis de referencias crediticias")
 
 # ==============================
 # FUNCIÓN CONEXIÓN SQL
