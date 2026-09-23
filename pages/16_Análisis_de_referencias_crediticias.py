@@ -116,23 +116,20 @@ def generar_pdf_analisis(md_text: str, cliente_id: str) -> bytes:
     return pdf_bytes
 
 # ==============================
-# 1️⃣ DETECTAR ASESOR AUTOMÁTICO
+# CLIENTE ACTIVO
 # ==============================
 
-usuario = None
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
 
-if "asesor" in st.session_state and st.session_state.asesor.get("nombre"):
-    usuario = st.session_state.asesor["nombre"]
-    st.success(f"Asesor detectado: {usuario}")
-else:
-    usuario = st.text_input("Nombre del asesor *")
+if not cliente_id:
+    st.warning("Cargá un cliente antes de gestionar sus reportes crediticios.")
+    st.stop()
 
-# ==============================
-# 2️⃣ IDENTIFICACIÓN CLIENTE
-# ==============================
-
-cliente_id = st.text_input("Número de cédula cliente (sin guiones) *")
-numero_operacion = st.text_input("Número de operación (solo recrédito)")
+usuario = (
+    st.session_state.get("asesor", {}).get("nombre")
+    or "Aplicacion"
+)
+numero_operacion = None
 
 # ==============================
 # 3️⃣ CARGA DOCUMENTOS
@@ -170,43 +167,43 @@ if cliente_id:
     except:
         pass
 
-if st.button("Guardar documento"):
-
-    if not usuario or not cliente_id or uploaded_file is None:
-        st.error("Complete los datos requeridos")
-        st.stop()
-
-    try:
-
-        file_bytes = uploaded_file.read()
-        file_size_kb = int(len(file_bytes)/1024)
-        file_name = uploaded_file.name
-
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # 🧹 eliminar anterior del mismo tipo
+        # Actualizar el reporte existente de este cliente y tipo
         cursor.execute("""
-            DELETE FROM DocumentosReferenciasCrediticias
+            UPDATE dbo.DocumentosReferenciasCrediticias
+            SET NumeroOperacion = NULL,
+                NombreArchivo = ?,
+                ArchivoPDF = ?,
+                PesoArchivoKB = ?,
+                FechaCarga = GETDATE(),
+                UsuarioCarga = ?,
+                VersionDocumento = VersionDocumento + 1
             WHERE ClienteId = ?
-            AND TipoDocumento = ?
-        """, cliente_id, tipo_documento)
-
-        cursor.execute("""
-            INSERT INTO DocumentosReferenciasCrediticias
-            (ClienteId, NumeroOperacion, TipoDocumento,
-             NombreArchivo, ArchivoPDF, PesoArchivoKB,
-             UsuarioCarga, VersionDocumento)
-            VALUES (?,?,?,?,?,?,?,1)
+              AND TipoDocumento = ?
         """,
-        cliente_id,
-        numero_operacion if numero_operacion else None,
-        tipo_documento,
-        file_name,
-        file_bytes,
-        file_size_kb,
-        usuario
+            file_name,
+            file_bytes,
+            file_size_kb,
+            usuario,
+            cliente_id,
+            tipo_documento
         )
+
+        # Si todavía no existe, insertar el primer reporte
+        if cursor.rowcount == 0:
+            cursor.execute("""
+                INSERT INTO dbo.DocumentosReferenciasCrediticias
+                    (ClienteId, NumeroOperacion, TipoDocumento,
+                     NombreArchivo, ArchivoPDF, PesoArchivoKB,
+                     UsuarioCarga, VersionDocumento)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, 1)
+            """,
+                cliente_id,
+                tipo_documento,
+                file_name,
+                file_bytes,
+                file_size_kb,
+                usuario
+            )
 
         conn.commit()
         conn.close()
