@@ -4,6 +4,7 @@
 
 import streamlit as st
 import pyodbc
+import fitz
 
 st.set_page_config(
     page_title="Paso 17: Estados de cuenta bancarios",
@@ -25,88 +26,6 @@ def get_connection():
         f"PWD={st.secrets['azure_sql']['password']};"
         "TrustServerCertificate=yes;"
     )
-
-def generar_pdf_analisis(md_text: str, cliente_id: str) -> bytes:
-    import io
-    import datetime as dt
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-    from reportlab.lib.pagesizes import LETTER
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.lib import colors
-    from xml.sax.saxutils import escape
-
-    buffer = io.BytesIO()
-
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=LETTER,
-        leftMargin=40,
-        rightMargin=40,
-        topMargin=48,
-        bottomMargin=36
-    )
-
-    try:
-        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
-        font_name = "DejaVu"
-    except Exception:
-        font_name = "Helvetica"
-
-    styles = getSampleStyleSheet()
-
-    body_style = ParagraphStyle(
-        name="CustomBody18",
-        fontName=font_name,
-        fontSize=10.5,
-        leading=14,
-        textColor=colors.black
-    )
-
-    title_style = ParagraphStyle(
-        name="CustomTitle18",
-        fontName=font_name,
-        fontSize=15,
-        leading=19,
-        spaceAfter=12,
-        textColor=colors.black
-    )
-
-    story = []
-    story.append(Paragraph("Informe IA de comportamiento financiero", title_style))
-    story.append(Paragraph(f"Cliente: {escape(str(cliente_id))}", body_style))
-    story.append(Paragraph(dt.datetime.now().strftime("%d/%m/%Y %H:%M"), body_style))
-    story.append(Spacer(1, 10))
-
-    for raw in md_text.split("\n"):
-        line = raw.strip()
-
-        if not line:
-            story.append(Spacer(1, 6))
-            continue
-
-        line = (
-            line.replace("**", "")
-                .replace("__", "")
-                .replace("### ", "")
-                .replace("## ", "")
-                .replace("# ", "")
-        )
-
-        line = escape(line)
-
-        story.append(Paragraph(line, body_style))
-
-    doc.build(story)
-
-    pdf_bytes = buffer.getvalue()
-    buffer.close()
-    return pdf_bytes
-
-
-
-
 
 # ==============================
 # 1️⃣ DETECTAR ASESOR
@@ -191,7 +110,7 @@ if cliente_id:
 
         cursor.execute("""
             SELECT IdDocumento, TipoDocumento,
-                   NombreArchivo, FechaCarga, UsuarioCarga
+                   NombreArchivo, ArchivoPDF, FechaCarga, UsuarioCarga
             FROM DocumentosFinancierosCliente
             WHERE CedulaCliente = ?
             AND Activo = 1
@@ -206,81 +125,164 @@ if cliente_id:
             st.subheader("📂 Estados de cuenta cargados")
 
             for r in rows:
+                    doc_id = int(r.IdDocumento)
+                    pdf_bytes = bytes(r.ArchivoPDF)
+                    documento_actual = (cliente_id, doc_id)
 
-                col1, col2, col3, col4 = st.columns([5,1,1,1])
+                col1, col2, col3, col4 = st.columns([5, 1.4, 1.7, 1.7])
 
-                col1.markdown(f"""
-**{r.TipoDocumento}**  
-Archivo: {r.NombreArchivo}  
-Fecha: {r.FechaCarga}  
-Asesor: {r.UsuarioCarga}
-""")
+                col1.markdown(
+                    f"**{r.TipoDocumento}**  \n"
+                    f"Archivo: {r.NombreArchivo}  \n"
+                    f"Fecha: {r.FechaCarga}"
+                )
 
                 # 👁️ VER
-                if col2.button("👁️", key=f"ver_{r.IdDocumento}"):
-
-                    conn = get_connection()
-                    cursor = conn.cursor()
-
-                    cursor.execute("""
-                        SELECT ArchivoPDF
-                        FROM DocumentosFinancierosCliente
-                        WHERE IdDocumento = ?
-                    """, r.IdDocumento)
-
-                    pdf = cursor.fetchone()
-                    conn.close()
-
-                    if pdf:
-                        st.download_button(
-                            label="Abrir PDF",
-                            data=pdf.ArchivoPDF,
-                            file_name=r.NombreArchivo,
-                            mime="application/pdf",
-                            key=f"open_{r.IdDocumento}"
-                        )
+                if col2.button(
+                    "👁️ Ver",
+                    key=f"ver_estado_{doc_id}",
+                    use_container_width=True,
+                ):
+                    if st.session_state.get("estado_pdf_abierto") == documento_actual:
+                        st.session_state.pop("estado_pdf_abierto", None)
+                    else:
+                        st.session_state["estado_pdf_abierto"] = documento_actual
 
                 # ⬇️ DESCARGAR
-                if col3.button("⬇️", key=f"down_{r.IdDocumento}"):
-
-                    conn = get_connection()
-                    cursor = conn.cursor()
-
-                    cursor.execute("""
-                        SELECT ArchivoPDF
-                        FROM DocumentosFinancierosCliente
-                        WHERE IdDocumento = ?
-                    """, r.IdDocumento)
-
-                    pdf = cursor.fetchone()
-                    conn.close()
-
-                    if pdf:
-                        st.download_button(
-                            label="Descargar",
-                            data=pdf.ArchivoPDF,
-                            file_name=r.NombreArchivo,
-                            mime="application/pdf",
-                            key=f"download_{r.IdDocumento}"
-                        )
+                col3.download_button(
+                    "⬇️ Descargar",
+                    data=pdf_bytes,
+                    file_name=r.NombreArchivo,
+                    mime="application/pdf",
+                    key=f"descargar_estado_{doc_id}",
+                    use_container_width=True,
+                )
 
                 # 🗑️ ELIMINAR
-                if col4.button("🗑️", key=f"del_{r.IdDocumento}"):
+                if col4.button(
+                    "🗑️ Eliminar",
+                    key=f"eliminar_estado_{doc_id}",
+                    use_container_width=True,
+                ):
+                    st.session_state["estado_confirmar_eliminar"] = documento_actual
 
-                    conn = get_connection()
-                    cursor = conn.cursor()
+                if st.session_state.get("estado_confirmar_eliminar") == documento_actual:
+                    st.warning(
+                        f"¿Eliminar el estado {r.TipoDocumento}: {r.NombreArchivo}?"
+                    )
 
-                    cursor.execute("""
-                        UPDATE DocumentosFinancierosCliente
-                        SET Activo = 0
-                        WHERE IdDocumento = ?
-                    """, r.IdDocumento)
+                    col_confirmar, col_cancelar = st.columns(2)
 
-                    conn.commit()
-                    conn.close()
+                    with col_confirmar:
+                        if st.button(
+                            "Sí, eliminar",
+                            key=f"confirmar_estado_{doc_id}",
+                            use_container_width=True,
+                        ):
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                UPDATE DocumentosFinancierosCliente
+                                SET Activo = 0
+                                WHERE IdDocumento = ?
+                                  AND CedulaCliente = ?
+                            """, doc_id, cliente_id)
+                            conn.commit()
+                            conn.close()
 
-                    st.success("Documento eliminado")
-                    st.rerun()
+                            st.session_state.pop(
+                                "estado_confirmar_eliminar",
+                                None,
+                            )
+
+                            if (
+                                st.session_state.get("estado_pdf_abierto")
+                                == documento_actual
+                            ):
+                                st.session_state.pop(
+                                    "estado_pdf_abierto",
+                                    None,
+                                )
+
+                            st.rerun()
+
+                    with col_cancelar:
+                        if st.button(
+                            "Cancelar",
+                            key=f"cancelar_estado_{doc_id}",
+                            use_container_width=True,
+                        ):
+                            st.session_state.pop(
+                                "estado_confirmar_eliminar",
+                                None,
+                            )
+                            st.rerun()
+
+                # 👁️ VISUALIZACIÓN DEL PDF
+                if st.session_state.get("estado_pdf_abierto") == documento_actual:
+                    try:
+                        with fitz.open(
+                            stream=pdf_bytes,
+                            filetype="pdf",
+                        ) as pdf:
+                            total_paginas = len(pdf)
+                            clave_pagina = (
+                                f"pagina_estado_{cliente_id}_{doc_id}"
+                            )
+
+                            st.session_state.setdefault(clave_pagina, 1)
+
+                            pagina = min(
+                                max(
+                                    st.session_state[clave_pagina],
+                                    1,
+                                ),
+                                total_paginas,
+                            )
+
+                            col_anterior, col_numero, col_siguiente = st.columns(
+                                [1, 2, 1]
+                            )
+
+                            with col_anterior:
+                                if st.button(
+                                    "⬅️ Anterior",
+                                    key=f"anterior_estado_{doc_id}",
+                                    disabled=pagina <= 1,
+                                    use_container_width=True,
+                                ):
+                                    pagina -= 1
+                                    st.session_state[clave_pagina] = pagina
+
+                            with col_numero:
+                                st.markdown(
+                                    f"<p style='text-align:center'>"
+                                    f"Página {pagina} de {total_paginas}"
+                                    f"</p>",
+                                    unsafe_allow_html=True,
+                                )
+
+                            with col_siguiente:
+                                if st.button(
+                                    "Siguiente ➡️",
+                                    key=f"siguiente_estado_{doc_id}",
+                                    disabled=pagina >= total_paginas,
+                                    use_container_width=True,
+                                ):
+                                    pagina += 1
+                                    st.session_state[clave_pagina] = pagina
+
+                            imagen = pdf[pagina - 1].get_pixmap(
+                                matrix=fitz.Matrix(1.5, 1.5)
+                            ).tobytes("png")
+
+                            st.image(
+                                imagen,
+                                use_container_width=True,
+                            )
+
+                    except Exception as e:
+                        st.error(f"No se pudo mostrar el PDF: {e}")
 
         else:
             st.info("Este cliente no tiene estados de cuenta cargados.")
@@ -288,161 +290,3 @@ Asesor: {r.UsuarioCarga}
     except Exception as e:
         st.error(e)
 
-# ==============================
-# 5️⃣ ANÁLISIS IA FINANCIERO
-# ==============================
-
-import fitz
-from openai import OpenAI
-
-st.divider()
-st.subheader("🧠 Análisis automático de comportamiento financiero")
-
-if st.button("Analizar movimientos financieros con IA"):
-
-    if not cliente_id:
-        st.error("Debe indicar la cédula del cliente")
-        st.stop()
-
-    try:
-
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT TipoDocumento, ArchivoPDF
-            FROM DocumentosFinancierosCliente
-            WHERE CedulaCliente = ?
-            AND Activo = 1
-            ORDER BY FechaCarga
-        """, cliente_id)
-
-        docs = cursor.fetchall()
-        conn.close()
-
-        if not docs:
-            st.warning("No hay estados de cuenta para analizar.")
-            st.stop()
-
-        texto_total = ""
-
-        with st.spinner("Extrayendo movimientos financieros..."):
-
-            for d in docs:
-                tipo = d.TipoDocumento
-                pdf_bytes = d.ArchivoPDF
-
-                with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
-                    for page in pdf:
-                        texto_total += f"\n\n--- ESTADO {tipo} ---\n"
-                        texto_total += page.get_text()
-
-        if len(texto_total.strip()) < 100:
-            st.warning("No se pudo extraer texto útil de los estados.")
-            st.stop()
-
-        st.success("Texto financiero consolidado correctamente")
-
-        # 🔎 Control interno opcional
-        st.text_area(
-            "Texto consolidado (control interno)",
-            texto_total[:4000],
-            height=250
-        )
-
-        # ==============================
-        # 🧠 ENVÍO A IA
-        # ==============================
-
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-        prompt = f"""
-Actúas como ANALISTA SENIOR DE RIESGO MICROFINANCIERO especializado en
-interpretación forense de estados de cuenta bancarios.
-
-Tu objetivo es determinar la verdadera capacidad de pago del cliente,
-su rol operativo en el negocio y su nivel de riesgo financiero.
-
-========================
-ANÁLISIS REQUERIDO
-========================
-
-1️⃣ INGRESO REAL
-- Estimar ingreso promedio mensual
-- Evaluar estabilidad del ingreso
-- Detectar dependencia de pocos clientes
-
-2️⃣ ROL FINANCIERO DEL CLIENTE
-Determinar si:
-- administra el negocio
-- es solo receptor de pagos
-- traslada dinero a terceros
-- hay retiros inmediatos tras ingresos
-
-3️⃣ EGRESOS
-Separar:
-Gastos negocio:
-- combustible
-- compras inventario
-- pagos operativos
-Gastos personales:
-- consumo familiar
-- supermercados
-- tiendas
-- transferencias personales
-
-4️⃣ CARGA FINANCIERA
-- Detectar pagos tipo cuota
-- Estimar acreedores
-- Evaluar sobreendeudamiento
-
-5️⃣ ESTRÉS FINANCIERO
-- descapitalización rápida
-- saldos bajos recurrentes
-- dependencia del ingreso diario
-
-6️⃣ FLUJO DE CAJA
-- estimar flujo neto mensual
-- capacidad potencial de pago
-
-7️⃣ CLASIFICACIÓN FINAL
-BAJO / MEDIO / ALTO
-
-8️⃣ RECOMENDACIÓN CREDITICIA
-
-Texto financiero:
-
-{texto_total[:18000]}
-"""
-
-        with st.spinner("Analizando comportamiento financiero..."):
-
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Eres experto en análisis financiero microempresarial."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2
-            )
-
-        analisis = response.choices[0].message.content
-
-        st.success("Informe IA generado correctamente")
-        st.markdown(analisis)
-
-        # ==============================
-        # 📄 GENERAR PDF DEL ANÁLISIS
-        # ==============================
-
-        pdf_bytes = generar_pdf_analisis(analisis, cliente_id)
-
-        st.download_button(
-            label="📄 Descargar informe financiero en PDF",
-            data=pdf_bytes,
-            file_name=f"Informe_financiero_{cliente_id}.pdf",
-            mime="application/pdf"
-        )
-
-    except Exception as e:
-        st.error(f"Error en análisis financiero IA: {e}")
