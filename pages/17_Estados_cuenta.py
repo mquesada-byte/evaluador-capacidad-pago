@@ -60,7 +60,8 @@ tipo_documento = st.selectbox(
 
 uploaded_file = st.file_uploader(
     "Subir estado de cuenta PDF",
-    type=["pdf"]
+    type=["pdf"],
+    key=f"estado_pdf_{cliente_id}_{st.session_state.get('estado_pdf_version', 0)}",
 )
 
 if st.button("Guardar estado de cuenta"):
@@ -94,7 +95,10 @@ if st.button("Guardar estado de cuenta"):
         conn.commit()
         conn.close()
 
-        st.success("Estado de cuenta guardado correctamente")
+        st.session_state["estado_pdf_version"] = (
+            st.session_state.get("estado_pdf_version", 0) + 1
+        )
+        st.session_state["estado_pdf_guardado"] = True
         st.rerun()
 
     except Exception as e:
