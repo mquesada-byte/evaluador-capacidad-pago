@@ -21,11 +21,17 @@ st.title("💳 Paso 15: Condiciones de Crédito")
 st.caption("Cálculo de la cuota con y sin póliza del INS.")
 
 cliente_id = st.session_state.get("cliente", {}).get("identificacion")
+condiciones_guardadas = load_condiciones_credito(cliente_id) if cliente_id else None
 
 # ===== Entradas =====
 col1, col2 = st.columns(2)
 with col1:
-    monto_solicitado = st.number_input("Monto solicitado (₡)", min_value=0, step=50000, value=0)
+    monto_solicitado = st.number_input(
+    "Monto solicitado (₡)",
+    min_value=0,
+    step=50000,
+    value=int(condiciones_guardadas["monto_solicitado"]) if condiciones_guardadas else 0,
+)
 with col2:
     saldo_payoff = st.number_input(
         "Saldo pay off (₡)", min_value=0, step=50000, value=0,
