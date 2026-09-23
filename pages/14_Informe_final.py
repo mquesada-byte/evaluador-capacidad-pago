@@ -698,19 +698,7 @@ with c1:
 with c2:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
         st.session_state["done_14"] = True
-        for nxt in [
-            "pages/15_Análisis_IA.py",
-            "pages/15_Analisis_IA.py",
-            "15_Analisis_IA.py",
-        ]:
-            try:
-                st.switch_page(nxt)
-                break
-            except Exception:
-                continue
-        else:
-            st.success("Informe final listo. Abrí **15 – Análisis IA** desde el menú lateral.")
-            st.stop()
+        st.switch_page("pages/15_Condiciones_credito.py")
 
 with c3:
     if st.button("Ir al inicio 🏠", use_container_width=True):
