@@ -182,22 +182,6 @@ with st.container(border=True):
     else:
         st.info("Crea `pages/15_Condiciones_credito.py` para habilitar el Paso 15.")
 
-# Paso 16 – Análisis asistido (IA)
-with st.container(border=True):
-    p16 = first_existing([
-        "pages/16_Analisis_IA.py",
-        "pages/16_Análisis_IA.py",  # por si existe con tilde
-        "pages/15_Analisis_IA.py",  # fallback (si aún está en 15)
-        "pages/15_Análisis_IA.py",
-    ])
-    if p16:
-        st.page_link(p16,
-            label=f"{step_status('done_16')} 16 – Análisis asistido (IA)",
-            help="Genera el análisis del caso con IA y permite descargarlo en PDF."
-        )
-    else:
-        st.info("Crea `pages/16_Analisis_IA.py` para habilitar el Paso 16.")
-
 # Paso 17 – Análisis de referencias crediticias
 with st.container(border=True):
     p17 = first_existing([
@@ -252,6 +236,21 @@ with st.container(border=True):
         )
     else:
         st.info("No se encontró la página del Paso 20. Verificá el nombre del archivo en /pages.")
+
+# Paso 99 – Análisis asistido (IA)
+with st.container(border=True):
+    p99 = first_existing([
+        "pages/99_Análisis_IA.py",
+    ])
+    if p99:
+        st.page_link(
+            p99,
+            label=f"{step_status('done_16')} 99 – Análisis asistido (IA)",
+            help="Genera el análisis del caso con IA y permite descargarlo en PDF."
+        )
+    else:
+        st.info("No se encontró `pages/99_Análisis_IA.py`.")
+
 
 
 st.divider()
