@@ -254,6 +254,7 @@ try:
         for doc in documentos:
             doc_id = int(doc.IdDocumento)
             pdf_bytes = bytes(doc.ArchivoPDF)
+            documento_actual = (cliente_id, doc_id)
 
             st.markdown(
                 f"**{doc.TipoDocumento}** — {doc.NombreArchivo}  \n"
@@ -265,8 +266,15 @@ try:
             col_ver, col_descargar, col_eliminar = st.columns(3)
 
             with col_ver:
-                if st.button("👁️ Ver", key=f"ver_ref_{doc_id}", use_container_width=True):
-                    st.session_state["ref_pdf_abierto"] = (cliente_id, doc_id)
+                if st.button(
+                    "👁️ Ver",
+                    key=f"ver_ref_{doc_id}",
+                    use_container_width=True,
+                ):
+                    if st.session_state.get("ref_pdf_abierto") == documento_actual:
+                        st.session_state.pop("ref_pdf_abierto", None)
+                    else:
+                        st.session_state["ref_pdf_abierto"] = documento_actual
 
             with col_descargar:
                 st.download_button(
@@ -279,10 +287,14 @@ try:
                 )
 
             with col_eliminar:
-                if st.button("🗑️ Eliminar", key=f"eliminar_ref_{doc_id}", use_container_width=True):
-                    st.session_state["ref_confirmar_eliminar"] = (cliente_id, doc_id)
+                if st.button(
+                    "🗑️ Eliminar",
+                    key=f"eliminar_ref_{doc_id}",
+                    use_container_width=True,
+                ):
+                    st.session_state["ref_confirmar_eliminar"] = documento_actual
 
-            if st.session_state.get("ref_confirmar_eliminar") == (cliente_id, doc_id):
+            if st.session_state.get("ref_confirmar_eliminar") == documento_actual:
                 st.warning(f"¿Eliminar el reporte {doc.TipoDocumento}: {doc.NombreArchivo}?")
                 col_confirmar, col_cancelar = st.columns(2)
 
@@ -303,7 +315,7 @@ try:
                             conn.close()
 
                             st.session_state.pop("ref_confirmar_eliminar", None)
-                            if st.session_state.get("ref_pdf_abierto") == (cliente_id, doc_id):
+                            if st.session_state.get("ref_pdf_abierto") == documento_actual:
                                 st.session_state.pop("ref_pdf_abierto", None)
                             st.rerun()
                         except Exception as e:
@@ -318,21 +330,52 @@ try:
                         st.session_state.pop("ref_confirmar_eliminar", None)
                         st.rerun()
 
-            if st.session_state.get("ref_pdf_abierto") == (cliente_id, doc_id):
+            if st.session_state.get("ref_pdf_abierto") == documento_actual:
                 try:
                     with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
-                        pagina = st.number_input(
-                            f"Página de {doc.NombreArchivo}",
-                            min_value=1,
-                            max_value=len(pdf),
-                            value=1,
-                            step=1,
-                            key=f"pagina_ref_{doc_id}",
+                        total_paginas = len(pdf)
+                        clave_pagina = f"pagina_actual_ref_{cliente_id}_{doc_id}"
+                        st.session_state.setdefault(clave_pagina, 1)
+
+                        pagina = min(
+                            max(st.session_state[clave_pagina], 1),
+                            total_paginas,
                         )
+
+                        col_anterior, col_numero, col_siguiente = st.columns([1, 2, 1])
+
+                        with col_anterior:
+                            if st.button(
+                                "⬅️ Anterior",
+                                key=f"anterior_ref_{doc_id}",
+                                disabled=pagina <= 1,
+                                use_container_width=True,
+                            ):
+                                pagina -= 1
+                                st.session_state[clave_pagina] = pagina
+
+                        with col_numero:
+                            st.markdown(
+                                f"<p style='text-align:center'>"
+                                f"<b>Página {pagina} de {total_paginas}</b></p>",
+                                unsafe_allow_html=True,
+                            )
+
+                        with col_siguiente:
+                            if st.button(
+                                "Siguiente ➡️",
+                                key=f"siguiente_ref_{doc_id}",
+                                disabled=pagina >= total_paginas,
+                                use_container_width=True,
+                            ):
+                                pagina += 1
+                                st.session_state[clave_pagina] = pagina
+
                         imagen = pdf[pagina - 1].get_pixmap(
                             matrix=fitz.Matrix(1.5, 1.5)
                         ).tobytes("png")
                         st.image(imagen, use_container_width=True)
+
                 except Exception as e:
                     st.error(f"No se pudo visualizar el PDF: {e}")
 
@@ -342,7 +385,6 @@ try:
 
 except Exception as e:
     st.error(f"No fue posible consultar los documentos: {e}")
-
 
 # ==============================
 # 5️⃣ ANÁLISIS IA AUTOMÁTICO
