@@ -386,3 +386,30 @@ try:
 except Exception as e:
     st.error(f"No fue posible consultar los documentos: {e}")
 
+# ==============================
+# NAVEGACIÓN
+# ==============================
+
+st.divider()
+col_volver, col_continuar = st.columns(2)
+
+with col_volver:
+    if st.button(
+        "⬅️ Volver a 15 – Condiciones de crédito",
+        use_container_width=True,
+    ):
+        st.switch_page("pages/15_Condiciones_credito.py")
+
+with col_continuar:
+    if st.button(
+        "Guardar y continuar ➡️",
+        use_container_width=True,
+    ):
+        if uploaded_file is not None:
+            st.warning(
+                "Hay un PDF seleccionado sin guardar. "
+                "Pulsá «Guardar documento» antes de continuar."
+            )
+        else:
+            st.session_state["done_16"] = True
+            st.switch_page("pages/17_Estados_cuenta.py")
