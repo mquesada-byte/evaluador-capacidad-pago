@@ -144,74 +144,77 @@ tipo_documento = st.selectbox(
 
 uploaded_file = st.file_uploader("Subir archivo PDF", type=["pdf"])
 
-# 🔎 advertencia si ya existe
-if cliente_id:
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+# 🔎 Advertencia si ya existe un reporte de este tipo
+try:
+    conn = get_connection()
+    cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT TOP 1 NombreArchivo, FechaCarga
-            FROM DocumentosReferenciasCrediticias
-            WHERE ClienteId = ?
-            AND TipoDocumento = ?
-            ORDER BY FechaCarga DESC
-        """, cliente_id, tipo_documento)
+    cursor.execute("""
+        SELECT TOP 1 NombreArchivo, FechaCarga
+        FROM dbo.DocumentosReferenciasCrediticias
+        WHERE ClienteId = ? AND TipoDocumento = ?
+        ORDER BY FechaCarga DESC
+    """, cliente_id, tipo_documento)
 
-        ex = cursor.fetchone()
-        conn.close()
+    ex = cursor.fetchone()
+    conn.close()
 
-        if ex:
-            st.warning(f"⚠️ Ya existe un reporte {tipo_documento}: {ex.NombreArchivo}. Se reemplazará.")
-
-    except:
-        pass
-
-        # Actualizar el reporte existente de este cliente y tipo
-        cursor.execute("""
-            UPDATE dbo.DocumentosReferenciasCrediticias
-            SET NumeroOperacion = NULL,
-                NombreArchivo = ?,
-                ArchivoPDF = ?,
-                PesoArchivoKB = ?,
-                FechaCarga = GETDATE(),
-                UsuarioCarga = ?,
-                VersionDocumento = VersionDocumento + 1
-            WHERE ClienteId = ?
-              AND TipoDocumento = ?
-        """,
-            file_name,
-            file_bytes,
-            file_size_kb,
-            usuario,
-            cliente_id,
-            tipo_documento
+    if ex:
+        st.warning(
+            f"⚠️ Ya existe un reporte {tipo_documento}: "
+            f"{ex.NombreArchivo}. Se reemplazará."
         )
+except Exception as e:
+    st.error(f"No fue posible consultar el reporte existente: {e}")
 
-        # Si todavía no existe, insertar el primer reporte
-        if cursor.rowcount == 0:
+
+# Guardar o reemplazar el reporte
+if st.button("Guardar documento"):
+    if uploaded_file is None:
+        st.error("Seleccioná un archivo PDF antes de guardar.")
+    else:
+        try:
+            file_bytes = uploaded_file.getvalue()
+            file_size_kb = int(len(file_bytes) / 1024)
+            file_name = uploaded_file.name
+
+            conn = get_connection()
+            cursor = conn.cursor()
+
             cursor.execute("""
-                INSERT INTO dbo.DocumentosReferenciasCrediticias
-                    (ClienteId, NumeroOperacion, TipoDocumento,
-                     NombreArchivo, ArchivoPDF, PesoArchivoKB,
-                     UsuarioCarga, VersionDocumento)
-                VALUES (?, NULL, ?, ?, ?, ?, ?, 1)
+                UPDATE dbo.DocumentosReferenciasCrediticias
+                SET NumeroOperacion = NULL,
+                    NombreArchivo = ?,
+                    ArchivoPDF = ?,
+                    PesoArchivoKB = ?,
+                    FechaCarga = GETDATE(),
+                    UsuarioCarga = ?,
+                    VersionDocumento = VersionDocumento + 1
+                WHERE ClienteId = ?
+                  AND TipoDocumento = ?
             """,
-                cliente_id,
-                tipo_documento,
-                file_name,
-                file_bytes,
-                file_size_kb,
-                usuario
+                file_name, file_bytes, file_size_kb,
+                usuario, cliente_id, tipo_documento
             )
 
-        conn.commit()
-        conn.close()
+            if cursor.rowcount == 0:
+                cursor.execute("""
+                    INSERT INTO dbo.DocumentosReferenciasCrediticias
+                        (ClienteId, NumeroOperacion, TipoDocumento,
+                         NombreArchivo, ArchivoPDF, PesoArchivoKB,
+                         UsuarioCarga, VersionDocumento)
+                    VALUES (?, NULL, ?, ?, ?, ?, ?, 1)
+                """,
+                    cliente_id, tipo_documento, file_name,
+                    file_bytes, file_size_kb, usuario
+                )
 
-        st.success("Documento actualizado correctamente")
+            conn.commit()
+            conn.close()
+            st.success("Documento actualizado correctamente")
 
-    except Exception as e:
-        st.error(f"Error al guardar: {e}")
+        except Exception as e:
+            st.error(f"Error al guardar: {e}")
 
 # ==============================
 # MOSTRAR DOCUMENTOS
