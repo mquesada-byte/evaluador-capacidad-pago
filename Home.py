@@ -182,18 +182,19 @@ with st.container(border=True):
     else:
         st.info("Crea `pages/15_Condiciones_credito.py` para habilitar el Paso 15.")
 
-# Paso 17 – Análisis de referencias crediticias
+# Paso 16 – Análisis de referencias crediticias
 with st.container(border=True):
-    p17 = first_existing([
-        "pages/17_Análisis_de_referencias_crediticias.py",
+    p16 = first_existing([
+        "pages/16_Análisis_de_referencias_crediticias.py",
     ])
-    if p17:
-        st.page_link(p17,
-            label=f"{step_status('done_17')} 17 – Análisis de referencias crediticias",
+    if p16:
+        st.page_link(
+            p16,
+            label=f"{step_status('done_16')} 16 – Análisis de referencias crediticias",
             help="Carga y análisis de reportes de centrales crediticias (Equifax, CIC, Credid)."
         )
     else:
-        st.info("No se encontró la página del Paso 17. Verificá el nombre del archivo en /pages.")
+        st.info("No se encontró la página del Paso 16. Verificá el nombre del archivo en /pages.")
 
 # Paso 18 – Estados de cuenta financieros
 with st.container(border=True):
