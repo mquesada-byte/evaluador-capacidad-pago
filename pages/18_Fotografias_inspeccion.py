@@ -168,7 +168,10 @@ tipos_foto = [
     ("clienta_negocio", "Clienta en el negocio"),
     ("inventario", "Inventario"),
     ("registros", "Registros contables"),
-    ("fachada", "Fachada"),
+    ("patente_municipal", "Patente municipal"),
+    ("formacion_acreditada", "Títulos, certificados y capacitaciones"),
+    ("fachada", "Fachada de la vivienda donde reside"),
+    ("local_negocio", "Foto del local (si aplica)"),
     ("trabajando", "Clienta trabajando"),
     ("herramientas", "Mobiliario y equipo")
 ]
