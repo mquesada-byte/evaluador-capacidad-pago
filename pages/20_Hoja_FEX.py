@@ -154,11 +154,7 @@ cedula_mostrar = str(
     cliente.get("identificacion") or ""
 ).strip()
 
-cedula_consulta = (
-    cedula_mostrar
-    .replace("-", "")
-    .replace(" ", "")
-)
+cedula_consulta = cedula_mostrar.strip()
 
 if not cedula_consulta:
     st.warning("Primero cargá un cliente en el Paso 2.")
