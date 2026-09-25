@@ -183,10 +183,22 @@ try:
             cedula_consulta
         )
 
-except Exception:
+except Exception as error:
     logging.getLogger(__name__).exception(
         "Error consultando los datos de la Hoja FEX"
     )
+
+    detalle = f"{type(error).__name__}: {error}"
+
+    try:
+        clave = st.secrets["fex_sql"]["password"]
+        if clave:
+            detalle = detalle.replace(clave, "***")
+    except Exception:
+        pass
+
+    st.code(detalle, language="text")
+    
 
     st.error(
         "No se pudo consultar la base LPFCREDIMUJER. "
