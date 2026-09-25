@@ -1,10 +1,24 @@
 import streamlit as st
+from utils.db import load_hechos_relevantes, save_hechos_relevantes
 
 st.set_page_config(
     page_title="Paso 19: Hechos relevantes",
     page_icon="📝",
     #layout="wide"
 )
+
+# ======================
+# Cliente activo
+# ======================
+
+cliente_id = st.session_state.get("cliente", {}).get("identificacion")
+
+if not cliente_id:
+    st.warning("Cargá un cliente antes de registrar hechos relevantes.")
+    st.stop()
+
+hechos_guardados = load_hechos_relevantes(cliente_id)
+
 
 st.title("📝 Paso 19: Hechos relevantes")
 
