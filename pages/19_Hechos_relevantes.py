@@ -22,10 +22,12 @@ st.subheader("1. Cliente y actividad económica")
 cliente_actividad = st.text_area(
     "Describa aspectos relevantes sobre la persona y su actividad económica",
     placeholder=(
-        "Ej.: Tiene 8 años de dedicarse a la actividad. Trabaja principalmente "
-        "por encargo. La actividad constituye su principal fuente de ingresos. "
-        "Durante la visita se observó inventario, herramientas y movimiento "
-        "propio de la actividad..."
+        "Indique aspectos relevantes sobre la experiencia de la persona en la actividad, "
+        "antigüedad, forma de operar el negocio, estabilidad, principales características "
+        "observadas durante la visita y cualquier elemento que ayude a comprender "
+        "cómo desarrolla su actividad económica."
+)
+        
     ),
     height=140
 )
@@ -39,10 +41,12 @@ st.subheader("2. Vivienda y entorno familiar")
 vivienda_entorno = st.text_area(
     "Detalle hechos relevantes relacionados con la vivienda y el entorno familiar",
     placeholder=(
-        "Ej.: Alquila la vivienda desde hace 4 años por ₡180.000 mensuales. "
-        "Se verificó con el propietario que se encuentra al día con el alquiler. "
-        "Vive con su pareja y dos hijos. La pareja contribuye con los gastos "
-        "del hogar..."
+        "Describa la situación de vivienda y cualquier aspecto familiar relevante. "
+        "Si alquila, indique el monto, tiempo de residir en el lugar y las verificaciones "
+        "realizadas con el arrendador, incluyendo si se encuentra al día. Indique cualquier "
+        "otra circunstancia del hogar que pueda ser relevante para el análisis."
+)
+        
     ),
     height=140
 )
@@ -56,9 +60,11 @@ st.subheader("3. Destino y necesidad del crédito")
 destino_credito = st.text_area(
     "Explique para qué necesita el crédito y por qué lo solicita en este momento",
     placeholder=(
-        "Ej.: Solicita el crédito para comprar inventario debido a un aumento "
-        "en los pedidos. Indica que utilizará los recursos para adquirir materia "
-        "prima y productos que actualmente compra en pequeñas cantidades..."
+        "Explique con claridad para qué necesita los recursos, cómo serán utilizados, "
+        "por qué requiere el crédito en este momento y de qué manera el financiamiento "
+        "se relaciona con su actividad económica o necesidad planteada."
+)
+        
     ),
     height=140
 )
@@ -72,10 +78,12 @@ st.subheader("4. Información adicional verificada")
 informacion_verificada = st.text_area(
     "Indique cualquier información adicional obtenida o verificada",
     placeholder=(
-        "Ej.: Se verificó el ingreso adicional indicado por la solicitante. "
-        "Se conversó con el arrendador y confirmó la información suministrada. "
-        "La solicitante mostró facturas de proveedores y registros de ventas. "
-        "Se aclararon diferencias encontradas durante la entrevista..."
+        "Detalle las verificaciones adicionales realizadas y su resultado. Incluya, cuando "
+        "corresponda, información obtenida de arrendadores, proveedores, clientes, referencias "
+        "u otras fuentes, así como documentos observados o información que haya sido necesario "
+        "confirmar o aclarar."
+)
+        
     ),
     height=140
 )
@@ -89,10 +97,11 @@ st.subheader("5. Otros hechos relevantes")
 otros_hechos = st.text_area(
     "¿Qué otros hechos considera importantes para comprender la situación de la persona solicitante?",
     placeholder=(
-        "Ej.: La solicitante explicó una situación particular que afectó "
-        "temporalmente sus ingresos. Cuenta con apoyo familiar para atender "
-        "el negocio. Se observó una situación que debe ser considerada al "
-        "analizar el crédito..."
+        "Registre cualquier situación, observación o información relevante que no haya sido "
+        "incluida anteriormente y que considere que debe conocer quien analice o decida "
+        "sobre el otorgamiento del crédito."
+)
+        
     ),
     height=140
 )
@@ -117,10 +126,12 @@ criterio_asesor = st.radio(
 razon_criterio = st.text_area(
     "Explique las razones de su respuesta",
     placeholder=(
-        "Ej.: Sí, porque durante la visita observé una actividad estable, "
-        "la información suministrada fue consistente con las verificaciones "
-        "realizadas y considero razonable la capacidad de la persona para "
-        "atender la obligación..."
+        "Justifique su respuesta considerando lo observado durante la visita, la entrevista "
+        "con la persona solicitante, las verificaciones realizadas y cualquier elemento que "
+        "influya positiva o negativamente en su disposición personal a prestar los recursos."
+)
+        
+        
     ),
     height=120
 )
