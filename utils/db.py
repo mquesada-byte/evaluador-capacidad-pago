@@ -986,7 +986,120 @@ def load_condiciones_credito(cliente_id: str) -> dict | None:
         if conn is not None:
             conn.close()
 
+# ============================================================
+# PASO 19 — HECHOS RELEVANTES
+# Guarda o actualiza los hechos relevantes por cédula
+# en dbo.HechosRelevantes (DataHub_OnPremise).
+# ============================================================
 
+def save_hechos_relevantes(cliente_id: str, data: dict) -> bool:
+    conn = None
+    try:
+        conn = get_connection()
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        valores = (
+            data["cliente_actividad"],
+            data["vivienda_entorno"],
+            data["destino_credito"],
+            data["informacion_verificada"],
+            data["otros_hechos"],
+            data["criterio_asesor"],
+            data["razon_criterio"],
+            data["acepta_declaracion"],
+        )
+
+        cursor.execute("""
+            UPDATE dbo.HechosRelevantes
+            SET ClienteActividad = ?,
+                ViviendaEntorno = ?,
+                DestinoCredito = ?,
+                InformacionVerificada = ?,
+                OtrosHechos = ?,
+                CriterioAsesor = ?,
+                RazonCriterio = ?,
+                AceptaDeclaracion = ?,
+                FechaModificacion = SYSDATETIME()
+            WHERE ClienteId = ?
+        """, (*valores, cliente_id))
+
+        if cursor.rowcount == 0:
+            cursor.execute("""
+                INSERT INTO dbo.HechosRelevantes (
+                    ClienteId,
+                    ClienteActividad,
+                    ViviendaEntorno,
+                    DestinoCredito,
+                    InformacionVerificada,
+                    OtrosHechos,
+                    CriterioAsesor,
+                    RazonCriterio,
+                    AceptaDeclaracion
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (cliente_id, *valores))
+
+        conn.commit()
+        return True
+
+    except Exception as e:
+        if conn is not None:
+            conn.rollback()
+        st.error(f"Error guardando hechos relevantes: {e}")
+        return False
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ------------------------------------------------------------
+# Cargar los hechos relevantes guardados por cédula
+# ------------------------------------------------------------
+
+def load_hechos_relevantes(cliente_id: str) -> dict | None:
+    conn = None
+    try:
+        conn = get_connection()
+        if conn is None:
+            return None
+
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                ClienteActividad,
+                ViviendaEntorno,
+                DestinoCredito,
+                InformacionVerificada,
+                OtrosHechos,
+                CriterioAsesor,
+                RazonCriterio,
+                AceptaDeclaracion,
+                FechaRegistro,
+                FechaModificacion
+            FROM dbo.HechosRelevantes
+            WHERE ClienteId = ?
+        """, (cliente_id,))
+
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        columnas = [col[0] for col in cursor.description]
+        return dict(zip(columnas, row))
+
+    except Exception as e:
+        st.error(f"Error cargando hechos relevantes: {e}")
+        return None
+
+    finally:
+        if conn is not None:
+            conn.close()
 
 # ==========================================================
 # TEST DE CONEXIÓN
