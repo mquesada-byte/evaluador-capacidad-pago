@@ -353,3 +353,27 @@ else:
                     st.rerun()
         
         st.divider()
+
+# ============================================================
+# NAVEGACIÓN — PASO 18
+# ============================================================
+
+st.divider()
+
+col_volver, col_continuar = st.columns(2)
+
+with col_volver:
+    if st.button(
+        "⬅️ Volver a 17 – Estados de cuenta",
+        use_container_width=True
+    ):
+        st.switch_page("pages/17_Estados_cuenta.py")
+
+with col_continuar:
+    if st.button(
+        "Continuar a 19 – Hechos relevantes ➡️",
+        type="primary",
+        use_container_width=True
+    ):
+        st.session_state["done_18"] = True
+        st.switch_page("pages/19_Hechos_relevantes.py")
