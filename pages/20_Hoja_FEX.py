@@ -138,7 +138,36 @@ def consultar_datos_credito(cedula):
                 cursor.close()
         finally:
             conn.close()
+# ============================================================
+# CONSULTA DE SECTORES PRODUCTIVOS — CATÁLOGO LPF
+# ============================================================
 
+def consultar_sectores():
+    conn = get_fex_connection()
+    cursor = None
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                sectorid,
+                LTRIM(RTRIM(sector)) AS sector
+            FROM busssec
+            WHERE sectorid NOT IN (4, 5)
+            ORDER BY sectorid
+        """)
+
+        return [
+            {"sectorid": fila[0], "sector": fila[1]}
+            for fila in cursor.fetchall()
+        ]
+
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+        finally:
+            conn.close()
 
 # ============================================================
 # CLIENTE CARGADO
@@ -301,36 +330,7 @@ sector_id = st.selectbox(
 )
 
 
-# ============================================================
-# CONSULTA DE SECTORES PRODUCTIVOS — CATÁLOGO LPF
-# ============================================================
 
-def consultar_sectores():
-    conn = get_fex_connection()
-    cursor = None
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT
-                sectorid,
-                LTRIM(RTRIM(sector)) AS sector
-            FROM busssec
-            WHERE sectorid NOT IN (4, 5)
-            ORDER BY sectorid
-        """)
-
-        return [
-            {"sectorid": fila[0], "sector": fila[1]}
-            for fila in cursor.fetchall()
-        ]
-
-    finally:
-        try:
-            if cursor is not None:
-                cursor.close()
-        finally:
-            conn.close()
 
 # ============================================================
 # NAVEGACIÓN
