@@ -196,43 +196,57 @@ acepta_declaracion = st.checkbox(
     value=bool(hechos_guardados["AceptaDeclaracion"]) if hechos_guardados else False
 )
 
+# ============================================================
+# NAVEGACIÓN — PASO 19
+# ============================================================
+
 st.divider()
 
-if st.button(
-    "💾 Guardar hechos relevantes",
-    type="primary",
-    use_container_width=True
-):
-    if not cliente_id:
-        st.warning("Cargá un cliente antes de guardar los hechos relevantes.")
+col_volver, col_guardar = st.columns(2)
 
-    elif criterio_asesor is None:
-        st.warning(
-            "Debe indicar si prestaría sus propios recursos a esta persona."
-        )
+with col_volver:
+    if st.button(
+        "⬅️ Volver a 18 – Fotografías de inspección",
+        use_container_width=True
+    ):
+        st.switch_page("pages/18_Fotografias_inspeccion.py")
 
-    elif not razon_criterio.strip():
-        st.warning(
-            "Debe explicar las razones de su criterio sobre el crédito."
-        )
+with col_guardar:
+    if st.button(
+        "Guardar y continuar ➡️",
+        type="primary",
+        use_container_width=True
+    ):
+        if not cliente_id:
+            st.warning("Cargá un cliente antes de guardar los hechos relevantes.")
 
-    elif not acepta_declaracion:
-        st.warning(
-            "Debe leer y aceptar la declaración de veracidad y responsabilidad."
-        )
+        elif criterio_asesor is None:
+            st.warning(
+                "Debe indicar si prestaría sus propios recursos a esta persona."
+            )
 
-    else:
-        datos = {
-            "cliente_actividad": cliente_actividad.strip(),
-            "vivienda_entorno": vivienda_entorno.strip(),
-            "destino_credito": destino_credito.strip(),
-            "informacion_verificada": informacion_verificada.strip(),
-            "otros_hechos": otros_hechos.strip(),
-            "criterio_asesor": criterio_asesor,
-            "razon_criterio": razon_criterio.strip(),
-            "acepta_declaracion": acepta_declaracion,
-        }
+        elif not razon_criterio.strip():
+            st.warning(
+                "Debe explicar las razones de su criterio sobre el crédito."
+            )
 
-        if save_hechos_relevantes(cliente_id, datos):
-            st.session_state["done_19"] = True
-            st.success("✅ Hechos relevantes guardados correctamente.")
+        elif not acepta_declaracion:
+            st.warning(
+                "Debe leer y aceptar la declaración de veracidad y responsabilidad."
+            )
+
+        else:
+            datos = {
+                "cliente_actividad": cliente_actividad.strip(),
+                "vivienda_entorno": vivienda_entorno.strip(),
+                "destino_credito": destino_credito.strip(),
+                "informacion_verificada": informacion_verificada.strip(),
+                "otros_hechos": otros_hechos.strip(),
+                "criterio_asesor": criterio_asesor,
+                "razon_criterio": razon_criterio.strip(),
+                "acepta_declaracion": acepta_declaracion,
+            }
+
+            if save_hechos_relevantes(cliente_id, datos):
+                st.session_state["done_19"] = True
+                st.switch_page("pages/20_Hoja_FEX.py")
