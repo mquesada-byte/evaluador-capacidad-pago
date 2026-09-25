@@ -330,6 +330,41 @@ sector_id = st.selectbox(
 )
 
 # ============================================================
+# CONSULTA DE TIPOS DE NEGOCIO — CATÁLOGO LPF
+# ============================================================
+
+def consultar_tipos_negocio():
+    conn = get_fex_connection()
+    cursor = None
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                udf3,
+                LTRIM(RTRIM(lab3)) AS actividad
+            FROM ud3
+            WHERE udf3 <> 0
+            ORDER BY actividad
+        """)
+
+        return [
+            {
+                "actividad_id": fila[0],
+                "actividad": fila[1],
+            }
+            for fila in cursor.fetchall()
+        ]
+
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+        finally:
+            conn.close()
+
+
+# ============================================================
 # ACTIVIDAD PRINCIPAL — CATÁLOGO LPF Y OTRAS ACTIVIDADES
 # ============================================================
 
