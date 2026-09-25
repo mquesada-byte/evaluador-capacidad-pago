@@ -36,6 +36,7 @@ st.subheader("1. Cliente y actividad económica")
 
 cliente_actividad = st.text_area(
     "Describa aspectos relevantes sobre la persona y su actividad económica",
+    value=hechos_guardados["ClienteActividad"] if hechos_guardados else "",
     placeholder=(
         "Indique aspectos relevantes sobre la experiencia de la persona en la actividad, "
         "antigüedad, forma de operar el negocio, estabilidad, principales características "
