@@ -3,7 +3,6 @@ import streamlit as st
 st.set_page_config(
     page_title="Paso 19: Hechos relevantes",
     page_icon="📝",
-    layout="wide"
 )
 
 st.title("📝 Paso 19: Hechos relevantes")
