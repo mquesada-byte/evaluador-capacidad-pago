@@ -109,7 +109,7 @@ def consultar_datos_credito(cedula):
         END AS tipoCredito,
 
         (
-            SELECT ISNULL(MAX(seq), 1)
+            SELECT ISNULL(MAX(seq), 0) + 1
             FROM Creditos
         ) AS numeroCredito;
     """
