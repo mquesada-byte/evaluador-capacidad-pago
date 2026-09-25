@@ -329,7 +329,63 @@ sector_id = st.selectbox(
     key=f"fex_sector_{cedula_consulta}",
 )
 
+# ============================================================
+# ACTIVIDAD PRINCIPAL — CATÁLOGO LPF Y OTRAS ACTIVIDADES
+# ============================================================
 
+try:
+    actividades = consultar_tipos_negocio()
+
+except Exception:
+    logging.getLogger(__name__).exception(
+        "Error consultando las actividades de LPF"
+    )
+    st.error("No se pudo cargar el catálogo de actividades.")
+    st.stop()
+
+actividades_por_id = {
+    item["actividad_id"]: item["actividad"]
+    for item in actividades
+}
+
+OPCION_OTROS = "__otros__"
+
+actividad_id = st.selectbox(
+    "Actividad principal",
+    options=[None] + list(actividades_por_id) + [OPCION_OTROS],
+    format_func=lambda valor: (
+        "Seleccione una actividad"
+        if valor is None
+        else "Otros — especificar"
+        if valor == OPCION_OTROS
+        else actividades_por_id[valor]
+    ),
+    help="Seleccione la actividad que genera más ingresos.",
+    key=f"fex_actividad_{cedula_consulta}",
+)
+
+actividad_principal_codigo = None
+actividad_principal_descripcion = ""
+actividad_principal_valida = False
+
+if actividad_id == OPCION_OTROS:
+    actividad_principal_descripcion = st.text_input(
+        "Especifique la actividad principal",
+        placeholder="Ejemplo: Elaboración de velas artesanales",
+        key=f"fex_otra_actividad_{cedula_consulta}",
+    ).strip()
+
+    actividad_principal_valida = bool(
+        actividad_principal_descripcion
+    )
+
+    if not actividad_principal_valida:
+        st.warning("Debe describir la actividad principal.")
+
+elif actividad_id is not None:
+    actividad_principal_codigo = actividad_id
+    actividad_principal_descripcion = actividades_por_id[actividad_id]
+    actividad_principal_valida = True
 
 
 # ============================================================
