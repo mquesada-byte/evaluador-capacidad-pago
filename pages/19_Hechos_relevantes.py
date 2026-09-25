@@ -3,6 +3,7 @@ import streamlit as st
 st.set_page_config(
     page_title="Paso 19: Hechos relevantes",
     page_icon="📝",
+    layout="wide"
 )
 
 st.title("📝 Paso 19: Hechos relevantes")
@@ -26,8 +27,6 @@ cliente_actividad = st.text_area(
         "antigüedad, forma de operar el negocio, estabilidad, principales características "
         "observadas durante la visita y cualquier elemento que ayude a comprender "
         "cómo desarrolla su actividad económica."
-)
-        
     ),
     height=140
 )
@@ -45,8 +44,6 @@ vivienda_entorno = st.text_area(
         "Si alquila, indique el monto, tiempo de residir en el lugar y las verificaciones "
         "realizadas con el arrendador, incluyendo si se encuentra al día. Indique cualquier "
         "otra circunstancia del hogar que pueda ser relevante para el análisis."
-)
-        
     ),
     height=140
 )
@@ -63,8 +60,6 @@ destino_credito = st.text_area(
         "Explique con claridad para qué necesita los recursos, cómo serán utilizados, "
         "por qué requiere el crédito en este momento y de qué manera el financiamiento "
         "se relaciona con su actividad económica o necesidad planteada."
-)
-        
     ),
     height=140
 )
@@ -82,8 +77,6 @@ informacion_verificada = st.text_area(
         "corresponda, información obtenida de arrendadores, proveedores, clientes, referencias "
         "u otras fuentes, así como documentos observados o información que haya sido necesario "
         "confirmar o aclarar."
-)
-        
     ),
     height=140
 )
@@ -100,8 +93,6 @@ otros_hechos = st.text_area(
         "Registre cualquier situación, observación o información relevante que no haya sido "
         "incluida anteriormente y que considere que debe conocer quien analice o decida "
         "sobre el otorgamiento del crédito."
-)
-        
     ),
     height=140
 )
@@ -129,9 +120,6 @@ razon_criterio = st.text_area(
         "Justifique su respuesta considerando lo observado durante la visita, la entrevista "
         "con la persona solicitante, las verificaciones realizadas y cualquier elemento que "
         "influya positiva o negativamente en su disposición personal a prestar los recursos."
-)
-        
-        
     ),
     height=120
 )
