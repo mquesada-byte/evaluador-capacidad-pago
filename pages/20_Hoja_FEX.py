@@ -267,6 +267,41 @@ if datos_credito["tipo_credito"] == "Revisar saldo":
     )
 
 # ============================================================
+# SECTOR PRODUCTIVO — LISTA DESDE LPF
+# ============================================================
+
+try:
+    sectores = consultar_sectores()
+
+except Exception:
+    logging.getLogger(__name__).exception(
+        "Error consultando los sectores productivos"
+    )
+    st.error("No se pudo cargar el catálogo de sectores de LPF.")
+    st.stop()
+
+if not sectores:
+    st.warning("No hay sectores productivos disponibles en LPF.")
+    st.stop()
+
+sectores_por_id = {
+    sector["sectorid"]: sector["sector"]
+    for sector in sectores
+}
+
+sector_id = st.selectbox(
+    "Sector productivo",
+    options=[None] + list(sectores_por_id),
+    format_func=lambda valor: (
+        "Seleccione un sector"
+        if valor is None
+        else sectores_por_id[valor]
+    ),
+    key=f"fex_sector_{cedula_consulta}",
+)
+
+
+# ============================================================
 # CONSULTA DE SECTORES PRODUCTIVOS — CATÁLOGO LPF
 # ============================================================
 
