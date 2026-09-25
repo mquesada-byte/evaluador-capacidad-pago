@@ -192,7 +192,7 @@ costarricense aplicable.
 )
 
 acepta_declaracion = st.checkbox(
-    "He leído y acepto la declaración de veracidad y responsabilidad anterior."
+    "He leído y acepto la declaración de veracidad y responsabilidad anterior.",
     value=bool(hechos_guardados["AceptaDeclaracion"]) if hechos_guardados else False
 )
 
