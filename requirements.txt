@@ -11,3 +11,4 @@ numpy-financial
 pyodbc
 pymssql
 PyMuPDF
+pymssql
