@@ -51,9 +51,9 @@ cliente_actividad = st.text_area(
 # =========================================================
 
 st.subheader("2. Vivienda y entorno familiar")
-
 vivienda_entorno = st.text_area(
     "Detalle hechos relevantes relacionados con la vivienda y el entorno familiar",
+    value=hechos_guardados["ViviendaEntorno"] if hechos_guardados else "",
     placeholder=(
         "Describa la situación de vivienda y cualquier aspecto familiar relevante. "
         "Si alquila, indique el monto, tiempo de residir en el lugar y las verificaciones "
@@ -71,6 +71,7 @@ st.subheader("3. Destino y necesidad del crédito")
 
 destino_credito = st.text_area(
     "Explique para qué necesita el crédito y por qué lo solicita en este momento",
+    value=hechos_guardados["DestinoCredito"] if hechos_guardados else "",
     placeholder=(
         "Explique con claridad para qué necesita los recursos, cómo serán utilizados, "
         "por qué requiere el crédito en este momento y de qué manera el financiamiento "
@@ -87,6 +88,7 @@ st.subheader("4. Información adicional verificada")
 
 informacion_verificada = st.text_area(
     "Indique cualquier información adicional obtenida o verificada",
+    value=hechos_guardados["InformacionVerificada"] if hechos_guardados else "",
     placeholder=(
         "Detalle las verificaciones adicionales realizadas y su resultado. Incluya, cuando "
         "corresponda, información obtenida de arrendadores, proveedores, clientes, referencias "
@@ -104,6 +106,7 @@ st.subheader("5. Otros hechos relevantes")
 
 otros_hechos = st.text_area(
     "¿Qué otros hechos considera importantes para comprender la situación de la persona solicitante?",
+    value=hechos_guardados["OtrosHechos"] if hechos_guardados else "",
     placeholder=(
         "Registre cualquier situación, observación o información relevante que no haya sido "
         "incluida anteriormente y que considere que debe conocer quien analice o decida "
@@ -118,23 +121,36 @@ otros_hechos = st.text_area(
 
 st.subheader("6. Criterio personal del asesor sobre el crédito")
 
+opciones_criterio = [
+    "Sí",
+    "Sí, pero con reservas",
+    "No"
+]
+
+criterio_guardado = (
+    hechos_guardados["CriterioAsesor"]
+    if hechos_guardados else None
+)
+
 criterio_asesor = st.radio(
     "Si los recursos para otorgar este crédito fueran suyos, "
     "¿usted se los prestaría a esta persona en las condiciones propuestas?",
-    options=[
-        "Sí",
-        "Sí, pero con reservas",
-        "No"
-    ],
-    index=None
+    options=opciones_criterio,
+    index=(
+        opciones_criterio.index(criterio_guardado)
+        if criterio_guardado in opciones_criterio
+        else None
+    )
 )
 
 razon_criterio = st.text_area(
     "Explique las razones de su respuesta",
+    value=hechos_guardados["RazonCriterio"] if hechos_guardados else "",
     placeholder=(
-        "Justifique su respuesta considerando lo observado durante la visita, la entrevista "
-        "con la persona solicitante, las verificaciones realizadas y cualquier elemento que "
-        "influya positiva o negativamente en su disposición personal a prestar los recursos."
+        "Justifique su respuesta considerando lo observado durante la visita, "
+        "la entrevista con la persona solicitante, las verificaciones realizadas "
+        "y cualquier elemento que influya positiva o negativamente en su "
+        "disposición personal a prestar los recursos."
     ),
     height=120
 )
@@ -177,6 +193,7 @@ costarricense aplicable.
 
 acepta_declaracion = st.checkbox(
     "He leído y acepto la declaración de veracidad y responsabilidad anterior."
+    value=bool(hechos_guardados["AceptaDeclaracion"]) if hechos_guardados else False
 )
 
 st.divider()
