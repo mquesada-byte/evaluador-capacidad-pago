@@ -479,7 +479,7 @@ propositos_por_id = {
 OTRO_PROPOSITO = "__otro_proposito__"
 
 proposito_id = st.selectbox(
-    "Propósito del préstamo",
+    "Propósito principal del préstamo",
     options=[None] + list(propositos_por_id) + [OTRO_PROPOSITO],
     format_func=lambda valor: (
         "Seleccione un propósito"
@@ -497,7 +497,7 @@ proposito_valido = False
 
 if proposito_id == OTRO_PROPOSITO:
     proposito_descripcion = st.text_input(
-        "Especifique el propósito del préstamo",
+        "Especifique el propósito principal del préstamo",
         placeholder="Describa en qué utilizará los recursos",
         key=f"fex_otro_proposito_{cedula_consulta}",
     ).strip()
