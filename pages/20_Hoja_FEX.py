@@ -422,6 +422,95 @@ elif actividad_id is not None:
     actividad_principal_descripcion = actividades_por_id[actividad_id]
     actividad_principal_valida = True
 
+# ============================================================
+# CONSULTA DE PROPÓSITOS DEL PRÉSTAMO — CATÁLOGO LPF
+# ============================================================
+
+def consultar_propositos():
+    conn = get_fex_connection()
+    cursor = None
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                udf2,
+                LTRIM(RTRIM(lab2)) AS proposito
+            FROM ud2
+            WHERE udf2 NOT IN (0, 1)
+            ORDER BY proposito
+        """)
+
+        return [
+            {
+                "proposito_id": fila[0],
+                "proposito": fila[1],
+            }
+            for fila in cursor.fetchall()
+        ]
+
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+        finally:
+            conn.close()
+
+
+# ============================================================
+# PROPÓSITO DEL PRÉSTAMO — LISTA Y OTROS
+# ============================================================
+
+try:
+    propositos = consultar_propositos()
+
+except Exception:
+    logging.getLogger(__name__).exception(
+        "Error consultando los propósitos del préstamo"
+    )
+    st.error("No se pudo cargar el catálogo de propósitos.")
+    st.stop()
+
+propositos_por_id = {
+    item["proposito_id"]: item["proposito"]
+    for item in propositos
+}
+
+OTRO_PROPOSITO = "__otro_proposito__"
+
+proposito_id = st.selectbox(
+    "Propósito del préstamo",
+    options=[None] + list(propositos_por_id) + [OTRO_PROPOSITO],
+    format_func=lambda valor: (
+        "Seleccione un propósito"
+        if valor is None
+        else "Otros — especificar"
+        if valor == OTRO_PROPOSITO
+        else propositos_por_id[valor]
+    ),
+    key=f"fex_proposito_{cedula_consulta}",
+)
+
+proposito_codigo = None
+proposito_descripcion = ""
+proposito_valido = False
+
+if proposito_id == OTRO_PROPOSITO:
+    proposito_descripcion = st.text_input(
+        "Especifique el propósito del préstamo",
+        placeholder="Describa en qué utilizará los recursos",
+        key=f"fex_otro_proposito_{cedula_consulta}",
+    ).strip()
+
+    proposito_valido = bool(proposito_descripcion)
+
+    if not proposito_valido:
+        st.warning("Debe describir el propósito del préstamo.")
+
+elif proposito_id is not None:
+    proposito_codigo = proposito_id
+    proposito_descripcion = propositos_por_id[proposito_id]
+    proposito_valido = True
 
 # ============================================================
 # NAVEGACIÓN
