@@ -1281,6 +1281,245 @@ with st.expander("Balance general", expanded=False):
         )
 
 # ============================================================
+# INDICADORES FINANCIEROS — VISTA PREVIA PARA LA FEX
+# ============================================================
+
+with st.expander("Indicadores financieros", expanded=False):
+    import math
+
+    reporte_ratios = st.session_state.get("reporte") or {}
+    er_ratios = reporte_ratios.get("estado_resultados") or {}
+    bg_ratios = reporte_ratios.get("balance_general") or {}
+    totales_ratios = bg_ratios.get("totales") or {}
+
+    def cedula_ratio(valor):
+        return (
+            str(valor or "")
+            .replace("-", "")
+            .replace(" ", "")
+            .strip()
+        )
+
+    def numero_ratio(valor):
+        if valor is None:
+            return None
+
+        try:
+            numero = float(
+                str(valor)
+                .replace("₡", "")
+                .replace(",", "")
+                .strip()
+            )
+            return numero if math.isfinite(numero) else None
+        except (TypeError, ValueError):
+            return None
+
+    def dividir_ratio(numerador, denominador):
+        if numerador is None or denominador is None:
+            return None, "Sin información"
+
+        if denominador <= 0:
+            return None, "No calculable: denominador ≤ 0"
+
+        return numerador / denominador, ""
+
+    # Se reconstruye en cada ejecución para no conservar
+    # resultados anteriores cuando faltan datos.
+    indicadores_fex = []
+
+    cliente_ratios = cedula_ratio(cedula_consulta)
+    cliente_er = cedula_ratio(
+        er_ratios.get("cliente_identificacion")
+    )
+    cliente_bg = cedula_ratio(
+        bg_ratios.get("cliente_identificacion")
+    )
+
+    if (
+        not cliente_ratios
+        or cliente_er != cliente_ratios
+        or cliente_bg != cliente_ratios
+    ):
+        st.warning(
+            "Los indicadores requieren el Estado de resultados "
+            "y el Balance General del cliente actual. "
+            "Completá el Paso 12 con Continuar y el Paso 13 "
+            "con Guardar y continuar."
+        )
+
+    else:
+        ventas = numero_ratio(er_ratios.get("ventas_colones"))
+
+        utilidad_operativa = numero_ratio(
+            er_ratios.get("utilidad_neta_operativa_colones")
+        )
+
+        disponible = numero_ratio(
+            er_ratios.get("disponible_para_prestamo_colones")
+        )
+
+        pago_deudas = numero_ratio(
+            er_ratios.get("pago_de_deudas_colones")
+        )
+
+        gastos_familiares = numero_ratio(
+            er_ratios.get("gastos_familiares_colones")
+        )
+
+        otros_ingresos = numero_ratio(
+            er_ratios.get("otros_ingresos_colones")
+        )
+
+        activo_circulante = numero_ratio(
+            totales_ratios.get("activo_circulante")
+        )
+
+        pasivo_circulante = numero_ratio(
+            totales_ratios.get("pasivo_circulante")
+        )
+
+        total_activos = numero_ratio(
+            totales_ratios.get("total_activos")
+        )
+
+        total_pasivos = numero_ratio(
+            totales_ratios.get("total_pasivo")
+        )
+
+        patrimonio = numero_ratio(
+            totales_ratios.get("patrimonio")
+        )
+
+        flujo_antes_deudas = (
+            disponible + pago_deudas
+            if disponible is not None and pago_deudas is not None
+            else None
+        )
+
+        ingresos_base = (
+            ventas + otros_ingresos
+            if ventas is not None and otros_ingresos is not None
+            else None
+        )
+
+        # Nombre, numerador, denominador, umbral positivo,
+        # umbral intermedio, menor es mejor, mostrar en veces.
+        definiciones_ratios = [
+            (
+                "Margen operativo",
+                utilidad_operativa, ventas,
+                0.20, 0.10, False, False,
+            ),
+            (
+                "DSCR — deudas existentes",
+                flujo_antes_deudas, pago_deudas,
+                1.50, 1.00, False, True,
+            ),
+            (
+                "Gastos familiares / (ventas + otros ingresos)",
+                gastos_familiares, ingresos_base,
+                0.30, 0.40, True, False,
+            ),
+            (
+                "Razón circulante — AC / PC",
+                activo_circulante, pasivo_circulante,
+                1.50, 1.00, False, True,
+            ),
+            (
+                "Apalancamiento — pasivos / patrimonio",
+                total_pasivos, patrimonio,
+                2.00, 3.00, True, True,
+            ),
+            (
+                "Solvencia — patrimonio / activos",
+                patrimonio, total_activos,
+                0.40, 0.25, False, False,
+            ),
+        ]
+
+        filas_ratios = []
+
+        for (
+            nombre,
+            numerador,
+            denominador,
+            bueno,
+            medio,
+            menor_es_mejor,
+            formato_veces,
+        ) in definiciones_ratios:
+
+            valor, motivo = dividir_ratio(
+                numerador, denominador
+            )
+
+            if valor is None:
+                valor_visible = "—"
+                evaluacion = motivo
+                estado_visible = f"⚪ {motivo}"
+
+            else:
+                valor_visible = (
+                    f"{valor:.2f}x"
+                    if formato_veces
+                    else f"{valor:.2%}"
+                )
+
+                if menor_es_mejor:
+                    if valor <= bueno:
+                        evaluacion = "Positivo"
+                    elif valor <= medio:
+                        evaluacion = "Intermedio"
+                    else:
+                        evaluacion = "Negativo"
+                else:
+                    if valor >= bueno:
+                        evaluacion = "Positivo"
+                    elif valor >= medio:
+                        evaluacion = "Intermedio"
+                    else:
+                        evaluacion = "Negativo"
+
+                colores = {
+                    "Positivo": "🟢",
+                    "Intermedio": "🟡",
+                    "Negativo": "🔴",
+                }
+
+                estado_visible = (
+                    f"{colores[evaluacion]} {evaluacion}"
+                )
+
+            filas_ratios.append({
+                "Indicador": nombre,
+                "Resultado": valor_visible,
+                "Evaluación": estado_visible,
+            })
+
+            # Datos estructurados para la futura impresión.
+            indicadores_fex.append({
+                "indicador": nombre,
+                "valor": valor,
+                "resultado": valor_visible,
+                "evaluacion": evaluacion,
+            })
+
+        st.table(filas_ratios)
+
+        st.caption(
+            "Fórmulas y umbrales del Análisis IA. "
+            "El DSCR considera las deudas existentes; "
+            "no incluye la cuota del nuevo crédito. "
+            "Los colores no equivalen a una aprobación."
+        )
+
+        st.caption(
+            "Si cambiaste datos anteriores, actualizá los pasos "
+            "12 y 13 para recalcular estos indicadores."
+        )
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
