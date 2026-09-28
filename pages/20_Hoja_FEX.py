@@ -580,12 +580,13 @@ tipo_garantia_id = st.selectbox(
 )
 
 # ============================================================
-# GARANTÍA — HIPOTECA EN PRIMER GRADO
+# GARANTÍA — HIPOTECA EN PRIMER GRADO O CÉDULA HIPOTECARIA
 # ============================================================
 
 observaciones_garantia = ""
 
-if tipo_garantia_id == 1:
+if tipo_garantia_id in (1, 3):
+    
     st.subheader("Datos de la propiedad")
 
     provincia_garantia = st.text_input(
