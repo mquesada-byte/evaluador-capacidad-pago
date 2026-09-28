@@ -1197,6 +1197,90 @@ with st.expander("Estado de resultados", expanded=False):
         )
 
 # ============================================================
+# BALANCE GENERAL — VISTA PREVIA PARA LA FEX
+# ============================================================
+
+with st.expander("Balance general", expanded=False):
+    bg_fex = (
+        st.session_state.get("reporte", {})
+        .get("balance_general", {})
+        or {}
+    )
+
+    cedula_balance = (
+        str(bg_fex.get("cliente_identificacion") or "")
+        .replace("-", "")
+        .replace(" ", "")
+        .strip()
+    )
+
+    cedula_actual_bg = (
+        str(cedula_consulta or "")
+        .replace("-", "")
+        .replace(" ", "")
+        .strip()
+    )
+
+    if not bg_fex or not cedula_balance:
+        st.warning(
+            "Abrí el Paso 13 y presioná Guardar y continuar "
+            "para preparar el Balance General de este cliente."
+        )
+
+    elif cedula_balance != cedula_actual_bg:
+        st.warning(
+            "El Balance General disponible corresponde a otro "
+            "cliente. Actualizalo desde el Paso 13."
+        )
+
+    else:
+        totales_bg_fex = bg_fex.get("totales") or {}
+
+        conceptos_bg = [
+            ("Activo circulante", "activo_circulante"),
+            ("Activo fijo neto", "activo_fijo"),
+            ("Total activos", "total_activos"),
+            ("Pasivo circulante", "pasivo_circulante"),
+            ("Pasivo a largo plazo", "pasivo_largo"),
+            ("Total pasivos", "total_pasivo"),
+            ("Patrimonio", "patrimonio"),
+            ("Capital de trabajo", "capital_trabajo"),
+        ]
+
+        filas_bg = []
+        faltantes_bg = []
+
+        for concepto, campo in conceptos_bg:
+            valor = totales_bg_fex.get(campo)
+
+            if valor is None:
+                monto_mostrar = "Sin información"
+                faltantes_bg.append(concepto)
+            else:
+                monto_mostrar = f"₡{valor:,.0f}"
+
+            filas_bg.append({
+                "Concepto": concepto,
+                "Monto": monto_mostrar,
+            })
+
+        st.table(filas_bg)
+
+        if faltantes_bg:
+            st.warning(
+                "Faltan datos: "
+                + ", ".join(faltantes_bg)
+                + ". Revisá el Paso 13."
+            )
+
+        st.caption(
+            "Información de solo lectura del último balance "
+            "guardado desde el Paso 13. Si modificaste datos "
+            "anteriores, volvé a ese paso y presioná "
+            "Guardar y continuar."
+        )
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
