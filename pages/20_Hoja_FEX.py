@@ -1101,6 +1101,102 @@ elif tipo_garantia_id == 6:
         )
 
 # ============================================================
+# ESTADO DE RESULTADOS — VISTA PREVIA PARA LA FEX
+# ============================================================
+
+st.divider()
+
+with st.expander("Estado de resultados", expanded=False):
+    er_fex = (
+        st.session_state.get("reporte", {})
+        .get("estado_resultados", {})
+        or {}
+    )
+
+    def normalizar_cedula_fex(valor):
+        return (
+            str(valor or "")
+            .replace("-", "")
+            .replace(" ", "")
+            .strip()
+        )
+
+    cedula_resultados = normalizar_cedula_fex(
+        er_fex.get("cliente_identificacion")
+    )
+
+    cedula_actual = normalizar_cedula_fex(
+        cedula_consulta
+    )
+
+    if not er_fex or not cedula_resultados:
+        st.warning(
+            "Abrí el Paso 12 y presioná Continuar para "
+            "preparar el Estado de resultados de este cliente."
+        )
+
+    elif cedula_resultados != cedula_actual:
+        st.warning(
+            "El Estado de resultados disponible corresponde "
+            "a otro cliente. Actualizalo desde el Paso 12."
+        )
+
+    else:
+        conceptos_er = [
+            ("Ventas", "ventas_colones"),
+            ("Compras / costos", "compras_costos_colones"),
+            ("Utilidad bruta", "utilidad_bruta_colones"),
+            ("Gastos operativos", "gastos_operativos_colones"),
+            (
+                "Utilidad neta operativa",
+                "utilidad_neta_operativa_colones",
+            ),
+            ("Otros ingresos", "otros_ingresos_colones"),
+            (
+                "Subtotal después de otros ingresos",
+                "subtotal_post_otros_colones",
+            ),
+            ("Gastos familiares", "gastos_familiares_colones"),
+            ("Pago de deudas", "pago_de_deudas_colones"),
+            (
+                "Disponible para el préstamo",
+                "disponible_para_prestamo_colones",
+            ),
+        ]
+
+        filas_er = []
+        faltantes_er = []
+
+        for concepto, campo in conceptos_er:
+            valor = er_fex.get(campo)
+
+            if valor is None:
+                monto_mostrar = "Sin información"
+                faltantes_er.append(concepto)
+            else:
+                monto_mostrar = f"₡{valor:,.0f}"
+
+            filas_er.append({
+                "Concepto": concepto,
+                "Monto mensual": monto_mostrar,
+            })
+
+        st.table(filas_er)
+
+        if faltantes_er:
+            st.warning(
+                "Faltan datos: "
+                + ", ".join(faltantes_er)
+                + ". Revisá el Paso 12."
+            )
+
+        st.caption(
+            "Información de solo lectura del último resultado "
+            "enviado desde el Paso 12. Si modificaste datos "
+            "anteriores, volvé a ese paso y presioná Continuar."
+        )
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
