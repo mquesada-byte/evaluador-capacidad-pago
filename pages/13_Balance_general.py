@@ -850,6 +850,7 @@ with col2:
                 "capital_trabajo": int(activo_circulante - pasivo_circulante_total),
             }
             st.session_state["reporte"]["balance_general"]["comentarios"] = comentarios_totales
+            st.session_state["reporte"]["balance_general"]["cliente_identificacion"] = cliente_id
             # --------------------------------------------------------------
 
             st.success("✅ Datos de Balance General guardados correctamente.")
