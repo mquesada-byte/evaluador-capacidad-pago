@@ -701,13 +701,13 @@ if tipo_garantia_id == 1:
     )
     st.session_state[clave_observaciones] = observaciones_garantia
 
-    st.text_area(
-        "Observaciones sobre la garantía",
-        key=clave_observaciones,
-        height=180,
-        disabled=True,
-    )
-
+    if observaciones_garantia:
+        st.text_area(
+            "Observaciones sobre la garantía",
+            key=clave_observaciones,
+            height=180,
+            disabled=True,
+        )
 
 # ============================================================
 # NAVEGACIÓN
