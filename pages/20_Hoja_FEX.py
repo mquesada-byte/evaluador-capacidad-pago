@@ -881,6 +881,224 @@ elif tipo_garantia_id == 2:
             disabled=True,
         )
 
+# ============================================================
+# GARANTÍA — FIANZA
+# ============================================================
+
+elif tipo_garantia_id == 4:
+    st.subheader("Datos del fiador")
+
+    nombre_fiador = st.text_input(
+        "Nombre completo del fiador",
+        key=f"fex_fianza_nombre_{cedula_consulta}",
+    ).strip()
+
+    cedula_fiador = st.text_input(
+        "Cédula del fiador",
+        key=f"fex_fianza_cedula_{cedula_consulta}",
+    ).strip()
+
+    salario_bruto_fiador = st.number_input(
+        "Salario bruto mensual del fiador (₡)",
+        min_value=0.0,
+        step=10000.0,
+        format="%.2f",
+        key=f"fex_fianza_salario_{cedula_consulta}",
+    )
+
+    observaciones = []
+    cobertura_garantia = None
+
+    if not nombre_fiador:
+        observaciones.append(
+            "Está pendiente el nombre completo del fiador."
+        )
+
+    if not cedula_fiador:
+        observaciones.append(
+            "Está pendiente la cédula del fiador."
+        )
+
+    tipo_credito_actual = datos_credito["tipo_credito"]
+
+    if tipo_credito_actual == "Nuevo":
+        cobertura_minima = 0.40
+
+    elif tipo_credito_actual in ("Recrédito", "Anterior"):
+        cobertura_minima = 0.30
+
+    else:
+        cobertura_minima = None
+        observaciones.append(
+            "No se puede determinar la cobertura mínima: "
+            "el tipo de crédito requiere revisión."
+        )
+
+    if salario_bruto_fiador <= 0:
+        observaciones.append(
+            "No se puede evaluar la cobertura: "
+            "falta un salario bruto del fiador mayor que cero."
+        )
+
+    else:
+        cobertura_garantia = (
+            salario_bruto_fiador / monto_credito_fex
+        )
+
+        st.metric(
+            "Relación salario bruto / monto total del crédito",
+            f"{cobertura_garantia:.2%}",
+        )
+
+        if cobertura_minima is not None:
+            salario_minimo_requerido = (
+                monto_credito_fex * cobertura_minima
+            )
+
+            st.metric(
+                "Cobertura mínima requerida",
+                f"{cobertura_minima:.0%}",
+            )
+
+            if salario_bruto_fiador < salario_minimo_requerido:
+                observaciones.append(
+                    f"El salario bruto del fiador "
+                    f"(₡{salario_bruto_fiador:,.2f}) es inferior "
+                    f"al mínimo requerido de "
+                    f"₡{salario_minimo_requerido:,.2f}, "
+                    f"equivalente al {cobertura_minima:.0%} "
+                    f"del monto total para un crédito "
+                    f"clasificado como {tipo_credito_actual}. "
+                    "No cumple la cobertura requerida."
+                )
+
+    observaciones_garantia = "\n".join(observaciones)
+
+    clave_observaciones = (
+        f"fex_fianza_observaciones_{cedula_consulta}"
+    )
+    st.session_state[clave_observaciones] = observaciones_garantia
+
+    if observaciones_garantia:
+        st.text_area(
+            "Observaciones sobre la garantía",
+            key=clave_observaciones,
+            height=180,
+            disabled=True,
+        )
+
+
+# ============================================================
+# GARANTÍA — FIANZA MORAL
+# ============================================================
+
+elif tipo_garantia_id == 5:
+    st.subheader("Datos del garante moral")
+
+    nombre_garante_moral = st.text_input(
+        "Nombre completo del garante moral",
+        key=f"fex_moral_nombre_{cedula_consulta}",
+    ).strip()
+
+    cedula_garante_moral = st.text_input(
+        "Cédula del garante moral",
+        key=f"fex_moral_cedula_{cedula_consulta}",
+    ).strip()
+
+    observaciones = []
+    cobertura_garantia = None
+
+    if not nombre_garante_moral:
+        observaciones.append(
+            "Está pendiente el nombre completo del garante moral."
+        )
+
+    if not cedula_garante_moral:
+        observaciones.append(
+            "Está pendiente la cédula del garante moral."
+        )
+
+    tipo_credito_actual = datos_credito["tipo_credito"]
+
+    # Límite definido en el flujo de RAPTOR.
+    limite_primer_credito = 693000.0
+
+    if tipo_credito_actual == "Nuevo":
+        if monto_credito_fex > limite_primer_credito:
+            observaciones.append(
+                f"El monto total del crédito "
+                f"(₡{monto_credito_fex:,.2f}) supera el límite "
+                f"de ₡{limite_primer_credito:,.2f} establecido "
+                "en el flujo para un primer crédito "
+                "con fianza moral."
+            )
+
+    elif tipo_credito_actual not in ("Recrédito", "Anterior"):
+        observaciones.append(
+            "No se puede evaluar el límite aplicable: "
+            "el tipo de crédito requiere revisión."
+        )
+
+    observaciones_garantia = "\n".join(observaciones)
+
+    clave_observaciones = (
+        f"fex_moral_observaciones_{cedula_consulta}"
+    )
+    st.session_state[clave_observaciones] = observaciones_garantia
+
+    if observaciones_garantia:
+        st.text_area(
+            "Observaciones sobre la garantía",
+            key=clave_observaciones,
+            height=180,
+            disabled=True,
+        )
+
+# ============================================================
+# GARANTÍA — SIN GARANTÍA
+# ============================================================
+
+elif tipo_garantia_id == 6:
+    st.subheader("Crédito sin garantía")
+
+    observaciones = []
+    cobertura_garantia = None
+
+    tipo_credito_actual = datos_credito["tipo_credito"]
+
+    # Límite definido en el flujo de RAPTOR.
+    limite_primer_credito = 693000.0
+
+    if tipo_credito_actual == "Nuevo":
+        if monto_credito_fex > limite_primer_credito:
+            observaciones.append(
+                f"El monto total del crédito "
+                f"(₡{monto_credito_fex:,.2f}) supera el límite "
+                f"de ₡{limite_primer_credito:,.2f} establecido "
+                "en el flujo para un primer crédito "
+                "sin garantía."
+            )
+
+    elif tipo_credito_actual not in ("Recrédito", "Anterior"):
+        observaciones.append(
+            "No se puede evaluar el límite aplicable: "
+            "el tipo de crédito requiere revisión."
+        )
+
+    observaciones_garantia = "\n".join(observaciones)
+
+    clave_observaciones = (
+        f"fex_sin_garantia_observaciones_{cedula_consulta}"
+    )
+    st.session_state[clave_observaciones] = observaciones_garantia
+
+    if observaciones_garantia:
+        st.text_area(
+            "Observaciones sobre la garantía",
+            key=clave_observaciones,
+            height=180,
+            disabled=True,
+        )
 
 # ============================================================
 # NAVEGACIÓN
