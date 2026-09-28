@@ -513,6 +513,49 @@ elif proposito_id is not None:
     proposito_valido = True
 
 # ============================================================
+# MONTO TOTAL DEL CRÉDITO — RECUPERADO DEL PASO 15
+# ============================================================
+
+from utils.db import load_condiciones_credito
+
+try:
+    condiciones_fex = load_condiciones_credito(
+        cliente["identificacion"]
+    )
+
+except Exception:
+    logging.getLogger(__name__).exception(
+        "Error recuperando las condiciones del Paso 15"
+    )
+    st.error("No se pudieron recuperar las condiciones del crédito.")
+    st.stop()
+
+if (
+    not condiciones_fex
+    or condiciones_fex.get("monto_total") is None
+):
+    st.warning(
+        "Primero guardá las condiciones del crédito en el Paso 15."
+    )
+    st.stop()
+
+monto_credito_fex = float(condiciones_fex["monto_total"])
+
+if monto_credito_fex <= 0:
+    st.warning(
+        "El monto total del crédito debe ser mayor que cero. "
+        "Revisá el Paso 15."
+    )
+    st.stop()
+
+st.subheader("Garantía del crédito")
+
+st.metric(
+    "Monto total del crédito",
+    f"₡{monto_credito_fex:,.0f}",
+)
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
