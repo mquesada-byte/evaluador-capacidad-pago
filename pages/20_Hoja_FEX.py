@@ -710,6 +710,178 @@ if tipo_garantia_id == 1:
         )
 
 # ============================================================
+# GARANTÍA — HIPOTECA EN SEGUNDO GRADO
+# ============================================================
+
+elif tipo_garantia_id == 2:
+    st.subheader("Datos de la propiedad")
+
+    provincia_garantia = st.text_input(
+        "Provincia",
+        key=f"fex_hip2_provincia_{cedula_consulta}",
+    ).strip()
+
+    canton_garantia = st.text_input(
+        "Cantón",
+        key=f"fex_hip2_canton_{cedula_consulta}",
+    ).strip()
+
+    distrito_garantia = st.text_input(
+        "Distrito",
+        key=f"fex_hip2_distrito_{cedula_consulta}",
+    ).strip()
+
+    numero_finca = st.text_input(
+        "Número de finca",
+        key=f"fex_hip2_finca_{cedula_consulta}",
+    ).strip()
+
+    acreedor_primer_grado = st.text_input(
+        "Acreedor de la hipoteca en primer grado",
+        key=f"fex_hip2_acreedor_{cedula_consulta}",
+    ).strip()
+
+    saldo_primer_grado = st.number_input(
+        "Saldo de la hipoteca en primer grado (₡)",
+        min_value=0.0,
+        step=100000.0,
+        format="%.2f",
+        key=f"fex_hip2_saldo_{cedula_consulta}",
+    )
+
+    valor_propiedad = st.number_input(
+        "Valor estimado de la propiedad (₡)",
+        min_value=0.0,
+        step=100000.0,
+        format="%.2f",
+        key=f"fex_hip2_valor_{cedula_consulta}",
+    )
+
+    firma_codeudor = st.selectbox(
+        "¿Firma con codeudor?",
+        options=["Seleccione", "Sí", "No"],
+        key=f"fex_hip2_codeudor_{cedula_consulta}",
+    )
+
+    nombre_codeudor = ""
+    cedula_codeudor = ""
+
+    if firma_codeudor == "Sí":
+        nombre_codeudor = st.text_input(
+            "Nombre completo del codeudor",
+            key=f"fex_hip2_nombre_codeudor_{cedula_consulta}",
+        ).strip()
+
+        cedula_codeudor = st.text_input(
+            "Cédula del codeudor",
+            key=f"fex_hip2_cedula_codeudor_{cedula_consulta}",
+        ).strip()
+
+    observaciones = []
+    cobertura_garantia = None
+    valor_residual_propiedad = None
+
+    campos_propiedad = {
+        "provincia": provincia_garantia,
+        "cantón": canton_garantia,
+        "distrito": distrito_garantia,
+        "número de finca": numero_finca,
+        "acreedor de primer grado": acreedor_primer_grado,
+    }
+
+    faltantes = [
+        nombre
+        for nombre, valor in campos_propiedad.items()
+        if not valor
+    ]
+
+    if faltantes:
+        observaciones.append(
+            "Datos pendientes: "
+            + ", ".join(faltantes)
+            + "."
+        )
+
+    if valor_propiedad <= 0:
+        observaciones.append(
+            "No se puede evaluar la cobertura: "
+            "falta un valor estimado de la propiedad mayor que cero."
+        )
+
+    else:
+        valor_residual_propiedad = (
+            valor_propiedad - saldo_primer_grado
+        )
+
+        st.metric(
+            "Valor residual de la propiedad",
+            f"₡{valor_residual_propiedad:,.2f}",
+        )
+
+        if valor_residual_propiedad <= 0:
+            observaciones.append(
+                "El saldo de la primera hipoteca es igual o superior "
+                "al valor estimado de la propiedad. "
+                "No existe valor residual positivo para respaldar "
+                "el crédito en segundo grado."
+            )
+
+        else:
+            cobertura_garantia = (
+                monto_credito_fex / valor_residual_propiedad
+            )
+
+            monto_maximo_garantia = (
+                valor_residual_propiedad * 0.80
+            )
+
+            st.metric(
+                "Relación crédito / valor residual de la propiedad",
+                f"{cobertura_garantia:.2%}",
+            )
+
+            st.metric(
+                "80 % del valor residual",
+                f"₡{monto_maximo_garantia:,.2f}",
+            )
+
+            if monto_credito_fex > monto_maximo_garantia:
+                observaciones.append(
+                    f"El monto total del crédito "
+                    f"(₡{monto_credito_fex:,.2f}) supera el 80 % "
+                    f"del valor residual de la propiedad "
+                    f"(₡{monto_maximo_garantia:,.2f}). "
+                    "No cumple el límite de cobertura establecido."
+                )
+
+    if firma_codeudor == "Seleccione":
+        observaciones.append(
+            "Está pendiente indicar si firma con codeudor."
+        )
+
+    elif firma_codeudor == "Sí":
+        if not nombre_codeudor or not cedula_codeudor:
+            observaciones.append(
+                "Debe completar el nombre y la cédula del codeudor."
+            )
+
+    observaciones_garantia = "\n".join(observaciones)
+
+    clave_observaciones = (
+        f"fex_hip2_observaciones_{cedula_consulta}"
+    )
+    st.session_state[clave_observaciones] = observaciones_garantia
+
+    if observaciones_garantia:
+        st.text_area(
+            "Observaciones sobre la garantía",
+            key=clave_observaciones,
+            height=180,
+            disabled=True,
+        )
+
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
