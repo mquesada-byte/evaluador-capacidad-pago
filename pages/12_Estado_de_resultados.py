@@ -242,6 +242,7 @@ with col_nav2:
     ):
         st.session_state.setdefault("reporte", {})
         st.session_state["reporte"]["estado_resultados"] = {
+            "cliente_identificacion": st.session_state["cliente"]["identificacion"],
             "ventas_colones": int(round(ventas_total)),
             "compras_costos_colones": int(round(compras_total)),
             "margen_tipo": (tipo_margen or ""),
