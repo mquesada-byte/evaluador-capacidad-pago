@@ -579,6 +579,135 @@ tipo_garantia_id = st.selectbox(
     key=f"fex_tipo_garantia_{cedula_consulta}",
 )
 
+# ============================================================
+# GARANTÍA — HIPOTECA EN PRIMER GRADO
+# ============================================================
+
+observaciones_garantia = ""
+
+if tipo_garantia_id == 1:
+    st.subheader("Datos de la propiedad")
+
+    provincia_garantia = st.text_input(
+        "Provincia",
+        key=f"fex_hip1_provincia_{cedula_consulta}",
+    ).strip()
+
+    canton_garantia = st.text_input(
+        "Cantón",
+        key=f"fex_hip1_canton_{cedula_consulta}",
+    ).strip()
+
+    distrito_garantia = st.text_input(
+        "Distrito",
+        key=f"fex_hip1_distrito_{cedula_consulta}",
+    ).strip()
+
+    numero_finca = st.text_input(
+        "Número de finca",
+        key=f"fex_hip1_finca_{cedula_consulta}",
+    ).strip()
+
+    valor_propiedad = st.number_input(
+        "Valor estimado de la propiedad (₡)",
+        min_value=0.0,
+        step=100000.0,
+        format="%.2f",
+        key=f"fex_hip1_valor_{cedula_consulta}",
+    )
+
+    firma_codeudor = st.selectbox(
+        "¿Firma con codeudor?",
+        options=["Seleccione", "Sí", "No"],
+        key=f"fex_hip1_codeudor_{cedula_consulta}",
+    )
+
+    nombre_codeudor = ""
+    cedula_codeudor = ""
+
+    if firma_codeudor == "Sí":
+        nombre_codeudor = st.text_input(
+            "Nombre completo del codeudor",
+            key=f"fex_hip1_nombre_codeudor_{cedula_consulta}",
+        ).strip()
+
+        cedula_codeudor = st.text_input(
+            "Cédula del codeudor",
+            key=f"fex_hip1_cedula_codeudor_{cedula_consulta}",
+        ).strip()
+
+    observaciones = []
+
+    campos_propiedad = {
+        "provincia": provincia_garantia,
+        "cantón": canton_garantia,
+        "distrito": distrito_garantia,
+        "número de finca": numero_finca,
+    }
+
+    faltantes = [
+        nombre
+        for nombre, valor in campos_propiedad.items()
+        if not valor
+    ]
+
+    if faltantes:
+        observaciones.append(
+            "Datos de propiedad pendientes: "
+            + ", ".join(faltantes)
+            + "."
+        )
+
+    if valor_propiedad > 0:
+        cobertura_garantia = monto_credito_fex / valor_propiedad
+
+        st.metric(
+            "Relación crédito / valor de la propiedad",
+            f"{cobertura_garantia:.2%}",
+        )
+
+        # Equivale a crédito / valor de propiedad > 80 %.
+        if monto_credito_fex > valor_propiedad * 0.80:
+            observaciones.append(
+                f"El monto total del crédito (₡{monto_credito_fex:,.2f}) "
+                f"supera el 80 % del valor estimado de la propiedad "
+                f"(₡{valor_propiedad * 0.80:,.2f}). "
+                "No cumple el límite de cobertura establecido."
+            )
+
+    else:
+        cobertura_garantia = None
+        observaciones.append(
+            "No se puede evaluar la cobertura: "
+            "falta un valor estimado de la propiedad mayor que cero."
+        )
+
+    if firma_codeudor == "Seleccione":
+        observaciones.append(
+            "Está pendiente indicar si firma con codeudor."
+        )
+
+    elif firma_codeudor == "Sí":
+        if not nombre_codeudor or not cedula_codeudor:
+            observaciones.append(
+                "Debe completar el nombre y la cédula del codeudor."
+            )
+
+    observaciones_garantia = "\n".join(observaciones)
+
+    # Actualiza el contenido automáticamente en cada cálculo.
+    clave_observaciones = (
+        f"fex_hip1_observaciones_{cedula_consulta}"
+    )
+    st.session_state[clave_observaciones] = observaciones_garantia
+
+    st.text_area(
+        "Observaciones sobre la garantía",
+        key=clave_observaciones,
+        height=180,
+        disabled=True,
+    )
+
 
 # ============================================================
 # NAVEGACIÓN
