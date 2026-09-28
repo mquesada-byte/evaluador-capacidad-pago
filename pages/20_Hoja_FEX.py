@@ -1574,6 +1574,72 @@ else:
     )
 
 # ============================================================
+# OBSERVACIONES GENERALES DEL ASESOR DE CRÉDITO
+# ============================================================
+
+observaciones_asesor_fex = st.text_area(
+    "Observaciones del asesor de crédito",
+    height=150,
+    placeholder="Indique las observaciones generales de la propuesta.",
+    key=f"fex_observaciones_asesor_{cedula_consulta}",
+)
+
+# ============================================================
+# NIVEL DE APROBACIÓN Y FIRMANTES
+# Base: monto solicitado total del Paso 15
+# ============================================================
+
+monto_aprobacion = condiciones_fex["monto_total"]
+
+if monto_aprobacion <= 750000:
+    nivel_aprobacion = 1
+    firmantes_fex = [
+        "MAX QUESADA G.",
+    ]
+
+elif monto_aprobacion <= 3000000:
+    nivel_aprobacion = 2
+    firmantes_fex = [
+        "MAX QUESADA G.",
+        "LAURA CASTRO MORALES",
+    ]
+
+else:
+    nivel_aprobacion = 3
+    firmantes_fex = [
+        "MAX QUESADA G.",
+        "LAURA CASTRO MORALES",
+        "JOSÉ RAFAEL BARRANTES C.",
+        "HERNÁN SOLANO VEGA",
+    ]
+
+st.subheader("Nivel de aprobación y firmantes")
+
+st.metric(
+    "Nivel de aprobación requerido",
+    f"Nivel {nivel_aprobacion}",
+)
+
+st.caption(
+    f"Determinado por el monto solicitado total: "
+    f"₡{monto_aprobacion:,.0f}. "
+    "La asignación de firmantes no implica que el crédito esté aprobado."
+)
+
+for inicio in range(0, len(firmantes_fex), 2):
+    columnas_firma = st.columns(2)
+
+    for columna, nombre_firmante in zip(
+        columnas_firma,
+        firmantes_fex[inicio:inicio + 2],
+    ):
+        with columna:
+            st.text("____________________________")
+            st.write(nombre_firmante)
+
+st.text("Fecha de aprobación: ____________________")
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
