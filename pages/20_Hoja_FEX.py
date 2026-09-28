@@ -1520,6 +1520,60 @@ with st.expander("Indicadores financieros", expanded=False):
         )
 
 # ============================================================
+# PROPUESTA DEL ANALISTA — CONDICIONES DEL PASO 15
+# ============================================================
+
+st.divider()
+st.subheader("Propuesta del analista")
+
+campos_propuesta = {
+    "Monto": "monto_total",
+    "Plazo": "plazo_meses",
+    "Cuota + INS": "cuota_con_poliza",
+}
+
+faltantes_propuesta = [
+    nombre
+    for nombre, campo in campos_propuesta.items()
+    if condiciones_fex.get(campo) is None
+]
+
+if faltantes_propuesta:
+    st.warning(
+        "Faltan condiciones del crédito: "
+        + ", ".join(faltantes_propuesta)
+        + ". Volvé al Paso 15 y presioná Guardar y continuar."
+    )
+
+else:
+    monto_propuesta = condiciones_fex["monto_total"]
+    plazo_propuesta = condiciones_fex["plazo_meses"]
+    cuota_propuesta = condiciones_fex["cuota_con_poliza"]
+
+    st.table([
+        {
+            "Condición": "Monto",
+            "Valor": f"₡{monto_propuesta:,.0f}",
+            "Unidad": "Colones",
+        },
+        {
+            "Condición": "Plazo",
+            "Valor": f"{plazo_propuesta:,.0f}",
+            "Unidad": "Meses",
+        },
+        {
+            "Condición": "Cuota + INS",
+            "Valor": f"₡{cuota_propuesta:,.0f}",
+            "Unidad": "Colones mensuales",
+        },
+    ])
+
+    st.caption(
+        "Condiciones guardadas en el Paso 15, de solo lectura. "
+        "Para modificarlas, regresá a ese paso y guardá los cambios."
+    )
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
