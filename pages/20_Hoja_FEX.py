@@ -556,6 +556,31 @@ st.metric(
 )
 
 # ============================================================
+# TIPO DE GARANTÍA — SELECCIÓN
+# ============================================================
+
+tipos_garantia = {
+    1: "Hipoteca en primer grado",
+    2: "Hipoteca en segundo grado",
+    3: "Cédula hipotecaria",
+    4: "Fianza",
+    5: "Fianza moral",
+    6: "Sin garantía",
+}
+
+tipo_garantia_id = st.selectbox(
+    "Tipo de garantía",
+    options=[None] + list(tipos_garantia),
+    format_func=lambda valor: (
+        "Seleccione el tipo de garantía"
+        if valor is None
+        else tipos_garantia[valor]
+    ),
+    key=f"fex_tipo_garantia_{cedula_consulta}",
+)
+
+
+# ============================================================
 # NAVEGACIÓN
 # ============================================================
 
