@@ -55,15 +55,18 @@ def crear_encabezado_fex(
             estilo,
         )
 
+
     campos = [
         ("NOMBRE DEL CLIENTE", nombre),
         ("CÉDULA DEL CLIENTE", cedula),
+        ("TIPO DE CRÉDITO", datos_credito["tipo_credito"]),
         ("CRÉDITO NÚMERO", numero_credito),
         ("SECTOR PRODUCTIVO", sector),
         ("ACTIVIDAD PRINCIPAL", actividad),
         ("PROPÓSITO PRINCIPAL DEL PRÉSTAMO", proposito),
     ]
 
+    
     filas = [
         [
             parrafo(etiqueta, estilo_etiqueta),
