@@ -1819,6 +1819,52 @@ else:
         use_container_width=True,
     )
 
+# ============================================================
+# PDF FEX — DESCARGA DE PRUEBA DEL ENCABEZADO
+# ============================================================
+
+st.divider()
+st.subheader("Vista de prueba de la Hoja FEX")
+
+st.caption(
+    "Este PDF contiene únicamente el encabezado y los datos "
+    "del cliente. Todavía no es la Hoja FEX completa."
+)
+
+datos_pdf = {
+    "nombre": nombre_cliente,
+    "cedula": cedula_mostrar,
+    "numero_credito": datos_credito["numero_credito"],
+    "sector": sectores_por_id.get(sector_id, ""),
+    "actividad": actividad_principal_descripcion,
+    "proposito": proposito_descripcion,
+}
+
+try:
+    pdf_encabezado = generar_pdf_fex(datos_pdf)
+
+except ImportError:
+    st.error(
+        "Falta instalar ReportLab en el entorno de Python "
+        "que ejecuta Streamlit."
+    )
+
+except Exception:
+    logging.getLogger(__name__).exception(
+        "Error generando el encabezado de la Hoja FEX"
+    )
+    st.error(
+        "No se pudo generar el PDF. Revisá el registro del servidor."
+    )
+
+else:
+    st.download_button(
+        label="📄 Descargar prueba del encabezado",
+        data=pdf_encabezado,
+        file_name="FEX_prueba_encabezado.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
 
 # ============================================================
 # NAVEGACIÓN
