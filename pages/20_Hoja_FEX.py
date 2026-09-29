@@ -496,7 +496,7 @@ def generar_pdf_fex(datos):
             contenido.append(Spacer(1, 6))
 
     contenido.append(Spacer(1, 8))
-
+    documento.build(contenido)
     return archivo.getvalue()
 
 
