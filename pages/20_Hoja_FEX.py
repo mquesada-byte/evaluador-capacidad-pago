@@ -408,6 +408,18 @@ def generar_pdf_fex(datos):
         ancho=documento.width,
     )
 
+    contenido.extend(
+        crear_garantia_fex(
+            tipo_garantia=tipos_garantia.get(
+                tipo_garantia_id,
+                "Pendiente de seleccionar",
+            ),
+            detalles=[],
+            advertencias=observaciones_garantia,
+            ancho=documento.width,
+        )
+    )
+    
     if (
         datos.get("filas_er")
         and datos.get("filas_bg")
