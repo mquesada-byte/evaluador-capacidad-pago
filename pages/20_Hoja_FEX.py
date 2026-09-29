@@ -436,6 +436,68 @@ def generar_pdf_fex(datos):
 
     documento.build(contenido)
 
+        # ========================================================
+    # PDF FEX — COMENTARIOS DEL ASESOR DE CRÉDITO
+    # ========================================================
+
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer
+
+    estilo_titulo_comentarios = ParagraphStyle(
+        "fex_titulo_comentarios",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=14,
+        spaceBefore=12,
+        spaceAfter=8,
+        keepWithNext=True,
+    )
+
+    estilo_comentarios = ParagraphStyle(
+        "fex_texto_comentarios",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=13,
+        spaceAfter=6,
+        backColor=colors.HexColor("#F3F5F7"),
+        borderPadding=8,
+        leftIndent=8,
+        rightIndent=8,
+        splitLongWords=True,
+        allowWidows=0,
+        allowOrphans=0,
+    )
+
+    contenido.append(
+        Paragraph(
+            "COMENTARIOS DEL ASESOR DE CRÉDITO",
+            estilo_titulo_comentarios,
+        )
+    )
+
+    comentarios_pdf = (
+        observaciones_asesor_fex or ""
+    ).strip()
+
+    if not comentarios_pdf:
+        comentarios_pdf = "Sin observaciones."
+
+    for linea in comentarios_pdf.splitlines():
+        if linea.strip():
+            contenido.append(
+                Paragraph(
+                    escape(linea.strip()),
+                    estilo_comentarios,
+                )
+            )
+        else:
+            contenido.append(Spacer(1, 6))
+
+    contenido.append(Spacer(1, 8))
+
     return archivo.getvalue()
 
 
