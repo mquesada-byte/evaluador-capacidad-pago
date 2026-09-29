@@ -1866,13 +1866,14 @@ else:
     try:
         pdf_fex = generar_pdf_fex(datos_pdf)
 
-    except ImportError:
-        st.error(
-            "Falta instalar ReportLab en el entorno de Python "
-            "que ejecuta Streamlit."
+    except ImportError as error:
+        st.error("No se pudo cargar una librería necesaria.")
+        st.code(
+            f"{type(error).__name__}: {error}",
+            language="text",
         )
 
-        except Exception as error:
+    except Exception as error:
         logging.getLogger(__name__).exception(
             "Error generando el PDF de la Hoja FEX"
         )
