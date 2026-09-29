@@ -103,6 +103,116 @@ def crear_encabezado_fex(
     ]
 
 # ============================================================
+# PDF FEX — GARANTÍA DEL CRÉDITO
+# ============================================================
+
+def crear_garantia_fex(
+    tipo_garantia,
+    detalles,
+    advertencias,
+    ancho=516,
+):
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    titulo = ParagraphStyle(
+        "garantia_titulo",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=14,
+        alignment=1,
+        spaceBefore=10,
+        spaceAfter=8,
+        keepWithNext=True,
+    )
+
+    etiqueta = ParagraphStyle(
+        "garantia_etiqueta",
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        alignment=2,
+    )
+
+    valor = ParagraphStyle(
+        "garantia_valor",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+    )
+
+    advertencia = ParagraphStyle(
+        "garantia_advertencia",
+        parent=valor,
+        textColor=colors.HexColor("#9C3024"),
+        spaceAfter=5,
+    )
+
+    def parrafo(texto, estilo):
+        contenido = str(texto) if texto is not None else ""
+        contenido = contenido.strip() or "Pendiente"
+        contenido = (
+            contenido.replace("₡", "CRC ")
+            .replace("≤", "<=")
+            .replace("≥", ">=")
+        )
+        return Paragraph(
+            escape(contenido).replace("\n", "<br/>"),
+            estilo,
+        )
+
+    campos = [("TIPO DE GARANTÍA", tipo_garantia)] + list(detalles)
+
+    filas = [
+        [
+            parrafo(nombre, etiqueta),
+            parrafo(contenido, valor),
+        ]
+        for nombre, contenido in campos
+    ]
+
+    tabla = Table(
+        filas,
+        colWidths=[ancho * 0.40, ancho * 0.60],
+        hAlign="LEFT",
+    )
+
+    tabla.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, -1), 12),
+        ("RIGHTPADDING", (1, 0), (1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+
+    contenido = [
+        Paragraph("GARANTÍA DEL CRÉDITO", titulo),
+        tabla,
+        Spacer(1, 8),
+    ]
+
+    if advertencias and advertencias.strip():
+        contenido.append(
+            Paragraph("ADVERTENCIAS AUTOMÁTICAS", titulo)
+        )
+
+        for linea in advertencias.splitlines():
+            if linea.strip():
+                contenido.append(
+                    parrafo(linea, advertencia)
+                )
+
+    contenido.append(Spacer(1, 8))
+
+    return contenido
+
+
+
+# ============================================================
 # PDF FEX — ESTADOS FINANCIEROS Y RATIOS
 # ============================================================
 
