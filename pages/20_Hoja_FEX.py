@@ -1872,13 +1872,14 @@ else:
             "que ejecuta Streamlit."
         )
 
-    except Exception:
+        except Exception as error:
         logging.getLogger(__name__).exception(
             "Error generando el PDF de la Hoja FEX"
         )
-        st.error(
-            "No se pudo generar el PDF. "
-            "Revisá el registro del servidor."
+        st.error("No se pudo generar el PDF.")
+        st.code(
+            f"{type(error).__name__}: {error}",
+            language="text",
         )
 
     else:
