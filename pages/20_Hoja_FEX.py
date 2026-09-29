@@ -132,6 +132,20 @@ def generar_pdf_fex(datos):
         ancho=documento.width,
     )
 
+    if (
+        datos.get("filas_er")
+        and datos.get("filas_bg")
+        and datos.get("indicadores")
+    ):
+        contenido.extend(
+            crear_finanzas_fex(
+                filas_er=datos["filas_er"],
+                filas_bg=datos["filas_bg"],
+                indicadores=datos["indicadores"],
+                ancho=documento.width,
+            )
+        )
+
     documento.build(contenido)
 
     return archivo.getvalue()
