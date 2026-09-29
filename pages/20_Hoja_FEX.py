@@ -603,6 +603,127 @@ def generar_pdf_fex(datos):
             contenido.append(Spacer(1, 6))
 
     contenido.append(Spacer(1, 8))
+    
+        # ========================================================
+    # PDF FEX — NIVEL DE APROBACIÓN Y FIRMANTES
+    # ========================================================
+
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import (
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+        KeepTogether,
+    )
+
+    titulo_firmas = ParagraphStyle(
+        "fex_titulo_firmas",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=14,
+        alignment=1,
+        spaceBefore=12,
+        spaceAfter=8,
+    )
+
+    nombre_firma = ParagraphStyle(
+        "fex_nombre_firma",
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        leading=11,
+        alignment=1,
+    )
+
+    texto_firmas = ParagraphStyle(
+        "fex_texto_firmas",
+        fontName="Helvetica",
+        fontSize=8,
+        leading=11,
+    )
+
+    bloque_firmas = [
+        Paragraph("FIRMAS DE APROBACIÓN", titulo_firmas),
+        Paragraph(
+            f"Nivel de aprobación requerido: {nivel_aprobacion}.",
+            texto_firmas,
+        ),
+        Paragraph(
+            "La asignación de firmantes no implica que "
+            "el crédito esté aprobado.",
+            texto_firmas,
+        ),
+        Spacer(1, 10),
+    ]
+
+    separacion_firmas = 30
+    ancho_firma = (
+        documento.width - separacion_firmas
+    ) / 2
+
+    for inicio in range(0, len(firmantes_fex), 2):
+        nombres = firmantes_fex[inicio:inicio + 2]
+
+        nombre_izquierdo = nombres[0]
+        nombre_derecho = nombres[1] if len(nombres) > 1 else ""
+
+        tabla_firmas = Table(
+            [
+                ["", "", ""],
+                [
+                    Paragraph(
+                        escape(nombre_izquierdo),
+                        nombre_firma,
+                    ),
+                    "",
+                    Paragraph(
+                        escape(nombre_derecho),
+                        nombre_firma,
+                    ) if nombre_derecho else "",
+                ],
+            ],
+            colWidths=[
+                ancho_firma,
+                separacion_firmas,
+                ancho_firma,
+            ],
+            rowHeights=[45, None],
+            hAlign="LEFT",
+        )
+
+        estilo_tabla_firmas = [
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 1), (-1, 1), 6),
+            ("BOTTOMPADDING", (0, 1), (-1, 1), 6),
+            ("LINEBELOW", (0, 0), (0, 0), 0.6, colors.black),
+        ]
+
+        if nombre_derecho:
+            estilo_tabla_firmas.append(
+                ("LINEBELOW", (2, 0), (2, 0), 0.6, colors.black)
+            )
+
+        tabla_firmas.setStyle(
+            TableStyle(estilo_tabla_firmas)
+        )
+
+        bloque_firmas.append(tabla_firmas)
+        bloque_firmas.append(Spacer(1, 12))
+
+    bloque_firmas.append(
+        Paragraph(
+            "FECHA DE APROBACIÓN: __________________________",
+            texto_firmas,
+        )
+    )
+
+    contenido.append(KeepTogether(bloque_firmas))
+    
     documento.build(contenido)
     return archivo.getvalue()
 
