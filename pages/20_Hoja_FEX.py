@@ -436,6 +436,113 @@ def generar_pdf_fex(datos):
 
 
     # ========================================================
+    # PDF FEX — CONDICIONES DEL CRÉDITO
+    # ========================================================
+
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    titulo_condiciones = ParagraphStyle(
+        "fex_titulo_condiciones",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=14,
+        alignment=1,
+        spaceBefore=12,
+        spaceAfter=8,
+        keepWithNext=True,
+    )
+
+    etiqueta_condiciones = ParagraphStyle(
+        "fex_etiqueta_condiciones",
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+    )
+
+    valor_condiciones = ParagraphStyle(
+        "fex_valor_condiciones",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+        alignment=2,
+    )
+
+    unidad_condiciones = ParagraphStyle(
+        "fex_unidad_condiciones",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+    )
+
+    def importe_condiciones(valor):
+        if valor is None:
+            return "Pendiente"
+        return f"{valor:,.2f}"
+
+    monto_pdf = condiciones_fex.get("monto_total")
+    plazo_pdf = condiciones_fex.get("plazo_meses")
+    cuota_pdf = condiciones_fex.get("cuota_con_poliza")
+
+    plazo_visible = (
+        f"{plazo_pdf:,.0f}"
+        if plazo_pdf is not None
+        else "Pendiente"
+    )
+
+    filas_condiciones = [
+        (
+            "MONTO SOLICITADO TOTAL",
+            importe_condiciones(monto_pdf),
+            "Colones",
+        ),
+        (
+            "PLAZO",
+            plazo_visible,
+            "Meses",
+        ),
+        (
+            "CUOTA + INS",
+            importe_condiciones(cuota_pdf),
+            "Colones mensuales",
+        ),
+    ]
+
+    tabla_condiciones = Table(
+        [
+            [
+                Paragraph(etiqueta, etiqueta_condiciones),
+                Paragraph(valor, valor_condiciones),
+                Paragraph(unidad, unidad_condiciones),
+            ]
+            for etiqueta, valor, unidad in filas_condiciones
+        ],
+        colWidths=[
+            documento.width * 0.45,
+            documento.width * 0.25,
+            documento.width * 0.30,
+        ],
+        hAlign="LEFT",
+    )
+
+    tabla_condiciones.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F3F5F7")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    contenido.append(
+        Paragraph("PROPUESTA DEL ANALISTA", titulo_condiciones)
+    )
+    contenido.append(tabla_condiciones)
+    contenido.append(Spacer(1, 10))
+    
+
+    # ========================================================
     # PDF FEX — COMENTARIOS DEL ASESOR DE CRÉDITO
     # ========================================================
 
