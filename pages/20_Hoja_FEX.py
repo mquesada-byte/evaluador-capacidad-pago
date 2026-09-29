@@ -100,6 +100,169 @@ def crear_encabezado_fex(
     ]
 
 # ============================================================
+# PDF FEX — ESTADOS FINANCIEROS Y RATIOS
+# ============================================================
+
+def crear_finanzas_fex(filas_er, filas_bg, indicadores, ancho=516):
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    estilo_texto = ParagraphStyle(
+        "finanzas_texto",
+        fontName="Helvetica",
+        fontSize=8,
+        leading=10,
+    )
+
+    estilo_numero = ParagraphStyle(
+        "finanzas_numero",
+        parent=estilo_texto,
+        alignment=2,
+    )
+
+    estilo_negrita = ParagraphStyle(
+        "finanzas_negrita",
+        parent=estilo_texto,
+        fontName="Helvetica-Bold",
+    )
+
+    estilo_titulo = ParagraphStyle(
+        "finanzas_titulo",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=14,
+        alignment=1,
+        spaceBefore=10,
+        spaceAfter=8,
+        keepWithNext=True,
+    )
+
+    def parrafo(valor, estilo=None):
+        texto = "Sin información" if valor is None else str(valor)
+        texto = (
+            texto.replace("₡", "")
+            .replace("≤", "<=")
+            .replace("≥", ">=")
+        )
+        return Paragraph(
+            escape(texto).replace("\n", "<br/>"),
+            estilo or estilo_texto,
+        )
+
+    def aplicar_estilo(tabla):
+        tabla.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            (
+                "BACKGROUND",
+                (0, 0), (-1, 0),
+                colors.HexColor("#EDF1F3"),
+            ),
+            (
+                "LINEBELOW",
+                (0, 0), (-1, -1),
+                0.3,
+                colors.HexColor("#D5DADD"),
+            ),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        return tabla
+
+    def crear_estado(titulo, filas, campo_monto, ancho_tabla):
+        contenido = [[
+            parrafo(titulo, estilo_negrita),
+            parrafo("Colones", estilo_negrita),
+        ]]
+
+        for fila in filas:
+            contenido.append([
+                parrafo(fila["Concepto"]),
+                parrafo(fila[campo_monto], estilo_numero),
+            ])
+
+        return aplicar_estilo(Table(
+            contenido,
+            colWidths=[
+                ancho_tabla * 0.67,
+                ancho_tabla * 0.33,
+            ],
+            repeatRows=1,
+            hAlign="LEFT",
+        ))
+
+    separacion = 16
+    ancho_estado = (ancho - separacion) / 2
+
+    resultados = crear_estado(
+        "ESTADO DE RESULTADOS",
+        filas_er,
+        "Monto mensual",
+        ancho_estado,
+    )
+
+    balance = crear_estado(
+        "BALANCE GENERAL",
+        filas_bg,
+        "Monto",
+        ancho_estado,
+    )
+
+    estados = Table(
+        [[resultados, "", balance]],
+        colWidths=[ancho_estado, separacion, ancho_estado],
+        hAlign="LEFT",
+    )
+
+    estados.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    filas_ratios = [[
+        parrafo("Indicador", estilo_negrita),
+        parrafo("Resultado", estilo_negrita),
+        parrafo("Evaluación", estilo_negrita),
+    ]]
+
+    for indicador in indicadores:
+        filas_ratios.append([
+            parrafo(indicador["indicador"]),
+            parrafo(indicador["resultado"], estilo_numero),
+            parrafo(indicador["evaluacion"]),
+        ])
+
+    ratios = aplicar_estilo(Table(
+        filas_ratios,
+        colWidths=[ancho * 0.52, ancho * 0.18, ancho * 0.30],
+        repeatRows=1,
+        hAlign="LEFT",
+    ))
+
+    return [
+        Paragraph("ESTADOS FINANCIEROS", estilo_titulo),
+        parrafo("Importes en colones. Estado de resultados mensual."),
+        Spacer(1, 6),
+        estados,
+        Paragraph("INDICADORES FINANCIEROS", estilo_titulo),
+        ratios,
+        Spacer(1, 6),
+        parrafo(
+            "El DSCR considera las deudas existentes y no incluye "
+            "la cuota del nuevo crédito. Las evaluaciones no "
+            "equivalen a una aprobación."
+        ),
+        Spacer(1, 12),
+    ]
+
+# ============================================================
 # PDF FEX — GENERACIÓN DEL DOCUMENTO
 # ============================================================
 
