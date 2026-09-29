@@ -1787,51 +1787,109 @@ for inicio in range(0, len(firmantes_fex), 2):
 st.text("Fecha de aprobación: ____________________")
 
 # ============================================================
-# PDF FEX — DESCARGA DE PRUEBA DEL ENCABEZADO
+# PDF FEX — DESCARGA CON ESTADOS FINANCIEROS Y RATIOS
 # ============================================================
 
 st.divider()
 st.subheader("Vista de prueba de la Hoja FEX")
 
 st.caption(
-    "Este PDF contiene únicamente el encabezado y los datos "
-    "del cliente. Todavía no es la Hoja FEX completa."
+    "Incluye los datos del cliente, los estados financieros "
+    "y los ratios. Todavía no es la Hoja FEX completa."
 )
 
-datos_pdf = {
-    "nombre": nombre_cliente,
-    "cedula": cedula_mostrar,
-    "numero_credito": datos_credito["numero_credito"],
-    "sector": sectores_por_id.get(sector_id, ""),
-    "actividad": actividad_principal_descripcion,
-    "proposito": proposito_descripcion,
-}
 
-try:
-    pdf_encabezado = generar_pdf_fex(datos_pdf)
-
-except ImportError:
-    st.error(
-        "Falta instalar ReportLab en el entorno de Python "
-        "que ejecuta Streamlit."
+def normalizar_cedula_pdf(valor):
+    return (
+        str(valor or "")
+        .replace("-", "")
+        .replace(" ", "")
+        .strip()
     )
 
-except Exception:
-    logging.getLogger(__name__).exception(
-        "Error generando el encabezado de la Hoja FEX"
+
+cedula_pdf = normalizar_cedula_pdf(cedula_consulta)
+
+resultados_correctos = (
+    bool(er_fex)
+    and bool(cedula_pdf)
+    and normalizar_cedula_pdf(
+        er_fex.get("cliente_identificacion")
+    ) == cedula_pdf
+)
+
+balance_correcto = (
+    bool(bg_fex)
+    and bool(cedula_pdf)
+    and normalizar_cedula_pdf(
+        bg_fex.get("cliente_identificacion")
+    ) == cedula_pdf
+)
+
+if not resultados_correctos:
+    st.warning(
+        "Actualizá el Estado de resultados de este cliente "
+        "desde el Paso 12 antes de descargar el PDF."
     )
-    st.error(
-        "No se pudo generar el PDF. Revisá el registro del servidor."
+
+elif not balance_correcto:
+    st.warning(
+        "Actualizá el Balance general de este cliente "
+        "desde el Paso 13 antes de descargar el PDF."
+    )
+
+elif faltantes_er or faltantes_bg:
+    st.warning(
+        "Hay importes sin información en los estados financieros. "
+        "Completalos en los pasos 12 y 13 antes de descargar."
+    )
+
+elif not indicadores_fex:
+    st.warning(
+        "No están disponibles los indicadores financieros. "
+        "Revisá los estados de resultados y balance general."
     )
 
 else:
-    st.download_button(
-        label="📄 Descargar prueba del encabezado",
-        data=pdf_encabezado,
-        file_name="FEX_prueba_encabezado.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-    )
+    datos_pdf = {
+        "nombre": nombre_cliente,
+        "cedula": cedula_mostrar,
+        "numero_credito": datos_credito["numero_credito"],
+        "sector": sectores_por_id.get(sector_id, ""),
+        "actividad": actividad_principal_descripcion,
+        "proposito": proposito_descripcion,
+        "filas_er": filas_er,
+        "filas_bg": filas_bg,
+        "indicadores": indicadores_fex,
+    }
+
+    try:
+        pdf_fex = generar_pdf_fex(datos_pdf)
+
+    except ImportError:
+        st.error(
+            "Falta instalar ReportLab en el entorno de Python "
+            "que ejecuta Streamlit."
+        )
+
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Error generando el PDF de la Hoja FEX"
+        )
+        st.error(
+            "No se pudo generar el PDF. "
+            "Revisá el registro del servidor."
+        )
+
+    else:
+        st.download_button(
+            label="📄 Descargar prueba de la Hoja FEX",
+            data=pdf_fex,
+            file_name="FEX_prueba_estados_financieros.pdf",
+            mime="application/pdf",
+            key="fex_descarga_prueba",
+            use_container_width=True,
+        )
 
 # ============================================================
 # NAVEGACIÓN
