@@ -196,47 +196,83 @@ with st.container(border=True):
     else:
         st.info("No se encontró la página del Paso 16. Verificá el nombre del archivo en /pages.")
 
-# Paso 18 – Estados de cuenta financieros
+# Paso 17 – Estados de cuenta bancarios
+with st.container(border=True):
+    p17 = first_existing([
+        "pages/17_Estados_cuenta.py",
+        "pages/17_Estados_de_cuenta.py",
+    ])
+
+    if p17:
+        st.page_link(
+            p17,
+            label=f"{step_status('done_17')} 17 – Estados de cuenta bancarios",
+            help="Carga y consulta de estados de cuenta bancarios."
+        )
+    else:
+        st.info(
+            "No se encontró la página del Paso 17. "
+            "Verificá el nombre del archivo en /pages."
+        )
+
+# Paso 18 – Fotografías de inspección
 with st.container(border=True):
     p18 = first_existing([
-        "pages/18_Estados_cuenta.py",
+        "pages/18_Fotografias_inspeccion.py",
+        "pages/18_Fotografías_inspeccion.py",
+        "pages/18_Fotografias_de_inspeccion.py",
     ])
+
     if p18:
         st.page_link(
             p18,
-            label=f"{step_status('done_18')} 18 – Estados de cuenta financieros",
-            help="Carga, gestión y análisis de estados de cuenta bancarios y de tarjetas para evaluar comportamiento financiero real."
+            label=f"{step_status('done_18')} 18 – Fotografías de inspección",
+            help="Fotografías del cliente, negocio, inventario y evidencia operativa."
         )
     else:
-        st.info("No se encontró la página del Paso 18. Verificá el nombre del archivo en /pages.")
+        st.info(
+            "No se encontró la página del Paso 18. "
+            "Verificá el nombre del archivo en /pages."
+        )
 
-# Paso 19 – Análisis de gestiones de cobro
+# Paso 19 – Hechos relevantes
 with st.container(border=True):
     p19 = first_existing([
-        "pages/19_Analisis_de_gestiones_de_cobro.py",
+        "pages/19_Hechos_relevantes.py",
     ])
+
     if p19:
         st.page_link(
             p19,
-            label=f"{step_status('done_19')} 19 – Análisis de gestiones de cobro",
-            help="Evaluación del comportamiento histórico de pago del cliente con la institución, incluyendo mora, promesas de pago, contacto y disciplina financiera."
+            label=f"{step_status('done_19')} 19 – Hechos relevantes",
+            help="Registro de los hechos relevantes para la evaluación del expediente."
         )
     else:
-        st.info("No se encontró la página del Paso 19. Verificá el nombre del archivo en /pages.")
+        st.info(
+            "No se encontró la página del Paso 19. "
+            "Verificá el nombre del archivo en /pages."
+        )
 
-# Paso 20 – Fotografías de inspección
+
+# Paso 20 – Hoja FEX
 with st.container(border=True):
     p20 = first_existing([
-        "pages/20_Fotografias_inspeccion.py",
+        "pages/20_Hoja_FEX.py",
     ])
+
     if p20:
         st.page_link(
             p20,
-            label=f"{step_status('done_20')} 20 – Fotografías de inspección",
-            help="Carga y análisis visual de fotografías del cliente, negocio, inventario, registros y evidencia operativa para fortalecer la evaluación crediticia."
+            label=f"{step_status('done_20')} 20 – Hoja FEX",
+            help="Preparación de la Hoja FEX y descarga del PDF para revisión y firma."
         )
     else:
-        st.info("No se encontró la página del Paso 20. Verificá el nombre del archivo en /pages.")
+        st.info(
+            "No se encontró la página del Paso 20. "
+            "Verificá el nombre del archivo en /pages."
+        )
+
+
 
 # Paso 99 – Análisis asistido (IA)
 with st.container(border=True):
