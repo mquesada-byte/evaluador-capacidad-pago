@@ -3,6 +3,139 @@ import logging
 import pymssql
 import streamlit as st
 
+# ============================================================
+# PDF FEX — ENCABEZADO Y DATOS DEL CLIENTE
+# ============================================================
+
+def crear_encabezado_fex(
+    nombre,
+    cedula,
+    numero_credito,
+    sector,
+    actividad,
+    proposito,
+    ancho=516,
+):
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    estilo_titulo = ParagraphStyle(
+        "fex_titulo",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        alignment=1,
+        spaceAfter=12,
+        keepWithNext=True,
+    )
+
+    estilo_etiqueta = ParagraphStyle(
+        "fex_etiqueta",
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        alignment=2,
+    )
+
+    estilo_valor = ParagraphStyle(
+        "fex_valor",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+    )
+
+    def parrafo(valor, estilo):
+        texto = str(valor).strip() if valor is not None else ""
+        texto = texto or "Pendiente"
+        return Paragraph(
+            escape(texto).replace("\n", "<br/>"),
+            estilo,
+        )
+
+    campos = [
+        ("NOMBRE DEL CLIENTE", nombre),
+        ("CÉDULA DEL CLIENTE", cedula),
+        ("CRÉDITO NÚMERO", numero_credito),
+        ("SECTOR PRODUCTIVO", sector),
+        ("ACTIVIDAD PRINCIPAL", actividad),
+        ("PROPÓSITO PRINCIPAL DEL PRÉSTAMO", proposito),
+    ]
+
+    filas = [
+        [
+            parrafo(etiqueta, estilo_etiqueta),
+            parrafo(valor, estilo_valor),
+        ]
+        for etiqueta, valor in campos
+    ]
+
+    tabla = Table(
+        filas,
+        colWidths=[ancho * 0.40, ancho * 0.60],
+        hAlign="CENTER",
+    )
+
+    tabla.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, -1), 12),
+        ("RIGHTPADDING", (1, 0), (1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        (
+            "LINEBELOW",
+            (0, -1), (-1, -1),
+            0.5,
+            colors.HexColor("#D5DADD"),
+        ),
+    ]))
+
+    return [
+        Paragraph("HOJA DE APROBACIÓN", estilo_titulo),
+        tabla,
+        Spacer(1, 12),
+    ]
+
+# ============================================================
+# PDF FEX — GENERACIÓN DEL DOCUMENTO
+# ============================================================
+
+def generar_pdf_fex(datos):
+    from io import BytesIO
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate
+
+    archivo = BytesIO()
+
+    documento = SimpleDocTemplate(
+        archivo,
+        pagesize=A4,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+        title="Hoja de aprobación",
+        author="Asociación Credimujer",
+    )
+
+    contenido = crear_encabezado_fex(
+        nombre=datos["nombre"],
+        cedula=datos["cedula"],
+        numero_credito=datos["numero_credito"],
+        sector=datos["sector"],
+        actividad=datos["actividad"],
+        proposito=datos["proposito"],
+        ancho=documento.width,
+    )
+
+    documento.build(contenido)
+
+    return archivo.getvalue()
+
 
 # ============================================================
 # CONFIGURACIÓN
@@ -1638,6 +1771,54 @@ for inicio in range(0, len(firmantes_fex), 2):
             st.write(nombre_firmante)
 
 st.text("Fecha de aprobación: ____________________")
+
+# ============================================================
+# PDF FEX — DESCARGA DE PRUEBA DEL ENCABEZADO
+# ============================================================
+
+st.divider()
+st.subheader("Vista de prueba de la Hoja FEX")
+
+st.caption(
+    "Este PDF contiene únicamente el encabezado y los datos "
+    "del cliente. Todavía no es la Hoja FEX completa."
+)
+
+datos_pdf = {
+    "nombre": nombre_cliente,
+    "cedula": cedula_mostrar,
+    "numero_credito": datos_credito["numero_credito"],
+    "sector": sectores_por_id.get(sector_id, ""),
+    "actividad": actividad_principal_descripcion,
+    "proposito": proposito_descripcion,
+}
+
+try:
+    pdf_encabezado = generar_pdf_fex(datos_pdf)
+
+except ImportError:
+    st.error(
+        "Falta instalar ReportLab en el entorno de Python "
+        "que ejecuta Streamlit."
+    )
+
+except Exception:
+    logging.getLogger(__name__).exception(
+        "Error generando el encabezado de la Hoja FEX"
+    )
+    st.error(
+        "No se pudo generar el PDF. Revisá el registro del servidor."
+    )
+
+else:
+    st.download_button(
+        label="📄 Descargar prueba del encabezado",
+        data=pdf_encabezado,
+        file_name="FEX_prueba_encabezado.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
+
 
 # ============================================================
 # NAVEGACIÓN
