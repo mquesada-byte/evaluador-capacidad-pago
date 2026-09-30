@@ -201,13 +201,8 @@ st.divider()
 # =========================
 st.subheader("Finalizar este paso")
 
-# Recuperar valor previo de sin_ingresos si existe
-sin_ingresos_val = bool(
-    st.session_state.get("reporte", {})
-    .get("otros_ingresos", {})
-    .get("totales", {})
-    .get("sin_ingresos", False)
-)
+# Recuperar valor previo de sin_ingresos desde la base de datos
+sin_ingresos_val = bool(sin_ingresos_db)
 
 sin_ingresos = st.checkbox(
     "El hogar no tiene otros ingresos que reportar.",
