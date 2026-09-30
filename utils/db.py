@@ -86,7 +86,8 @@ def load_visita(cliente_id: str) -> dict | None:
     cursor.execute("""
         SELECT titular, relacion, fuente, periodicidad, monto_periodo,
                verificado, evidencia, meses_cont, prob_cont, comentario,
-               ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado
+               ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
+               sin_ingresos
         FROM OtrosIngresos
         WHERE cliente_identificacion=?
     """, (cliente_id,))
