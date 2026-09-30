@@ -112,7 +112,12 @@ def load_visita(cliente_id: str) -> dict | None:
             "ingreso_ponderado": "Ingreso ponderado (₡)"
         })
 
-        datos["otros_ingresos"] = df_oi.to_dict(orient="records")
+        sin_ingresos = bool(df_oi["sin_ingresos"].iloc[0]) if not df_oi.empty else False
+        df_tabla = df_oi.drop(columns=["sin_ingresos"], errors="ignore")
+        datos["otros_ingresos"] = {
+            "tabla": df_tabla.to_dict(orient="records"),
+            "sin_ingresos": sin_ingresos
+        }
 
 
 
