@@ -525,12 +525,16 @@ def save_otros_ingresos(cliente_id: str, df, sin_ingresos: bool = False) -> bool
                     cliente_identificacion,
                     monto_periodo,
                     verificado,
+                    ingreso_mensualizado,
+                    factor_confiabilidad,
+                    ingreso_ponderado,
                     sin_ingresos,
                     fecha_registro
                 )
-                VALUES (?, 0, 0, 1, GETDATE())
+                VALUES (?, 0, 0, 0, 0, 0, 1, GETDATE())
             """, (cliente_id,))
 
+            
             conn.commit()
             conn.close()
             return True
