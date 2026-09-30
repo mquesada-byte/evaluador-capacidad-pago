@@ -221,7 +221,8 @@ with c2:
     if st.button("Guardar y continuar ➡️", use_container_width=True, disabled=not puede_continuar):
         ok = save_otros_ingresos(
             cliente_id=st.session_state["cliente"]["identificacion"],
-            df=df_valid if not sin_ingresos else pd.DataFrame()
+            df=df_valid if not sin_ingresos else pd.DataFrame(),
+            sin_ingresos=sin_ingresos
         )
 
         
