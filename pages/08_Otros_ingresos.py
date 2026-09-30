@@ -78,13 +78,18 @@ st.caption("Registre otros ingresos del cliente y su núcleo familiar.")
 cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip()
 df_in = None
 
+sin_ingresos_db = False
+
 if cliente_id:
     datos = load_visita(cliente_id)
     if datos and "otros_ingresos" in datos:
         try:
-            df_in = pd.DataFrame(datos["otros_ingresos"])
+            otros = datos["otros_ingresos"]
+            df_in = pd.DataFrame(otros.get("tabla", []))
+            sin_ingresos_db = bool(otros.get("sin_ingresos", False))
         except Exception:
             df_in = None
+            sin_ingresos_db = False
 
 if df_in is None or df_in.empty:
     df_in = pd.DataFrame([{c: "" for c in base_cols}] * 3)
