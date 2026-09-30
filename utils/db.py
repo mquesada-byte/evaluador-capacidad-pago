@@ -496,26 +496,44 @@ def save_valoracion_asesor(cliente_id: str, data: dict) -> bool:
 # ==========================================================
 # GUARDAR PASO 8 – OTROS INGRESOS (ajustado sin mes_iso)
 # ==========================================================
-def save_otros_ingresos(cliente_id: str, df) -> bool:
+def save_otros_ingresos(cliente_id: str, df, sin_ingresos: bool = False) -> bool:
     """
     Inserta los registros de otros ingresos en la tabla OtrosIngresos.
-    Se maneja como snapshot único por cliente (sin mes_iso).
-    Antes de insertar, elimina los registros existentes del mismo cliente.
+    Se maneja como snapshot único por cliente.
+    Si sin_ingresos=True, guarda una fila con la bandera sin_ingresos=1.
     """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # 🔄 Borrar registros previos del cliente
+        # Borrar registros previos del cliente
         cursor.execute("""
             DELETE FROM OtrosIngresos
             WHERE cliente_identificacion=?
         """, (cliente_id,))
 
+        # Si el hogar no tiene otros ingresos, guardar la bandera
+        if sin_ingresos:
+            cursor.execute("""
+                INSERT INTO OtrosIngresos (
+                    cliente_identificacion,
+                    monto_periodo,
+                    verificado,
+                    sin_ingresos,
+                    fecha_registro
+                )
+                VALUES (?, 0, 0, 1, GETDATE())
+            """, (cliente_id,))
+
+            conn.commit()
+            conn.close()
+            return True
+
+        # Si no hay registros y tampoco se marcó sin ingresos
         if df.empty:
             conn.commit()
             conn.close()
-            return True  # nada más que guardar
+            return True
 
         insert_sql = """
             INSERT INTO OtrosIngresos (
@@ -523,9 +541,9 @@ def save_otros_ingresos(cliente_id: str, df) -> bool:
                 titular, relacion, fuente, periodicidad,
                 monto_periodo, verificado, evidencia, meses_cont, prob_cont,
                 ingreso_mensualizado, factor_confiabilidad, ingreso_ponderado,
-                comentario, fecha_registro
+                comentario, sin_ingresos, fecha_registro
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, GETDATE())
         """
 
         for _, row in df.iterrows():
@@ -542,7 +560,7 @@ def save_otros_ingresos(cliente_id: str, df) -> bool:
                 int(row.get("Meses de continuidad", 0) or 0),
                 int(row.get("Prob. continuidad (0–10)", 0) or 0),
                 float(row.get("Ingreso mensualizado (₡)", 0) or 0),
-                float(row.get("Factor confiabilidad (0.2–1.0)", 0) or 0),
+                float(row.get("Factor confiabilidad (1–10)", 0) or 0),
                 float(row.get("Ingreso ponderado (₡)", 0) or 0),
                 row.get("Comentario", "")
             )
