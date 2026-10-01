@@ -185,7 +185,7 @@ if vin["modo"] == "Bienes (insumos/margen)":
         disabled=is_disabled
     )
     vin["compras_mes_colones"] = st.number_input(
-        f"Compras del mes de {mes_etiqueta} (₡) *",
+        "Compras promedio de los últimos 3 meses (₡) *",
         min_value=0, step=1000, value=int(vin.get("compras_mes_colones") or 0),
         disabled=is_disabled
     )
