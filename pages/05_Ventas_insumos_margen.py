@@ -214,7 +214,7 @@ if vin["modo"] == "Bienes (insumos/margen)":
     if warn:
         st.warning(warn)
     elif ventas_est is not None and int(vin.get("compras_mes_colones") or 0) > 0:
-        st.info(f"**Ventas estimadas (Bienes) {mes_etiqueta}:** {_fmt_crc(ventas_est)}")
+        st.info(f"**Ventas promedio estimadas (Bienes) para los últimos tres meses:** {_fmt_crc(ventas_est)}")
         vin["ventas_estimadas_colones"] = int(ventas_est)
     oblig_ok = (int(vin.get("compras_mes_colones") or 0) > 0 and ventas_est is not None)
 
