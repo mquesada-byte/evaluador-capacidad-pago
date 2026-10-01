@@ -143,7 +143,7 @@ st.divider()
 
 # Cálculo
 total_estimado = _calc_bottom_up_total(vbu)
-st.info(f"**Ventas estimadas (Bottom-up) para {mes_etiqueta}: ₡ {total_estimado:,}**".replace(",", "."))
+st.info(f"**Ventas promedio estimadas (Bottom-up) para lo últimos tres meses: ₡ {total_estimado:,}**".replace(",", "."))
 
 # Validación
 if st.session_state.no_data:
