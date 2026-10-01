@@ -59,13 +59,18 @@ cliente_id = st.session_state.get("cliente", {}).get("identificacion", "").strip
 df_base_inicial = None
 
 # 1) Intentar cargar desde SQL
+sin_deudas_db = False
+
 if cliente_id:
     datos = load_visita(cliente_id)
     if datos and "deudas_activas" in datos:
         try:
-            df_base_inicial = pd.DataFrame(datos["deudas_activas"])
+            deudas = datos["deudas_activas"]
+            df_base_inicial = pd.DataFrame(deudas.get("tabla", []))
+            sin_deudas_db = bool(deudas.get("sin_deudas", False))
         except Exception:
             df_base_inicial = None
+            sin_deudas_db = False
 
 # 2) Si no hay en SQL, intentar con lo guardado en session_state
 if df_base_inicial is None or df_base_inicial.empty:
