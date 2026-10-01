@@ -65,7 +65,7 @@ if cliente_id and not st.session_state.get("done_03A"):
         vtd["comentario"] = db_vtd.get("comentario", "")
 
 st.title("📈 Paso 3A: Ventas – Top-down (declaración directa)")
-st.caption(f"Ingrese las ventas del último mes calendario: **{mes_etiqueta}**.")
+st.caption("Ingrese el monto promedio de las ventas de los últimos tres meses.")
 
 with st.container():
     col1, col2 = st.columns([0.55, 0.45])
