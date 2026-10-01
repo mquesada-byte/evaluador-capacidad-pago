@@ -119,17 +119,16 @@ def load_visita(cliente_id: str) -> dict | None:
             "sin_ingresos": sin_ingresos
         }
 
-
-
     # Deudas Activas (un solo balance por cliente)
     cursor.execute("""
         SELECT titular, acreedor, tipo_deuda, saldo_adeudado,
                cuota_periodo, periodicidad, verificado, evidencia,
                estado, dias_atraso, comentario, meses_restantes, plazo,
-               cuota_mensualizada
+               cuota_mensualizada, sin_deudas
         FROM DeudasActivas
-        WHERE cliente_identificacion=? AND sin_deudas=0
+        WHERE cliente_identificacion=?
     """, (cliente_id,))
+    
     rows = cursor.fetchall()
     if rows:
         cols = [col[0] for col in cursor.description]
