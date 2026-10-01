@@ -120,7 +120,7 @@ vin = st.session_state.ventas_p5
 oblig_ok = False
 
 st.title("🧮 Paso 5: Ventas")
-st.caption(f"Mes de referencia: **{mes_etiqueta}**.")
+st.caption("Período de referencia: **últimos tres meses**.")
 
 st.session_state.no_data_p5 = st.checkbox(
     "No tengo datos para este mes",
