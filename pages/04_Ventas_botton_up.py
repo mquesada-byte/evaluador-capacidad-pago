@@ -89,7 +89,7 @@ init_paso4_state(cliente_id, mes_iso)
 vbu = st.session_state.ventas_bottomup
 
 st.title("📊 Paso 4: Ventas – Bottom-up (operativa)")
-st.caption(f"Estimación del último mes calendario: **{mes_etiqueta}**.")
+st.caption("Estimación promedio de los últimos tres meses.")
 
 # Casilla "No tengo datos"
 st.session_state.no_data = st.checkbox(
