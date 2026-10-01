@@ -151,13 +151,15 @@ def load_visita(cliente_id: str) -> dict | None:
             "cuota_mensualizada": "Cuota mensualizada (₡)"
         })
 
-        datos["deudas_activas"] = df_deu.to_dict(orient="records")
+        sin_deudas = bool(df_deu["sin_deudas"].iloc[0]) if not df_deu.empty else False
 
+        df_tabla = df_deu.drop(columns=["sin_deudas"], errors="ignore")
+        
+        datos["deudas_activas"] = {
+            "tabla": df_tabla.to_dict(orient="records"),
+            "sin_deudas": sin_deudas
+        }
 
-
-
-
-    
     # === Paso 10: Gastos operativos ===
     cursor.execute("""
         SELECT Rubro, Detalle, MontoPorPeriodo, Periodicidad,
