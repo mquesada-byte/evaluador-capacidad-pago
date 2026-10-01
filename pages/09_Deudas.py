@@ -237,13 +237,8 @@ st.divider()
 # --- NUEVO: CHECKBOX Y LÓGICA DE BOTÓN ---
 st.subheader("Finalizar este paso")
 
-# Recuperar valor previo de sin_deudas si existe
-sin_deudas_val = bool(
-    st.session_state.get("reporte", {})
-    .get("deudas_activas", {})
-    .get("totales", {})
-    .get("sin_deudas", False)
-)
+# Recuperar valor previo de sin_deudas desde la base de datos
+sin_deudas_val = bool(sin_deudas_db)
 
 sin_deudas = st.checkbox(
     "El hogar no tiene deudas activas que reportar.",
