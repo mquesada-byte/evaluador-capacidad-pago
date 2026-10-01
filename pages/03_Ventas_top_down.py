@@ -71,7 +71,8 @@ with st.container():
     col1, col2 = st.columns([0.55, 0.45])
     with col1:
         vtd["monto"] = st.number_input(
-            f"Ventas de {mes_etiqueta} (₡) *",
+            # f"Ventas de {mes_etiqueta} (₡) *",
+            "Ventas promedio de los últimos tres meses (₡) *"
             min_value=0, step=1000, value=int(vtd["monto"]),
             help="Monto total vendido en el mes calendario anterior."
         )
