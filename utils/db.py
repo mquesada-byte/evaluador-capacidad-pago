@@ -968,9 +968,11 @@ def save_condiciones_credito(cliente_id: str, data: dict) -> bool:
                     cliente_identificacion, monto_solicitado, saldo_payoff,
                     comision_pct, tasa_interes_anual, plazo_meses,
                     honorarios_timbres, monto_total, poliza_mensual,
-                    cuota_sin_poliza, cuota_con_poliza, tita
+                    cuota_sin_poliza, cuota_con_poliza, tita,
+                    tita_limite, tita_tipo_limite, tita_estado
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            
             """, (cliente_id, *valores))
 
         conn.commit()
