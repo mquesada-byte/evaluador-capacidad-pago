@@ -244,6 +244,9 @@ else:
                 "cuota_sin_poliza": cuota_base,
                 "cuota_con_poliza": cuota_con_poliza,
                 "tita": tita,
+                "tita_limite": tita_limite,
+                "tita_tipo_limite": tita_tipo_limite,
+                "tita_estado": tita_estado,
             }
 
             if save_condiciones_credito(cliente_id, datos):
