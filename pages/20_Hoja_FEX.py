@@ -2282,6 +2282,9 @@ else:
     tasa_propuesta = condiciones_fex["tasa_interes_anual"]
     comision_propuesta = condiciones_fex["comision_pct"]
     tita_propuesta = condiciones_fex["tita"]
+    tita_limite_propuesta = condiciones_fex["tita_limite"]
+    tita_tipo_limite_propuesta = condiciones_fex["tita_tipo_limite"]
+    tita_estado_propuesta = condiciones_fex["tita_estado"]
 
     
 
