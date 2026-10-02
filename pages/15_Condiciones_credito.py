@@ -218,6 +218,20 @@ with col_guardar:
                 + (honorarios_timbres / monto_solicitado / plazo_anios) * 100
             )
 
+# Determinar el parámetro TITA aplicable al momento de guardar
+if monto_total <= MONTO_MAX_MICROCREDITO:
+    tita_limite = TASA_MAX_MICROCREDITO
+    tita_tipo_limite = "Microcrédito"
+else:
+    tita_limite = TASA_MAX_CREDITO
+    tita_tipo_limite = "Crédito"
+
+if tita <= tita_limite:
+    tita_estado = "Dentro del parámetro"
+else:
+    tita_estado = "Fuera del parámetro"
+            
+
             datos = {
                 "monto_solicitado": monto_solicitado,
                 "saldo_payoff": saldo_payoff,
