@@ -2257,6 +2257,9 @@ campos_propuesta = {
     "Monto": "monto_total",
     "Plazo": "plazo_meses",
     "Cuota + INS": "cuota_con_poliza",
+    "Tasa de interés": "tasa_interes_anual",
+    "Comisión": "comision_pct",
+    "TITA": "tita",
 }
 
 faltantes_propuesta = [
