@@ -486,7 +486,7 @@ def generar_pdf_fex(datos):
     plazo_pdf = condiciones_fex.get("plazo_meses")
     cuota_pdf = condiciones_fex.get("cuota_con_poliza")
     if cuota_pdf is not None:
-    cuota_pdf = math.ceil(float(cuota_pdf))
+        cuota_pdf = math.ceil(float(cuota_pdf))
 
     plazo_visible = (
         f"{plazo_pdf:,.0f}"
