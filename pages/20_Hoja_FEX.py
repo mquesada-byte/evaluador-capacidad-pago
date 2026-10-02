@@ -1250,8 +1250,6 @@ try:
         cliente["identificacion"]
     )
 
-st.write("DEBUG condiciones_fex:", condiciones_fex)
-
 except Exception:
     logging.getLogger(__name__).exception(
         "Error recuperando las condiciones del Paso 15"
