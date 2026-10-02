@@ -937,6 +937,9 @@ def save_condiciones_credito(cliente_id: str, data: dict) -> bool:
             data["cuota_sin_poliza"],
             data["cuota_con_poliza"],
             data["tita"],
+            data["tita_limite"],
+            data["tita_tipo_limite"],
+            data["tita_estado"],
         )
 
         cursor.execute("""
