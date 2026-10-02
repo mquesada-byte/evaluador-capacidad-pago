@@ -3,6 +3,8 @@ import logging
 import pymssql
 import streamlit as st
 
+import math
+
 # ============================================================
 # PDF FEX — ENCABEZADO Y DATOS DEL CLIENTE
 # ============================================================
