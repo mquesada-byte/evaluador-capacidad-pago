@@ -2283,6 +2283,8 @@ else:
     comision_propuesta = condiciones_fex["comision_pct"]
     tita_propuesta = condiciones_fex["tita"]
 
+    
+
     st.table([
         {
             "Condición": "Monto",
