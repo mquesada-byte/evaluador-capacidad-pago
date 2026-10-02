@@ -502,20 +502,23 @@ def generar_pdf_fex(datos):
     )
 
     filas_condiciones = [
+        ("MONTO SOLICITADO TOTAL", importe_condiciones(monto_pdf), "Colones"),
+        ("PLAZO", plazo_visible, "Meses"),
+        ("CUOTA + INS", importe_condiciones(cuota_pdf), "Colones mensuales"),
         (
-            "MONTO SOLICITADO TOTAL",
-            importe_condiciones(monto_pdf),
-            "Colones",
+            "TASA DE INTERÉS",
+            f"{tasa_pdf:.2f}%" if tasa_pdf is not None else "Pendiente",
+            "Anual",
         ),
         (
-            "PLAZO",
-            plazo_visible,
-            "Meses",
+            "COMISIÓN",
+            f"{comision_pdf:.2f}%" if comision_pdf is not None else "Pendiente",
+            "Sobre el monto desembolsado",
         ),
         (
-            "CUOTA + INS",
-            importe_condiciones(cuota_pdf),
-            "Colones mensuales",
+            "TITA",
+            f"{tita_pdf:.2f}%" if tita_pdf is not None else "Pendiente",
+            tita_estado_pdf or "Pendiente",
         ),
     ]
 
