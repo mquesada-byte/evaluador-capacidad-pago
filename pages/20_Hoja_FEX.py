@@ -2304,6 +2304,21 @@ else:
             "Valor": f"₡{cuota_propuesta:,.0f}",
             "Unidad": "Colones mensuales",
         },
+                {
+            "Condición": "Tasa de interés",
+            "Valor": f"{tasa_propuesta:.2f}%",
+            "Unidad": "Anual",
+        },
+        {
+            "Condición": "Comisión",
+            "Valor": f"{comision_propuesta:.2f}%",
+            "Unidad": "Sobre el monto desembolsado",
+        },
+        {
+            "Condición": "TITA",
+            "Valor": f"{tita_propuesta:.2f}%",
+            "Unidad": tita_estado_propuesta,
+        },
     ])
 
     st.caption(
