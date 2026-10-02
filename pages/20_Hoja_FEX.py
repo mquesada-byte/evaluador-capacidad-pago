@@ -2343,7 +2343,15 @@ else:
 observaciones_asesor_fex = st.text_area(
     "Observaciones del asesor de crédito",
     height=150,
-    placeholder="Indique las observaciones generales de la propuesta.",
+    placeholder=(
+        "Incluya cuando corresponda:\n"
+        "• Depositarios: nombre, número de cuenta IBAN, correo electrónico y monto.\n"
+        "• Recréditos: monto del payoff y fecha de cálculo.\n"
+        "• Fiadores o fiadores morales: nombre completo.\n"
+        "• Fecha de pago propuesta por el asesor.\n"
+        "• Cualquier condición para el desembolso.\n"
+        "• Cualquier otra información de valor para el proceso de formalización."
+    ),
     key=f"fex_observaciones_asesor_{cedula_consulta}",
 )
 
