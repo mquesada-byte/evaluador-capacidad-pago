@@ -488,6 +488,13 @@ def generar_pdf_fex(datos):
     if cuota_pdf is not None:
         cuota_pdf = math.ceil(float(cuota_pdf))
 
+    tasa_pdf = condiciones_fex.get("tasa_interes_anual")
+    comision_pdf = condiciones_fex.get("comision_pct")
+    tita_pdf = condiciones_fex.get("tita")
+    tita_limite_pdf = condiciones_fex.get("tita_limite")
+    tita_tipo_limite_pdf = condiciones_fex.get("tita_tipo_limite")
+    tita_estado_pdf = condiciones_fex.get("tita_estado")
+
     plazo_visible = (
         f"{plazo_pdf:,.0f}"
         if plazo_pdf is not None
