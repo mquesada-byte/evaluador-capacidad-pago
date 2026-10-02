@@ -2279,6 +2279,9 @@ else:
     monto_propuesta = condiciones_fex["monto_total"]
     plazo_propuesta = condiciones_fex["plazo_meses"]
     cuota_propuesta = condiciones_fex["cuota_con_poliza"]
+    tasa_propuesta = condiciones_fex["tasa_interes_anual"]
+    comision_propuesta = condiciones_fex["comision_pct"]
+    tita_propuesta = condiciones_fex["tita"]
 
     st.table([
         {
