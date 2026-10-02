@@ -955,6 +955,9 @@ def save_condiciones_credito(cliente_id: str, data: dict) -> bool:
                 cuota_sin_poliza = ?,
                 cuota_con_poliza = ?,
                 tita = ?,
+                tita_limite = ?,
+                tita_tipo_limite = ?,
+                tita_estado = ?,
                 fecha_actualizacion = SYSDATETIME()
             WHERE cliente_identificacion = ?
         """, (*valores, cliente_id))
