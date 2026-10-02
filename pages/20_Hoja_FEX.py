@@ -2345,7 +2345,7 @@ observaciones_asesor_fex = st.text_area(
     height=150,
     placeholder=(
         "Incluya cuando corresponda:\n"
-        "• Depositarios: nombre, número de cuenta IBAN, correo electrónico y monto.\n"
+        "• Depositarios: nombre, banco, número de cuenta IBAN, correo electrónico y monto.\n"
         "• Recréditos: monto del payoff y fecha de cálculo.\n"
         "• Fiadores o fiadores morales: nombre completo.\n"
         "• Fecha de pago propuesta por el asesor.\n"
