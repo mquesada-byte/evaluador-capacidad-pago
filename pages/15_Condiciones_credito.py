@@ -120,7 +120,8 @@ if calcular:
         plazo_anios = plazo_meses / 12 if plazo_meses > 0 else 1
         comision_anual = comision_pct / plazo_anios
         poliza_anual = (poliza * 12) / monto_total
-        honorarios_anual = (honorarios_timbres / monto_solicitado) / plazo_anios
+        base_honorarios = monto_solicitado if monto_solicitado > 0 else saldo_payoff
+        honorarios_anual = (honorarios_timbres / base_honorarios) / plazo_anios
         tita = tasa_interes_anual + comision_anual + (poliza_anual * 100) + (honorarios_anual * 100)
   
     
