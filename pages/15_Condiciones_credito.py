@@ -24,7 +24,7 @@ cliente_id = st.session_state.get("cliente", {}).get("identificacion")
 condiciones_guardadas = load_condiciones_credito(cliente_id) if cliente_id else None
 
 # ===== Entradas =====
-opciones_comision = [1.5, 2, 4, 6, 8, 10]
+opciones_comision = [0, 1.5, 2, 4, 6, 8, 10]
 opciones_tasa = [14, 22, 24, 26, 30, 34]
 
 comision_guardada = (
