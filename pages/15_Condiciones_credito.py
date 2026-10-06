@@ -99,7 +99,7 @@ with col_boton:
     calcular = st.button("Calcular condiciones")
 
 if calcular:
-    if comision_pct and tasa_interes_anual and plazo_meses > 0:
+    if comision_pct is not None and tasa_interes_anual is not None and plazo_meses > 0:
         # Fórmula: ((monto solicitado + honorarios y timbres) * (1 + comisión/100)) + saldo pay off
         monto_total = ((monto_solicitado + honorarios_timbres) * (1 + comision_pct / 100)) + saldo_payoff
 
