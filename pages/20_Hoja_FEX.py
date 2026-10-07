@@ -2464,7 +2464,7 @@ elif not es_recredito and not balance_correcto:
         "desde el Paso 13 antes de descargar el PDF."
     )
 
-elif faltantes_er or faltantes_bg:
+elif not es_recredito and (faltantes_er or faltantes_bg):
     st.warning(
         "Hay importes sin información en los estados financieros. "
         "Completalos en los pasos 12 y 13 antes de descargar."
