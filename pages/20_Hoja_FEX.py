@@ -2484,9 +2484,9 @@ else:
         "sector": sectores_por_id.get(sector_id, ""),
         "actividad": actividad_principal_descripcion,
         "proposito": proposito_descripcion,
-        "filas_er": filas_er,
-        "filas_bg": filas_bg,
-        "indicadores": indicadores_fex,
+        "filas_er": [] if es_recredito else filas_er,
+        "filas_bg": [] if es_recredito else filas_bg,
+        "indicadores": [] if es_recredito else indicadores_fex,
     }
 
     try:
