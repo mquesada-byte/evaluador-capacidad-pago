@@ -219,13 +219,13 @@ with col_guardar:
             poliza = monto_total / 100000 * 100
             cuota_con_poliza = cuota_base + poliza
             plazo_anios = plazo_meses / 12
+            base_honorarios = monto_solicitado if monto_solicitado > 0 else saldo_payoff         
             tita = (
                 tasa_interes_anual
                 + comision_pct / plazo_anios
                 + (poliza * 12 / monto_total) * 100
-                + (honorarios_timbres / monto_solicitado / plazo_anios) * 100
+                + (honorarios_timbres / base_honorarios / plazo_anios) * 100
             )
-
             # Determinar el parámetro TITA aplicable al momento de guardar
             if monto_total <= MONTO_MAX_MICROCREDITO:
                 tita_limite = TASA_MAX_MICROCREDITO
