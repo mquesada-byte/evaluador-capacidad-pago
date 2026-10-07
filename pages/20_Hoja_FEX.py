@@ -2458,7 +2458,7 @@ if not es_recredito and not resultados_correctos:
         "desde el Paso 12 antes de descargar el PDF."
     )
 
-elif not balance_correcto:
+elif not es_recredito and not balance_correcto:
     st.warning(
         "Actualizá el Balance general de este cliente "
         "desde el Paso 13 antes de descargar el PDF."
