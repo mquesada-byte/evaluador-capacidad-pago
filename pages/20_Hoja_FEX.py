@@ -2470,7 +2470,7 @@ elif not es_recredito and (faltantes_er or faltantes_bg):
         "Completalos en los pasos 12 y 13 antes de descargar."
     )
 
-elif not indicadores_fex:
+elif not es_recredito and not indicadores_fex:
     st.warning(
         "No están disponibles los indicadores financieros. "
         "Revisá los estados de resultados y balance general."
