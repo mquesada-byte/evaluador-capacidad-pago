@@ -2450,6 +2450,8 @@ balance_correcto = (
     ) == cedula_pdf
 )
 
+es_recredito = datos_credito["tipo_credito"] == "Recrédito"
+
 if not resultados_correctos:
     st.warning(
         "Actualizá el Estado de resultados de este cliente "
