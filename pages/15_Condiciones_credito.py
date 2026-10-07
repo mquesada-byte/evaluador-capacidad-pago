@@ -197,9 +197,7 @@ with col_guardar:
             or tasa_interes_anual is None
             or plazo_meses <= 0
         ):
-    st.warning("Completá monto solicitado o saldo pay off, comisión, tasa y plazo antes de guardar.")
-            
-            st.warning("Completá monto solicitado, comisión, tasa y plazo antes de guardar.")
+            st.warning("Completá monto solicitado o saldo pay off, comisión, tasa y plazo antes de guardar.")
         else:
             monto_total = (
                 (monto_solicitado + honorarios_timbres)
