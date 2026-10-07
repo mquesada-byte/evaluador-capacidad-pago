@@ -191,7 +191,14 @@ with col_guardar:
     if st.button("Guardar y continuar ➡️", use_container_width=True):
         if not cliente_id:
             st.warning("Cargá un cliente antes de guardar las condiciones.")
-        elif monto_solicitado <= 0 or comision_pct is None or tasa_interes_anual is None or plazo_meses <= 0:
+        elif (
+            (monto_solicitado <= 0 and saldo_payoff <= 0)
+            or comision_pct is None
+            or tasa_interes_anual is None
+            or plazo_meses <= 0
+        ):
+    st.warning("Completá monto solicitado o saldo pay off, comisión, tasa y plazo antes de guardar.")
+            
             st.warning("Completá monto solicitado, comisión, tasa y plazo antes de guardar.")
         else:
             monto_total = (
