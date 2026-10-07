@@ -2452,7 +2452,7 @@ balance_correcto = (
 
 es_recredito = datos_credito["tipo_credito"] == "Recrédito"
 
-if not resultados_correctos:
+if not es_recredito and not resultados_correctos:
     st.warning(
         "Actualizá el Estado de resultados de este cliente "
         "desde el Paso 12 antes de descargar el PDF."
